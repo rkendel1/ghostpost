@@ -34,14 +34,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.type === 'GET_TAB_DATA') {
     // Request from sidebar for current tab's data
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        const data = tabData.get(tabs[0].id);
-        sendResponse({ success: true, data: data || null });
-      } else {
-        sendResponse({ success: false, data: null });
-      }
-    });
+    chrome.tabs.query({ active: true, currentWindow: true })
+      .then(tabs => {
+        if (tabs[0]) {
+          const data = tabData.get(tabs[0].id);
+          sendResponse({ success: true, data: data || null });
+        } else {
+          sendResponse({ success: false, data: null });
+        }
+      })
+      .catch(error => {
+        console.error('[Hidenly Background] Error querying tabs:', error);
+        sendResponse({ success: false, data: null, error: error.message });
+      });
     return true; // Keep channel open for async response
   }
 });

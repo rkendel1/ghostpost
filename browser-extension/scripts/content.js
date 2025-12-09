@@ -17,8 +17,9 @@ const INVISIBLE_CHARS = [
   '\u180E', // Mongolian Vowel Separator
 ];
 
-// Create regex pattern to detect invisible characters
-const invisibleCharRegex = new RegExp(`[${INVISIBLE_CHARS.join('')}]`, 'g');
+// Create regex pattern to detect invisible characters - escape each character
+const escapedChars = INVISIBLE_CHARS.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+const invisibleCharRegex = new RegExp(`[${escapedChars.join('')}]`, 'g');
 
 /**
  * Scan the entire page for hidden content

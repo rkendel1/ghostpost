@@ -160,6 +160,9 @@ class DetectionPanel {
       return;
     }
 
+    // Store results for reference instead of in data attributes
+    this.currentResults = results;
+
     const messagesHTML = results.map((result, index) => `
       <div class="message-item" data-index="${index}">
         <div class="message-header">
@@ -169,11 +172,11 @@ class DetectionPanel {
           ${this.truncateText(result.text, 100)}
         </div>
         <div class="message-actions">
-          <button class="button-small button-decode" data-text="${this.escapeHtml(result.text)}">
+          <button class="button-small button-decode" data-index="${index}">
             <span>🔓</span>
             <span>Decode</span>
           </button>
-          <button class="button-small button-copy" data-text="${this.escapeHtml(result.text)}">
+          <button class="button-small button-copy" data-index="${index}">
             <span>📋</span>
             <span>Copy</span>
           </button>
@@ -186,15 +189,17 @@ class DetectionPanel {
     // Add event listeners
     this.messagesContainer.querySelectorAll('.button-decode').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const text = e.currentTarget.dataset.text;
+        const index = parseInt(e.currentTarget.dataset.index);
+        const text = this.currentResults[index].text;
         this.decodeAndShow(text);
       });
     });
 
     this.messagesContainer.querySelectorAll('.button-copy').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const text = e.currentTarget.dataset.text;
-        this.copyToClipboard(text);
+        const index = parseInt(e.currentTarget.dataset.index);
+        const text = this.currentResults[index].text;
+        this.copyToClipboard(text, e.currentTarget);
       });
     });
   }
@@ -215,8 +220,14 @@ class DetectionPanel {
       
       // Check if it's an image
       if (decoded.startsWith('data:image')) {
-        resultOutput.innerHTML = `<img src="${decoded}" alt="Decoded image" />`;
+        // Create image element safely
+        const img = document.createElement('img');
+        img.src = decoded;
+        img.alt = 'Decoded image';
+        resultOutput.innerHTML = '';
+        resultOutput.appendChild(img);
       } else {
+        // Use textContent for text to prevent XSS
         resultOutput.textContent = decoded;
       }
     } catch (error) {
@@ -224,15 +235,14 @@ class DetectionPanel {
     }
   }
 
-  async copyToClipboard(text) {
+  async copyToClipboard(text, btnElement) {
     try {
       await navigator.clipboard.writeText(text);
       // Show temporary feedback
-      const btn = event.target.closest('.button-copy');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '<span>✓</span><span>Copied!</span>';
+      const originalText = btnElement.innerHTML;
+      btnElement.innerHTML = '<span>✓</span><span>Copied!</span>';
       setTimeout(() => {
-        btn.innerHTML = originalText;
+        btnElement.innerHTML = originalText;
       }, 2000);
     } catch (error) {
       alert('Failed to copy to clipboard');
@@ -326,7 +336,12 @@ class DecoderPanel {
       
       // Check if it's an image
       if (decoded.startsWith('data:image')) {
-        this.resultOutput.innerHTML = `<img src="${decoded}" alt="Decoded image" />`;
+        // Create image element safely
+        const img = document.createElement('img');
+        img.src = decoded;
+        img.alt = 'Decoded image';
+        this.resultOutput.innerHTML = '';
+        this.resultOutput.appendChild(img);
       } else {
         this.resultOutput.textContent = decoded;
       }
