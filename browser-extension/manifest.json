@@ -1,48 +1,45 @@
 {
-  "manifest_version": 3,
-  "name": "Hidenly - Hidden Content Detector",
-  "version": "1.0.0",
-  "description": "Detect and reveal hidden messages encoded with invisible Unicode characters",
-  "permissions": [
-    "activeTab",
-    "sidePanel",
-    "storage"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  "background": {
-    "service_worker": "scripts/background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["scripts/content.js"],
-      "run_at": "document_end"
-    }
-  ],
-  "side_panel": {
-    "default_path": "sidebar/panel.html"
-  },
-  "action": {
-    "default_title": "Hidenly - Hidden Content Detector",
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "32": "icons/icon32.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
-  },
-  "icons": {
-    "16": "icons/icon16.png",
-    "32": "icons/icon32.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["wasm/*"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+	"manifest_version": 3,
+	"name": "Hidenly - Hidden Content Detector",
+	"version": "1.0.0",
+	"description": "Detect and reveal hidden messages encoded with invisible Unicode characters",
+	"permissions": ["activeTab", "sidePanel", "storage"],
+	"host_permissions": ["<all_urls>"],
+	"background": {
+		"service_worker": "scripts/background.js"
+	},
+	"content_scripts": [
+		{
+			"matches": ["<all_urls>"],
+			"js": ["scripts/content.js"],
+			"run_at": "document_end"
+		}
+	],
+	"side_panel": {
+		"default_path": "sidebar/panel.html"
+	},
+	"action": {
+		"default_title": "Hidenly - Hidden Content Detector",
+		"default_icon": {
+			"16": "icons/icon16.png",
+			"32": "icons/icon32.png",
+			"48": "icons/icon48.png",
+			"128": "icons/icon128.png"
+		}
+	},
+	"icons": {
+		"16": "icons/icon16.png",
+		"32": "icons/icon32.png",
+		"48": "icons/icon48.png",
+		"128": "icons/icon128.png"
+	},
+	"web_accessible_resources": [
+		{
+			"resources": ["wasm/*"],
+			"matches": ["<all_urls>"]
+		}
+	],
+	"content_security_policy": {
+		"extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+	}
 }
