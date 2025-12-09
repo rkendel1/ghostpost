@@ -6,6 +6,7 @@
 		"dev:wasm": "npm run build:wasm && vite dev",
 		"build": "vite build",
 		"build:wasm": "wasm-pack build ./wasm --target web --release",
+		"build:extension": "./build-extension.sh",
 		"watch:wasm": "cd wasm && cargo watch -i .gitignore -i \"pkg/*\" -i \"target/*\" -s \"wasm-pack build --target web --dev\"",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

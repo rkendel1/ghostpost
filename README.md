@@ -1,8 +1,19 @@
 # 🎭 Hidenly - AI Ghostpost Application
 
-Hide your secrets within your messages using invisible Unicode characters. Now with AI-powered content generation for social media!
+Hide your secrets within your messages using invisible Unicode characters. Now with AI-powered content generation for social media and a browser extension!
 
 ## 🌟 Features
+
+### Browser Extension 🆕
+
+- **Automatic Detection**: Scans web pages for hidden content in real-time
+- **Badge Notifications**: Shows count of hidden messages on the current page
+- **Sidebar Interface**: Clean, tabbed UI for viewing and decoding messages
+- **Manual Decoder**: Decode any text that may contain hidden content
+- **Fast Processing**: Uses WebAssembly for optimal performance
+- **Privacy-Focused**: All processing happens locally in your browser
+
+[Get the Extension →](./browser-extension)
 
 ### AI Ghostpost Composer
 
@@ -88,6 +99,12 @@ ghostpost/
 │   └── lib/
 │       ├── ghostpost.ts       # WASM integration module
 │       └── cards/             # Classic hide/unhide components
+├── browser-extension/         # Browser extension 🆕
+│   ├── manifest.json         # Extension configuration
+│   ├── scripts/              # Content & background scripts
+│   ├── sidebar/              # Sidebar UI
+│   ├── styles/               # Extension styles
+│   └── wasm/                 # WASM decoder module
 ├── wasm/                      # Rust WASM source code
 │   ├── src/
 │   │   ├── lib.rs            # WASM entry point
@@ -98,6 +115,16 @@ ghostpost/
 ```
 
 ## 🎯 Usage
+
+### Using the Browser Extension
+
+1. **Install the extension** from the `browser-extension` directory
+2. **Browse normally** - The extension monitors pages automatically
+3. **Check the badge** - If hidden content is found, the icon shows a count
+4. **Click the icon** - Open the sidebar to view and decode messages
+5. **Use the decoder** - Manually decode any text in the Decoder tab
+
+[Installation Instructions →](./browser-extension/README.md)
 
 ### Creating a Secret Post
 
@@ -131,6 +158,18 @@ npm run watch:wasm
 
 # Development with auto-rebuild
 npm run dev:wasm
+```
+
+### Building the Browser Extension
+
+```bash
+# Build extension with latest WASM
+npm run build:extension
+
+# This will:
+# - Build the WASM module
+# - Copy files to browser-extension/
+# - Create a zip file in dist/
 ```
 
 ### Running Dev Server

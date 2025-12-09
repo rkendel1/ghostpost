@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hidenly - Hidden Content</title>
+  <link rel="stylesheet" href="../styles/panel.css">
+</head>
+<body>
+  <div class="panel-container">
+    <!-- Header -->
+    <header class="panel-header">
+      <div class="header-content">
+        <h1 class="panel-title">🎭 Hidenly</h1>
+        <p class="panel-subtitle">Hidden Content Detector</p>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-button active" data-tab="detection">
+        <span class="tab-icon">🔔</span>
+        <span>Detection</span>
+      </button>
+      <button class="tab-button" data-tab="decoder">
+        <span class="tab-icon">🔓</span>
+        <span>Decoder</span>
+      </button>
+      <button class="tab-button" data-tab="about">
+        <span class="tab-icon">ℹ️</span>
+        <span>About</span>
+      </button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+      <!-- Detection Tab -->
+      <div class="tab-panel active" id="detection-panel">
+        <div class="section">
+          <h2 class="section-title">Current Page Status</h2>
+          <div id="status-container" class="status-container">
+            <div class="loading">
+              <div class="spinner"></div>
+              <p>Scanning page...</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">Detected Messages</h2>
+          <div id="messages-container" class="messages-container">
+            <p class="empty-state">No hidden messages detected yet.</p>
+          </div>
+        </div>
+
+        <div class="section">
+          <button id="rescan-button" class="button button-primary">
+            <span>🔄</span>
+            <span>Rescan Page</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Decoder Tab -->
+      <div class="tab-panel" id="decoder-panel">
+        <div class="section">
+          <h2 class="section-title">Decode Hidden Message</h2>
+          <p class="helper-text">Paste any text that may contain hidden content below:</p>
+          
+          <textarea 
+            id="decode-input" 
+            class="textarea" 
+            placeholder="Paste encoded text here..."
+            rows="6"
+          ></textarea>
+
+          <button id="decode-button" class="button button-primary">
+            <span>🔓</span>
+            <span>Decode Message</span>
+          </button>
+
+          <div id="decode-result" class="result-container hidden">
+            <h3 class="result-title">Decoded Content:</h3>
+            <div id="decode-output" class="result-output"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- About Tab -->
+      <div class="tab-panel" id="about-panel">
+        <div class="section">
+          <h2 class="section-title">About Hidenly</h2>
+          <p class="about-text">
+            Hidenly detects and reveals hidden messages encoded using invisible Unicode characters.
+          </p>
+          
+          <h3 class="about-subtitle">How it works:</h3>
+          <ul class="about-list">
+            <li>🔍 Automatically scans web pages for hidden content</li>
+            <li>🔔 Shows badge notification when content is found</li>
+            <li>🔓 Decode hidden messages directly in the sidebar</li>
+            <li>⚡ Uses WebAssembly for fast processing</li>
+          </ul>
+
+          <h3 class="about-subtitle">Features:</h3>
+          <ul class="about-list">
+            <li>Real-time page monitoring</li>
+            <li>Support for text and image decoding</li>
+            <li>Tab-based interface for easy navigation</li>
+            <li>Privacy-focused: all processing happens locally</li>
+          </ul>
+
+          <div class="about-links">
+            <a href="https://github.com/rkendel1/ghostpost" target="_blank" class="link">
+              View on GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="panel.js"></script>
+</body>
+</html>
