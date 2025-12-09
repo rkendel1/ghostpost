@@ -14,9 +14,11 @@ const config = {
 	],
 
 	kit: {
-		adapter: adapter(),
+		adapter: adapter({
+			runtime: 'nodejs18.x'
+		}),
 		paths: {
-			base: dev ? '' : process.env.BASE_PATH
+			base: dev ? '' : (process.env.BASE_PATH || '')
 		}
 	}
 };

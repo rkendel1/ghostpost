@@ -8,6 +8,7 @@
 
 	import { AppBar, AppShell } from '@skeletonlabs/skeleton';
 	import { Drawer, drawerStore } from '@skeletonlabs/skeleton';
+	import { base } from '$app/paths';
 
 	import Navigation from '$lib/navigation/Navigation.svelte';
 
@@ -36,7 +37,7 @@
 							</svg>
 						</span>
 					</button>
-					<a href="/" class="no-underline hover:no-underline text-inherit">
+					<a href="{base}/" class="no-underline hover:no-underline text-inherit">
 						<strong class="text-xl uppercase"> Hidenly </strong>
 					</a>
 				</div>

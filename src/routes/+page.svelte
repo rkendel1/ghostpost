@@ -2,6 +2,7 @@
 	import HideCard from '$lib/cards/HideCard.svelte';
 	import UnhideCard from '$lib/cards/UnhideCard.svelte';
 	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+	import { base } from '$app/paths';
 
 	let tabSet: number = 0;
 	let hiddenType: 'text' | 'image' = 'text';
@@ -17,11 +18,11 @@
 		<p class="text-center text-lg">Hide your secrets within your messages</p>
 
 		<div class="flex justify-center gap-4">
-			<a href="/compose" class="btn variant-filled-primary">
+			<a href="{base}/compose" class="btn variant-filled-primary">
 				<span>✨</span>
 				<span>AI Ghostpost Composer</span>
 			</a>
-			<a href="/decode" class="btn variant-filled-secondary">
+			<a href="{base}/decode" class="btn variant-filled-secondary">
 				<span>🔍</span>
 				<span>Decode Messages</span>
 			</a>

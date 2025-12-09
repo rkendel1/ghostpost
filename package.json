@@ -47,6 +47,9 @@
 		"wasm": "./wasm/pkg"
 	},
 	"type": "module",
+	"engines": {
+		"node": "18.x"
+	},
 	"dependencies": {
 		"dotenv": "^17.2.3"
 	}

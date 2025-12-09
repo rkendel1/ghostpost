@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { clipboard } from '@skeletonlabs/skeleton';
 	import { decodeMessage, initWasm } from '$lib/ghostpost';
+	import { base } from '$app/paths';
 
 	let encodedInput = '';
 	let decodedSecret = '';
@@ -59,7 +60,7 @@
 <div class="container mx-auto p-8 max-w-4xl space-y-6">
 	<div class="flex justify-between items-center">
 		<h1 class="h1">🔍 Decode Hidden Messages</h1>
-		<a href="/compose" class="btn variant-ghost-surface">
+		<a href="{base}/compose" class="btn variant-ghost-surface">
 			<span>✍️</span>
 			<span>Compose New</span>
 		</a>
@@ -147,7 +148,7 @@
 			</p>
 			<p class="opacity-75">
 				Want to create your own secret messages? Go to the
-				<a href="/compose" class="anchor">Compose page</a> to get started!
+				<a href="{base}/compose" class="anchor">Compose page</a> to get started!
 			</p>
 		</div>
 	</div>
