@@ -18,8 +18,8 @@ export default defineConfig({
 						name: 'preset-default',
 						params: {
 							overrides: {
-								removeViewBox: false,
-							},
+								removeViewBox: false
+							}
 						}
 					},
 					{
@@ -32,16 +32,16 @@ export default defineConfig({
 			}
 		}),
 		wasm(),
-		topLevelAwait(),
+		topLevelAwait()
 	],
 	server: {
 		fs: {
 			// Allow serving files from one level up to the project root
 			allow: ['..'],
-			deny: ['.git', '.svn', '.cache', '.idea', '.vs', '.vscode', "node_modules", ".github"],
-		},
+			deny: ['.git', '.svn', '.cache', '.idea', '.vs', '.vscode', 'node_modules', '.github']
+		}
 	},
 	optimizeDeps: {
-		exclude: ["wasm-bindgen-module"],
-	},
+		exclude: ['wasm-bindgen-module']
+	}
 });

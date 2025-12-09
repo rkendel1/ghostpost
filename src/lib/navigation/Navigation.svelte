@@ -6,9 +6,7 @@
 		drawerStore.close();
 	}
 
-	let menus = [
-		{ href: '/', label: 'Home' },
-	];
+	let menus = [{ href: '/', label: 'Home' }];
 </script>
 
 <nav class="list-nav p-4">

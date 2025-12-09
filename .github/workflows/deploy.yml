@@ -26,4 +26,3 @@ jobs:
         run: |
           npm run build
           touch build/.nojekyll
-
