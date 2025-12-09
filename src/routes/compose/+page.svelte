@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { clipboard } from '@skeletonlabs/skeleton';
 	import { encodeMessage, initWasm } from '$lib/ghostpost';
+	import { base } from '$app/paths';
 
 	let prompt = '';
 	let platform: 'twitter' | 'linkedin' | 'facebook' | 'tiktok' = 'twitter';
@@ -125,7 +126,7 @@
 <div class="container mx-auto p-8 max-w-4xl space-y-6">
 	<div class="flex justify-between items-center">
 		<h1 class="h1">AI Ghostpost Composer</h1>
-		<a href="/decode" class="btn variant-ghost-surface">
+		<a href="{base}/decode" class="btn variant-ghost-surface">
 			<span>🔍</span>
 			<span>Decode Message</span>
 		</a>
@@ -260,7 +261,7 @@
 			<li>
 				Copy the encoded message and paste it anywhere - it looks normal but contains your secret!
 			</li>
-			<li>Recipients can decode it using the <a href="/decode" class="anchor">Decode page</a></li>
+			<li>Recipients can decode it using the <a href="{base}/decode" class="anchor">Decode page</a></li>
 		</ol>
 	</div>
 </div>
