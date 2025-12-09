@@ -23,7 +23,7 @@ async function initWasm() {
       }
       
       const wasmBytes = await response.arrayBuffer();
-      await init(wasmBytes);
+      await init({ module_or_path: wasmBytes });
       wasmInitialized = true;
       console.log('[Hidenly Sidebar] WASM initialized successfully');
     } catch (error) {
