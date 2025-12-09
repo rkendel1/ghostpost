@@ -268,18 +268,74 @@ class DetectionPanel {
     `;
 
     try {
-      // Send message to content script to rescan
+      // Get the current active tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      await chrome.tabs.sendMessage(tab.id, { type: 'RESCAN_PAGE' });
       
-      // Wait a bit for the scan to complete
-      setTimeout(() => {
-        this.loadPageData();
+      if (!tab) {
+        throw new Error('No active tab found');
+      }
+
+      // Check if the tab URL is a valid URL where content scripts can run
+      const url = tab.url || '';
+      if (url.startsWith('chrome://') || url.startsWith('about:') || 
+          url.startsWith('chrome-extension://') || url.startsWith('edge://') ||
+          url.startsWith('moz-extension://')) {
+        this.statusContainer.innerHTML = `
+          <div class="status-badge warning">
+            <span>⚠️</span>
+            <span>Cannot Scan This Page</span>
+          </div>
+          <div class="status-info">
+            <p>This extension cannot scan browser internal pages or extension pages.</p>
+            <p>Please navigate to a regular web page to scan for hidden content.</p>
+          </div>
+        `;
         this.rescanButton.disabled = false;
-      }, 1000);
+        return;
+      }
+
+      // Send message to content script to rescan
+      try {
+        const response = await chrome.tabs.sendMessage(tab.id, { type: 'RESCAN_PAGE' });
+        
+        // Wait a bit for the scan to complete
+        setTimeout(() => {
+          this.loadPageData();
+          this.rescanButton.disabled = false;
+        }, 1000);
+      } catch (messageError) {
+        // Content script might not be loaded, try to inject it
+        console.warn('[Hidenly Sidebar] Content script not responding, attempting to reload:', messageError);
+        
+        // Show a message to reload the page
+        this.statusContainer.innerHTML = `
+          <div class="status-badge warning">
+            <span>⚠️</span>
+            <span>Extension Not Ready</span>
+          </div>
+          <div class="status-info">
+            <p>The extension needs to be active on this page.</p>
+            <p>Please <strong>reload the page</strong> and try scanning again.</p>
+          </div>
+        `;
+        this.rescanButton.disabled = false;
+      }
     } catch (error) {
       console.error('[Hidenly Sidebar] Rescan error:', error);
-      this.displayError();
+      this.statusContainer.innerHTML = `
+        <div class="status-badge warning">
+          <span>⚠️</span>
+          <span>Error Scanning Page</span>
+        </div>
+        <div class="status-info">
+          <p>Unable to scan this page. Please try the following:</p>
+          <ul style="margin-left: 20px; margin-top: 10px;">
+            <li>Reload the page and try again</li>
+            <li>Make sure you're on a regular web page (not a browser internal page)</li>
+            <li>Check that the extension has permission to access this site</li>
+          </ul>
+        </div>
+      `;
       this.rescanButton.disabled = false;
     }
   }
