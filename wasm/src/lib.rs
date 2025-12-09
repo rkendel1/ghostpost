@@ -17,11 +17,14 @@ extern "C" {
 }
 
 #[wasm_bindgen]
-pub fn decode(input: JsString) -> JsString {
+pub fn decode(input: JsString) -> Result<JsString, JsValue> {
     if let Some(i) = input.as_string() {
-        JsString::from(hidenly::decode(i.as_str()))
+        match hidenly::decode(i.as_str()) {
+            Ok(result) => Ok(JsString::from(result)),
+            Err(e) => Err(JsValue::from_str(&e)),
+        }
     } else {
-        input
+        Err(JsValue::from_str("Invalid input: not a string"))
     }
 }
 

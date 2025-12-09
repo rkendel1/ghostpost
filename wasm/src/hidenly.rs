@@ -76,8 +76,10 @@ fn encode_base64(input: &[u8]) -> String {
     general_purpose::STANDARD_NO_PAD.encode(input)
 }
 
-fn decode_base64(input: &str) -> Vec<u8> {
-    general_purpose::STANDARD_NO_PAD.decode(input).unwrap()
+fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
+    general_purpose::STANDARD_NO_PAD
+        .decode(input)
+        .map_err(|e| format!("Failed to decode base64: {}", e))
 }
 
 fn base64_to_encoded(input: &str) -> String {
@@ -122,10 +124,25 @@ pub fn encode(input: &str, secret: &str) -> String {
     wrap(input, &encoded)
 }
 
-pub fn decode(input: &str) -> String {
+pub fn decode(input: &str) -> Result<String, String> {
     let unwrapped = unwrap(input);
+    
+    // Check if there's any hidden content - compare lengths first for efficiency
+    if unwrapped.len() == input.len() || unwrapped.is_empty() {
+        return Err("No hidden content found in the input text".to_string());
+    }
+    
     let processed = encoded_to_base64(&unwrapped);
-    String::from_utf8(decode_base64(processed.as_str())).unwrap()
+    
+    // Check if the processed string is valid base64
+    if processed.is_empty() {
+        return Err("Invalid encoded content - no recognizable pattern found".to_string());
+    }
+    
+    let decoded_bytes = decode_base64(processed.as_str())?;
+    
+    String::from_utf8(decoded_bytes)
+        .map_err(|e| format!("Invalid UTF-8 in decoded content: {}", e))
 }
 
 #[cfg(test)]
@@ -144,7 +161,7 @@ mod tests {
     fn test_decode_base64() {
         let input_string = "SGVsbG8sIFdvcmxkIQ";
         let expected_output = "Hello, World!";
-        let result = decode_base64(input_string);
+        let result = decode_base64(input_string).unwrap();
         assert_eq!(String::from_utf8(result).unwrap(), expected_output);
     }
 
@@ -179,7 +196,7 @@ mod tests {
     fn test_decode() {
         let input_string = "he\u{FEFF}\u{202d}\u{200b}\u{200f}\u{202d}\u{202d}\u{200e}\u{200e}\u{200c}\u{200c}\u{200d}\u{200f}\u{202d}\u{200b}\u{2060}\u{200e}\u{200c}\u{200f}\u{2060}\u{200f}\u{202c}\u{200c}\u{200f}\u{200e}\u{200f}\u{200c}\u{200e}\u{200d}\u{200f}\u{200e}\u{202d}\u{200d}\u{200d}\u{200f}\u{2060}\u{202c}\u{202e}\u{FEFF}llo";
         let expected_output = "Hello, World!";
-        let result = decode(input_string);
+        let result = decode(input_string).unwrap();
         assert_eq!(result, expected_output);
     }
 }
