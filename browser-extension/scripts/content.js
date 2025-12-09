@@ -4,22 +4,60 @@
  */
 
 // List of invisible Unicode characters used for encoding
-const INVISIBLE_CHARS = [
+// Based on the Hidenly encoding scheme which uses specific characters
+const HIDENLY_CHARS = [
   '\u200B', // Zero Width Space
   '\u200C', // Zero Width Non-Joiner
   '\u200D', // Zero Width Joiner
+  '\u200E', // Left-to-Right Mark
+  '\u200F', // Right-to-Left Mark
+  '\u202C', // Pop Directional Formatting
+  '\u202D', // Left-to-Right Override
   '\u2060', // Word Joiner
-  '\u2061', // Function Application
-  '\u2062', // Invisible Times
-  '\u2063', // Invisible Separator
-  '\u2064', // Invisible Plus
-  '\uFEFF', // Zero Width No-Break Space
-  '\u180E', // Mongolian Vowel Separator
 ];
 
 // Create regex pattern to detect invisible characters - escape each character
-const escapedChars = INVISIBLE_CHARS.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+const escapedChars = HIDENLY_CHARS.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 const invisibleCharRegex = new RegExp(`[${escapedChars.join('')}]`, 'g');
+
+// Minimum threshold - Hidenly uses pairs of chars, so minimum 8 chars = ~4 base64 chars
+const MIN_INVISIBLE_CHAR_COUNT = 8;
+
+// Maximum ratio of invisible chars to total text length (to filter out sparse occurrences)
+const MAX_INVISIBLE_RATIO = 0.5;
+
+/**
+ * Check if text likely contains a Hidenly encoded message
+ * Returns false for legitimate uses like RTL text support
+ */
+function isLikelyHidenlyMessage(text) {
+  const matches = text.match(invisibleCharRegex);
+  
+  if (!matches || matches.length < MIN_INVISIBLE_CHAR_COUNT) {
+    return false;
+  }
+  
+  // Check if the count is even (Hidenly uses pairs)
+  // Allow some tolerance for edge cases
+  const isEvenOrClose = matches.length % 2 === 0 || matches.length % 2 === 1;
+  
+  // Calculate ratio of invisible chars to total length
+  const ratio = matches.length / text.length;
+  
+  // If there are too few invisible chars relative to text length,
+  // it's likely legitimate formatting
+  if (ratio < 0.01 && matches.length < 20) {
+    return false;
+  }
+  
+  // If the invisible chars make up too much of the text, it might be pure encoded content
+  // This is more likely to be a Hidenly message
+  if (ratio > MAX_INVISIBLE_RATIO || matches.length > 30) {
+    return true;
+  }
+  
+  return isEvenOrClose && matches.length >= MIN_INVISIBLE_CHAR_COUNT;
+}
 
 /**
  * Scan the entire page for hidden content
@@ -37,8 +75,8 @@ function scanPageForHiddenContent() {
   let node;
   while ((node = walker.nextNode())) {
     const text = node.textContent;
-    if (text && invisibleCharRegex.test(text)) {
-      // Found invisible characters - likely hidden content
+    if (text && isLikelyHidenlyMessage(text)) {
+      // Found invisible characters that match Hidenly pattern
       const element = node.parentElement;
       if (element && !detectedElements.includes(element)) {
         detectedElements.push({
