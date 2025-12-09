@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { clipboard } from '@skeletonlabs/skeleton';
-	import { encodeMessage, initWasm } from '$lib/ghostpost';
+	import { encodeMessage, encodeImage, initWasm } from '$lib/ghostpost';
 
 	let prompt = '';
 	let platform: 'twitter' | 'linkedin' | 'facebook' | 'tiktok' = 'twitter';
 	let visibleMessage = '';
 	let secretMessage = '';
+	let secretType: 'text' | 'image' = 'text';
+	let secretImage: File | null = null;
+	let imagePreview = '';
 	let encodedMessage = '';
 	let isGenerating = false;
 	let isEncoding = false;
@@ -56,9 +59,38 @@
 		}
 	}
 
+	async function handleSecretFile(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (file && file.type.startsWith('image/')) {
+			secretImage = file;
+			secretType = 'image';
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				imagePreview = e.target?.result as string;
+			};
+			reader.readAsDataURL(file);
+			secretMessage = ''; // Clear text if image selected
+		} else {
+			secretImage = null;
+			imagePreview = '';
+			error = 'Please select a valid image file';
+		}
+	}
+
 	async function handleEncode() {
-		if (!visibleMessage.trim() || !secretMessage.trim()) {
-			error = 'Both visible and secret messages are required';
+		if (!visibleMessage.trim()) {
+			error = 'Visible message is required';
+			return;
+		}
+
+		if (secretType === 'text' && !secretMessage.trim()) {
+			error = 'Secret text message is required';
+			return;
+		}
+
+		if (secretType === 'image' && !secretImage) {
+			error = 'Please select an image to hide';
 			return;
 		}
 
@@ -66,7 +98,11 @@
 		error = '';
 
 		try {
-			encodedMessage = await encodeMessage(visibleMessage, secretMessage);
+			if (secretType === 'image') {
+				encodedMessage = await encodeImage(visibleMessage, secretImage!);
+			} else {
+				encodedMessage = await encodeMessage(visibleMessage, secretMessage);
+			}
 			error = '';
 		} catch (err) {
 			error = 'Failed to encode message';
@@ -180,19 +216,44 @@
 			</label>
 
 			<label class="label">
-				<span>Secret Message (hidden in the post)</span>
-				<textarea
-					class="textarea"
-					rows="3"
-					bind:value={secretMessage}
-					placeholder="Enter your secret message here..."
-				/>
+				<span>Secret Type</span>
+				<select class="select" bind:value={secretType}>
+					<option value="text">Text</option>
+					<option value="image">Image</option>
+				</select>
 			</label>
+
+			{#if secretType === 'text'}
+				<label class="label">
+					<span>Secret Message (hidden in the post)</span>
+					<textarea
+						class="textarea"
+						rows="3"
+						bind:value={secretMessage}
+						placeholder="Enter your secret message here..."
+					/>
+				</label>
+			{:else}
+				<label class="label">
+					<span>Secret Image (to hide in the post)</span>
+					<input
+						type="file"
+						accept="image/*"
+						class="file-input"
+						on:change={handleSecretFile}
+					/>
+					{#if imagePreview}
+						<div class="mt-2">
+							<img src={imagePreview} alt="Preview" class="max-w-xs max-h-48 object-contain rounded" />
+						</div>
+					{/if}
+				</label>
+			{/if}
 
 			<button
 				class="btn variant-filled-secondary"
 				on:click={handleEncode}
-				disabled={isEncoding || !secretMessage.trim()}
+				disabled={isEncoding || (secretType === 'text' && !secretMessage.trim()) || (secretType === 'image' && !secretImage)}
 			>
 				{#if isEncoding}
 					<span>🔒 Encoding...</span>
