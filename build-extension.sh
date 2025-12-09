@@ -26,12 +26,11 @@ cp wasm/pkg/wasm_bg.wasm browser-extension/wasm/
 echo "📁 Creating distribution package..."
 mkdir -p dist
 
-# Create a zip file for distribution
+# Create a zip file for distribution (exclude test files)
 cd browser-extension
 zip -r ../dist/hidenly-extension.zip . \
-  -x "*.svg" \
-  -x "*.DS_Store" \
-  -x "generate-icons.js"
+  -x "test-page.html" \
+  -x "*.DS_Store"
 cd ..
 
 echo "✅ Build complete!"
