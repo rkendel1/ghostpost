@@ -1,6 +1,8 @@
 {
 	"framework": "sveltekit",
 	"functions": {
-		"runtime": "nodejs18.x"
+		"src/routes/api/**/*.ts": {
+			"runtime": "nodejs20.x"
+		}
 	}
 }
