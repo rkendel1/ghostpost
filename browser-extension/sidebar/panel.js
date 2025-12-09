@@ -14,7 +14,16 @@ let wasmInitialized = false;
 async function initWasm() {
   if (!wasmInitialized) {
     try {
-      await init(chrome.runtime.getURL('wasm/wasm_bg.wasm'));
+      // Fetch the WASM file as ArrayBuffer to avoid CSP issues with instantiateStreaming
+      const wasmUrl = chrome.runtime.getURL('wasm/wasm_bg.wasm');
+      const response = await fetch(wasmUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch WASM file: ${response.status} ${response.statusText}`);
+      }
+      
+      const wasmBytes = await response.arrayBuffer();
+      await init(wasmBytes);
       wasmInitialized = true;
       console.log('[Hidenly Sidebar] WASM initialized successfully');
     } catch (error) {
