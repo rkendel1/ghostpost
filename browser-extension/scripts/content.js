@@ -47,14 +47,18 @@ function isLikelyHidenlyMessage(text) {
   // Calculate ratio of invisible chars to total length
   const ratio = matches.length / text.length;
   
-  // If there are too few invisible chars relative to text length,
-  // it's likely legitimate formatting
+  // If there are too few invisible chars relative to text length AND few total chars,
+  // it's likely legitimate formatting (e.g., a few RTL marks in longer text)
+  // Both conditions must be true to avoid false negatives
   if (ratio < SPARSE_RATIO_THRESHOLD && matches.length < SPARSE_COUNT_THRESHOLD) {
     return false;
   }
   
-  // If the invisible chars make up too much of the text, it might be pure encoded content
-  // This is more likely to be a Hidenly message
+  // If the invisible chars make up too much of the text (high ratio) OR there's
+  // a high absolute count, it's likely encoded content. Either condition alone
+  // is sufficient since encoded messages have characteristic patterns:
+  // - High ratio: pure or mostly encoded text
+  // - High count: long encoded message with visible text
   if (ratio > MAX_INVISIBLE_RATIO || matches.length > HIGH_COUNT_THRESHOLD) {
     return true;
   }
