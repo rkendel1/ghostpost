@@ -1,31 +1,31 @@
 /**
  * Ghostpost WASM Integration Module
- * 
+ *
  * This module provides the encode/decode functionality using the ghostpost WASM package.
- * 
+ *
  * SETUP INSTRUCTIONS:
  * ===================
  * 1. Build the WASM package from the root directory:
  *    npm run build:wasm
- * 
+ *
  * 2. The WASM files will be generated in /wasm/pkg/ directory:
  *    - wasm.js (JavaScript glue code)
  *    - wasm_bg.wasm (WebAssembly binary)
  *    - wasm.d.ts (TypeScript definitions)
- * 
+ *
  * 3. The wasm package is already linked in package.json as a local dependency
- * 
+ *
  * 4. Import and use in your components:
  *    import { initWasm, encodeMessage, decodeMessage } from '$lib/ghostpost';
- * 
+ *
  * USAGE:
  * ======
  * // Initialize WASM (call once, usually in onMount)
  * await initWasm();
- * 
+ *
  * // Encode a secret message
  * const encoded = await encodeMessage("Hello World", "This is secret");
- * 
+ *
  * // Decode a message
  * const decoded = await decodeMessage(encoded);
  */
@@ -39,10 +39,10 @@ let wasmInitialized = false;
  * Must be called before using encode/decode functions
  */
 export async function initWasm(): Promise<void> {
-  if (!wasmInitialized) {
-    await init();
-    wasmInitialized = true;
-  }
+	if (!wasmInitialized) {
+		await init();
+		wasmInitialized = true;
+	}
 }
 
 /**
@@ -52,11 +52,11 @@ export async function initWasm(): Promise<void> {
  * @returns The visible message with the secret encoded in invisible Unicode characters
  */
 export async function encodeMessage(
-  visibleMessage: string,
-  secretMessage: string
+	visibleMessage: string,
+	secretMessage: string
 ): Promise<string> {
-  await initWasm();
-  return encode(visibleMessage, secretMessage);
+	await initWasm();
+	return encode(visibleMessage, secretMessage);
 }
 
 /**
@@ -65,8 +65,8 @@ export async function encodeMessage(
  * @returns The decoded secret message
  */
 export async function decodeMessage(encodedMessage: string): Promise<string> {
-  await initWasm();
-  return decode(encodedMessage);
+	await initWasm();
+	return decode(encodedMessage);
 }
 
 /**
@@ -75,25 +75,22 @@ export async function decodeMessage(encodedMessage: string): Promise<string> {
  * @param imageFile - The image file to encode
  * @returns The visible message with the image encoded
  */
-export async function encodeImage(
-  visibleMessage: string,
-  imageFile: File
-): Promise<string> {
-  await initWasm();
-  
-  // Convert image to base64
-  const arrayBuffer = await imageFile.arrayBuffer();
-  const uint8Array = new Uint8Array(arrayBuffer);
-  
-  let binaryString = '';
-  uint8Array.forEach((byte) => {
-    binaryString += String.fromCharCode(byte);
-  });
-  
-  const base64Image = btoa(binaryString);
-  const imageWithMeta = `data:${imageFile.type};base64,${base64Image}`;
-  
-  return encode(visibleMessage, imageWithMeta);
+export async function encodeImage(visibleMessage: string, imageFile: File): Promise<string> {
+	await initWasm();
+
+	// Convert image to base64
+	const arrayBuffer = await imageFile.arrayBuffer();
+	const uint8Array = new Uint8Array(arrayBuffer);
+
+	let binaryString = '';
+	uint8Array.forEach((byte) => {
+		binaryString += String.fromCharCode(byte);
+	});
+
+	const base64Image = btoa(binaryString);
+	const imageWithMeta = `data:${imageFile.type};base64,${base64Image}`;
+
+	return encode(visibleMessage, imageWithMeta);
 }
 
 /**
@@ -102,6 +99,6 @@ export async function encodeImage(
  * @returns The decoded image as a data URL
  */
 export async function decodeImage(encodedMessage: string): Promise<string> {
-  await initWasm();
-  return decode(encodedMessage);
+	await initWasm();
+	return decode(encodedMessage);
 }

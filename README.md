@@ -5,18 +5,21 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
 ## 🌟 Features
 
 ### AI Ghostpost Composer
+
 - **AI-Powered Content Generation**: Use OpenAI to generate platform-optimized posts (Twitter, LinkedIn, Facebook, TikTok)
 - **Secret Message Encoding**: Hide messages within posts using invisible Unicode characters
 - **Easy Sharing**: Copy/paste workflow for manual posting to social platforms
 - **Platform Stubs**: Ready-to-extend API stubs for future direct platform integrations
 
 ### Classic Hide/Unhide Tool
+
 - Encode text and images inside any string
 - Decode strings to reveal hidden messages or images
 - Share encoded messages via any modern messenger
 - Uses WASM for optimal performance
 
 ### Decode Page
+
 - **NEW!** Dedicated page for recipients to decode hidden messages
 - Paste any encoded message to reveal its secret
 - Supports both hidden text and images
@@ -25,7 +28,8 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - npm or pnpm
 - Rust and wasm-pack (for WASM building)
 - OpenAI API key (for AI features)
@@ -33,28 +37,33 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/rkendel1/ghostpost.git
    cd ghostpost
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables**
+
    ```bash
    cp .env.example .env
    # Edit .env and add your OPENAI_API_KEY
    ```
 
 4. **Build WASM package**
+
    ```bash
    npm run build:wasm
    ```
 
 5. **Start development server**
+
    ```bash
    npm run dev
    ```
@@ -195,19 +204,21 @@ Example stub locations in code are marked with `// TODO: Implement...` comments.
 Generate AI content for social media posts.
 
 **Request:**
+
 ```json
 {
-  "prompt": "Share excitement about AI",
-  "platform": "twitter"
+	"prompt": "Share excitement about AI",
+	"platform": "twitter"
 }
 ```
 
 **Response:**
+
 ```json
 {
-  "success": true,
-  "content": "Generated post content...",
-  "platform": "twitter"
+	"success": true,
+	"content": "Generated post content...",
+	"platform": "twitter"
 }
 ```
 
@@ -216,20 +227,22 @@ Generate AI content for social media posts.
 Prepare message for posting (currently returns copy/paste instructions).
 
 **Request:**
+
 ```json
 {
-  "content": "Encoded message...",
-  "platform": "twitter"
+	"content": "Encoded message...",
+	"platform": "twitter"
 }
 ```
 
 **Response:**
+
 ```json
 {
-  "success": true,
-  "message": "Ready to post to Twitter/X",
-  "postUrl": "https://twitter.com/compose/tweet",
-  "instructions": "Copy and paste instructions..."
+	"success": true,
+	"message": "Ready to post to Twitter/X",
+	"postUrl": "https://twitter.com/compose/tweet",
+	"instructions": "Copy and paste instructions..."
 }
 ```
 
@@ -261,6 +274,7 @@ Licensed under [MIT License](LICENSE)
 ## 🤝 Contributing
 
 Contributions welcome! Feel free to:
+
 - Add more platform integrations
 - Improve the encoding algorithm
 - Enhance the UI/UX

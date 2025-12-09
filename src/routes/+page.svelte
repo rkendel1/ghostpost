@@ -15,7 +15,7 @@
 	<div class="card p-8 space-y-6 mb-8">
 		<h1 class="h1 text-center">🎭 Hidenly</h1>
 		<p class="text-center text-lg">Hide your secrets within your messages</p>
-		
+
 		<div class="flex justify-center gap-4">
 			<a href="/compose" class="btn variant-filled-primary">
 				<span>✨</span>
