@@ -2,7 +2,8 @@
 	"name": "hidenly",
 	"version": "0.0.1",
 	"scripts": {
-		"dev": "npm run build:wasm && vite dev",
+		"dev": "vite dev",
+		"dev:wasm": "npm run build:wasm && vite dev",
 		"build": "vite build",
 		"build:wasm": "wasm-pack build ./wasm --target web --release",
 		"watch:wasm": "cd wasm && cargo watch -i .gitignore -i \"pkg/*\" -i \"target/*\" -s \"wasm-pack build --target web --dev\"",

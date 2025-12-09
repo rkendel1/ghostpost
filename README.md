@@ -31,8 +31,8 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
 
 - Node.js 18+
 - npm or pnpm
-- Rust and wasm-pack (for WASM building)
 - OpenAI API key (for AI features)
+- Optional: Rust and wasm-pack (only if you want to rebuild the WASM module)
 
 ### Installation
 
@@ -56,19 +56,19 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
    # Edit .env and add your OPENAI_API_KEY
    ```
 
-4. **Build WASM package**
-
-   ```bash
-   npm run build:wasm
-   ```
-
-5. **Start development server**
+4. **Start development server**
 
    ```bash
    npm run dev
    ```
 
-6. **Open in browser**
+   Note: The WASM package is pre-built and included in the repository. If you want to rebuild it:
+
+   ```bash
+   npm run build:wasm  # Requires Rust and wasm-pack
+   ```
+
+5. **Open in browser**
    ```
    http://localhost:5173
    ```
@@ -118,14 +118,19 @@ ghostpost/
 
 ## 🔧 Development
 
-### Building WASM
+### Building WASM (Optional)
+
+The WASM package is pre-built and committed to the repository. You only need to rebuild it if you modify the Rust code in `/wasm/src/`.
 
 ```bash
-# One-time build
+# One-time build (requires Rust and wasm-pack)
 npm run build:wasm
 
 # Watch mode (requires cargo-watch)
 npm run watch:wasm
+
+# Development with auto-rebuild
+npm run dev:wasm
 ```
 
 ### Running Dev Server
