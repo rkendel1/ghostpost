@@ -46,5 +46,9 @@
 		"vite-plugin-wasm-pack": "^0.1.12",
 		"wasm": "./wasm/pkg"
 	},
-	"type": "module"
+	"type": "module",
+	"dependencies": {
+		"deps": "^1.0.0",
+		"peer": "^1.0.2"
+	}
 }
