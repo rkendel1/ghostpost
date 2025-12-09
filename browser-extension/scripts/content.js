@@ -26,6 +26,13 @@ const MIN_INVISIBLE_CHAR_COUNT = 8;
 // Maximum ratio of invisible chars to total text length (to filter out sparse occurrences)
 const MAX_INVISIBLE_RATIO = 0.5;
 
+// Threshold for considering sparse invisible chars as legitimate formatting
+const SPARSE_RATIO_THRESHOLD = 0.01;
+const SPARSE_COUNT_THRESHOLD = 20;
+
+// Threshold for high invisible char count that likely indicates encoded content
+const HIGH_COUNT_THRESHOLD = 30;
+
 /**
  * Check if text likely contains a Hidenly encoded message
  * Returns false for legitimate uses like RTL text support
@@ -37,26 +44,24 @@ function isLikelyHidenlyMessage(text) {
     return false;
   }
   
-  // Check if the count is even (Hidenly uses pairs)
-  // Allow some tolerance for edge cases
-  const isEvenOrClose = matches.length % 2 === 0 || matches.length % 2 === 1;
-  
   // Calculate ratio of invisible chars to total length
   const ratio = matches.length / text.length;
   
   // If there are too few invisible chars relative to text length,
   // it's likely legitimate formatting
-  if (ratio < 0.01 && matches.length < 20) {
+  if (ratio < SPARSE_RATIO_THRESHOLD && matches.length < SPARSE_COUNT_THRESHOLD) {
     return false;
   }
   
   // If the invisible chars make up too much of the text, it might be pure encoded content
   // This is more likely to be a Hidenly message
-  if (ratio > MAX_INVISIBLE_RATIO || matches.length > 30) {
+  if (ratio > MAX_INVISIBLE_RATIO || matches.length > HIGH_COUNT_THRESHOLD) {
     return true;
   }
   
-  return isEvenOrClose && matches.length >= MIN_INVISIBLE_CHAR_COUNT;
+  // For counts between thresholds, accept any count since Hidenly uses pairs
+  // (we already checked minimum count above)
+  return true;
 }
 
 /**
