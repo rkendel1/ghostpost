@@ -127,8 +127,8 @@ pub fn encode(input: &str, secret: &str) -> String {
 pub fn decode(input: &str) -> Result<String, String> {
     let unwrapped = unwrap(input);
     
-    // Check if there's any hidden content
-    if unwrapped.is_empty() || unwrapped == input {
+    // Check if there's any hidden content - compare lengths first for efficiency
+    if unwrapped.len() == input.len() || unwrapped.is_empty() {
         return Err("No hidden content found in the input text".to_string());
     }
     

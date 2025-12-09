@@ -259,6 +259,9 @@ class DetectionPanel {
   }
 
   async rescanPage() {
+    // Define unsupported URL protocols
+    const UNSUPPORTED_PROTOCOLS = ['chrome://', 'about:', 'chrome-extension://', 'edge://', 'moz-extension://'];
+    
     this.rescanButton.disabled = true;
     this.statusContainer.innerHTML = `
       <div class="loading">
@@ -277,9 +280,7 @@ class DetectionPanel {
 
       // Check if the tab URL is a valid URL where content scripts can run
       const url = tab.url || '';
-      if (url.startsWith('chrome://') || url.startsWith('about:') || 
-          url.startsWith('chrome-extension://') || url.startsWith('edge://') ||
-          url.startsWith('moz-extension://')) {
+      if (UNSUPPORTED_PROTOCOLS.some(protocol => url.startsWith(protocol))) {
         this.statusContainer.innerHTML = `
           <div class="status-badge warning">
             <span>⚠️</span>
