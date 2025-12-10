@@ -246,12 +246,20 @@
 			'instagram.com',
 			'reddit.com',
 			'tiktok.com',
-			'threads.net',
-			'mastodon.social',
-			'mastodon.online',
-			'mstdn.social'
+			'threads.net'
 		];
-		return socialDomains.some((domain) => hostname.includes(domain));
+
+		// Check for exact match or subdomain match (e.g., www.twitter.com, mobile.twitter.com)
+		const isKnownSocial = socialDomains.some((domain) => {
+			return hostname === domain || hostname.endsWith('.' + domain);
+		});
+
+		// For Mastodon, check if hostname ends with common instance patterns
+		// Mastodon instances typically have 'mastodon' in the subdomain or domain
+		const isMastodon =
+			hostname.includes('mastodon') && (hostname.endsWith('.social') || hostname.includes('mstdn'));
+
+		return isKnownSocial || isMastodon;
 	}
 
 	// Function to update counter
