@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      1.0.1
+// @version      1.0.2
 // @description  Reveal hidden Ghostpost messages on any webpage with one click
 // @author       Ghostpost
 // @match        *://*/*
@@ -18,7 +18,7 @@
 
 /**
  * Ghostpost Reveal Userscript
- * 
+ *
  * Security & Privacy Notes:
  * - All processing happens locally in your browser
  * - No data is sent to external servers during detection
@@ -27,32 +27,32 @@
  * - Uses DOM manipulation only, no eval() or dynamic code execution
  */
 
-(function() {
-    'use strict';
+(function () {
+	'use strict';
 
-    // Configuration
-    const DECODE_API_URL = 'https://ghostpost-six.vercel.app/decode';
-    const BUTTON_ID = 'ghostpost-reveal-button';
-    
-    // Check if button already exists
-    if (document.getElementById(BUTTON_ID)) {
-        return;
-    }
+	// Configuration
+	const DECODE_API_URL = 'https://ghostpost-six.vercel.app/decode';
+	const BUTTON_ID = 'ghostpost-reveal-button';
 
-    // Create floating reveal button using DOM methods for security
-    const button = document.createElement('div');
-    button.id = BUTTON_ID;
-    
-    const container = document.createElement('div');
-    container.style.cssText = 'position: relative; width: 100%; height: 100%;';
-    
-    const ghost = document.createElement('span');
-    ghost.textContent = '👻';
-    ghost.style.fontSize = '32px';
-    
-    const counter = document.createElement('span');
-    counter.id = 'ghostpost-counter';
-    counter.style.cssText = `
+	// Check if button already exists
+	if (document.getElementById(BUTTON_ID)) {
+		return;
+	}
+
+	// Create floating reveal button using DOM methods for security
+	const button = document.createElement('div');
+	button.id = BUTTON_ID;
+
+	const container = document.createElement('div');
+	container.style.cssText = 'position: relative; width: 100%; height: 100%;';
+
+	const ghost = document.createElement('span');
+	ghost.textContent = '👻';
+	ghost.style.fontSize = '32px';
+
+	const counter = document.createElement('span');
+	counter.id = 'ghostpost-counter';
+	counter.style.cssText = `
         position: absolute;
         top: -5px;
         right: -5px;
@@ -67,12 +67,12 @@
         align-items: center;
         justify-content: center;
     `;
-    
-    container.appendChild(ghost);
-    container.appendChild(counter);
-    button.appendChild(container);
-    
-    button.style.cssText = `
+
+	container.appendChild(ghost);
+	container.appendChild(counter);
+	button.appendChild(container);
+
+	button.style.cssText = `
         position: fixed;
         bottom: 20px;
         right: 20px;
@@ -90,104 +90,156 @@
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     `;
 
-    // Hover effect
-    button.onmouseenter = () => {
-        button.style.transform = 'scale(1.1)';
-        button.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4)';
-    };
-    button.onmouseleave = () => {
-        button.style.transform = 'scale(1)';
-        button.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-    };
+	// Hover effect
+	button.onmouseenter = () => {
+		button.style.transform = 'scale(1.1)';
+		button.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4)';
+	};
+	button.onmouseleave = () => {
+		button.style.transform = 'scale(1)';
+		button.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+	};
 
-    // Function to detect hidden messages
-    function detectHiddenMessages() {
-        const invisibleChars = /[\u200B\u200C\u200D\u2060\uFEFF\u180E]/g;
-        const textNodes = [];
-        const walker = document.createTreeWalker(
-            document.body,
-            NodeFilter.SHOW_TEXT,
-            null
-        );
+	// List of invisible Unicode characters used for encoding
+	// Must match the encoding scheme: \u2060, \u200B, \u200C, \u200D, \u200E, \u200F, \u202D, \u202C
+	// Plus \uFEFF used as delimiter
+	const HIDENLY_CHARS = [
+		'\u200B', // Zero Width Space
+		'\u200C', // Zero Width Non-Joiner
+		'\u200D', // Zero Width Joiner
+		'\u200E', // Left-to-Right Mark
+		'\u200F', // Right-to-Left Mark
+		'\u202C', // Pop Directional Formatting
+		'\u202D', // Left-to-Right Override
+		'\u2060', // Word Joiner
+		'\uFEFF' // Zero Width No-Break Space (delimiter)
+	];
 
-        let node;
-        while (node = walker.nextNode()) {
-            if (node.textContent && invisibleChars.test(node.textContent)) {
-                textNodes.push(node);
-            }
-        }
+	// Create regex pattern to detect invisible characters
+	const escapedChars = HIDENLY_CHARS.map((char) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+	const invisibleCharRegex = new RegExp(`[${escapedChars.join('')}]`, 'g');
 
-        return textNodes;
-    }
+	// Minimum threshold - Hidenly uses pairs of chars, so minimum 8 chars = ~4 base64 chars
+	const MIN_INVISIBLE_CHAR_COUNT = 8;
 
-    // Function to update counter
-    function updateCounter() {
-        const hiddenMessages = detectHiddenMessages();
-        const counter = document.getElementById('ghostpost-counter');
-        
-        if (hiddenMessages.length > 0) {
-            counter.textContent = hiddenMessages.length;
-            counter.style.display = 'flex';
-            button.style.animation = 'pulse 2s infinite';
-            
-            // Add pulse animation
-            if (!document.getElementById('ghostpost-pulse-style')) {
-                const style = document.createElement('style');
-                style.id = 'ghostpost-pulse-style';
-                style.textContent = `
+	/**
+	 * Check if text likely contains a Hidenly encoded message
+	 * Returns false for legitimate uses like RTL text support
+	 */
+	function isLikelyHidenlyMessage(text) {
+		const matches = text.match(invisibleCharRegex);
+
+		if (!matches || matches.length < MIN_INVISIBLE_CHAR_COUNT) {
+			return false;
+		}
+
+		// If we have the delimiter character (FEFF), it's very likely an encoded message
+		if (text.includes('\uFEFF')) {
+			return true;
+		}
+
+		// Calculate ratio of invisible chars to total length
+		const ratio = matches.length / text.length;
+
+		// If there are very few invisible chars relative to text length,
+		// it's likely legitimate formatting (e.g., a few RTL marks in longer text)
+		if (ratio < 0.01 && matches.length < 20) {
+			return false;
+		}
+
+		// If high count or high ratio, likely encoded content
+		return matches.length > 30 || ratio > 0.1;
+	}
+
+	// Function to detect hidden messages
+	function detectHiddenMessages() {
+		const textNodes = [];
+		const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+
+		let node;
+		while ((node = walker.nextNode())) {
+			if (node.textContent && isLikelyHidenlyMessage(node.textContent)) {
+				textNodes.push(node);
+			}
+		}
+
+		return textNodes;
+	}
+
+	// Function to update counter
+	function updateCounter() {
+		const hiddenMessages = detectHiddenMessages();
+		const counter = document.getElementById('ghostpost-counter');
+
+		if (hiddenMessages.length > 0) {
+			counter.textContent = hiddenMessages.length;
+			counter.style.display = 'flex';
+			button.style.animation = 'pulse 2s infinite';
+
+			// Add pulse animation
+			if (!document.getElementById('ghostpost-pulse-style')) {
+				const style = document.createElement('style');
+				style.id = 'ghostpost-pulse-style';
+				style.textContent = `
                     @keyframes pulse {
                         0%, 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
                         50% { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.6); }
                     }
                 `;
-                document.head.appendChild(style);
-            }
-        } else {
-            counter.style.display = 'none';
-            button.style.animation = 'none';
-        }
-    }
+				document.head.appendChild(style);
+			}
+		} else {
+			counter.style.display = 'none';
+			button.style.animation = 'none';
+		}
+	}
 
-    // Function to reveal all hidden messages
-    function revealMessages() {
-        const hiddenMessages = detectHiddenMessages();
-        
-        if (hiddenMessages.length === 0) {
-            showNotification('No hidden messages found on this page', 'info');
-            return;
-        }
+	// Function to reveal all hidden messages
+	function revealMessages() {
+		const hiddenMessages = detectHiddenMessages();
 
-        // Extract text from nodes containing hidden messages only
-        let extractedText = '';
-        hiddenMessages.forEach(node => {
-            // Get parent element text to include context
-            const parent = node.parentElement;
-            if (parent) {
-                extractedText += parent.innerText + '\n\n';
-            }
-        });
-        
-        // Limit text size to prevent URL length issues (max ~8KB)
-        const maxLength = 8000;
-        if (extractedText.length > maxLength) {
-            extractedText = extractedText.substring(0, maxLength);
-            showNotification('Note: Text truncated due to size. Some messages may not be included.', 'info');
-        }
-        
-        // Open decode page with the text
-        const encodedText = encodeURIComponent(extractedText);
-        const decodeUrl = `${DECODE_API_URL}?text=${encodedText}`;
-        
-        // Open in new window
-        window.open(decodeUrl, '_blank', 'width=800,height=600');
-        
-        showNotification(`Found ${hiddenMessages.length} hidden message(s)! Opening decoder...`, 'success');
-    }
+		if (hiddenMessages.length === 0) {
+			showNotification('No hidden messages found on this page', 'info');
+			return;
+		}
 
-    // Function to show notification
-    function showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.style.cssText = `
+		// Extract text from nodes containing hidden messages only
+		let extractedText = '';
+		hiddenMessages.forEach((node) => {
+			// Get parent element text to include context
+			const parent = node.parentElement;
+			if (parent) {
+				extractedText += parent.innerText + '\n\n';
+			}
+		});
+
+		// Limit text size to prevent URL length issues (max ~8KB)
+		const maxLength = 8000;
+		if (extractedText.length > maxLength) {
+			extractedText = extractedText.substring(0, maxLength);
+			showNotification(
+				'Note: Text truncated due to size. Some messages may not be included.',
+				'info'
+			);
+		}
+
+		// Open decode page with the text
+		const encodedText = encodeURIComponent(extractedText);
+		const decodeUrl = `${DECODE_API_URL}?text=${encodedText}`;
+
+		// Open in new window
+		window.open(decodeUrl, '_blank', 'width=800,height=600');
+
+		showNotification(
+			`Found ${hiddenMessages.length} hidden message(s)! Opening decoder...`,
+			'success'
+		);
+	}
+
+	// Function to show notification
+	function showNotification(message, type = 'info') {
+		const notification = document.createElement('div');
+		notification.style.cssText = `
             position: fixed;
             bottom: 90px;
             right: 20px;
@@ -202,35 +254,35 @@
             max-width: 300px;
             animation: slideIn 0.3s ease;
         `;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => notification.remove(), 300);
-        }, 3000);
-    }
+		notification.textContent = message;
 
-    // Click handler
-    button.onclick = revealMessages;
+		document.body.appendChild(notification);
 
-    // Add button to page
-    document.body.appendChild(button);
+		setTimeout(() => {
+			notification.style.animation = 'slideOut 0.3s ease';
+			setTimeout(() => notification.remove(), 300);
+		}, 3000);
+	}
 
-    // Initial counter update
-    updateCounter();
+	// Click handler
+	button.onclick = revealMessages;
 
-    // Monitor for dynamic content changes
-    const observer = new MutationObserver(() => {
-        updateCounter();
-    });
+	// Add button to page
+	document.body.appendChild(button);
 
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        characterData: true
-    });
+	// Initial counter update
+	updateCounter();
 
-    console.log('Ghostpost Reveal extension loaded! Click the 👻 button to reveal hidden messages.');
+	// Monitor for dynamic content changes
+	const observer = new MutationObserver(() => {
+		updateCounter();
+	});
+
+	observer.observe(document.body, {
+		childList: true,
+		subtree: true,
+		characterData: true
+	});
+
+	console.log('Ghostpost Reveal extension loaded! Click the 👻 button to reveal hidden messages.');
 })();

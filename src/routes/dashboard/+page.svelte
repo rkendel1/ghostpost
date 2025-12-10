@@ -214,7 +214,9 @@
 								<div class="flex-1 bg-surface-700 rounded-full h-6 relative overflow-hidden">
 									<div
 										class="bg-primary-500 h-full rounded-full flex items-center justify-end pr-2"
-										style="width: {(dataPoint.count / Math.max(...analytics.timeSeriesData.map((d) => d.count))) * 100}%"
+										style="width: {(dataPoint.count /
+											Math.max(...analytics.timeSeriesData.map((d) => d.count))) *
+											100}%"
 									>
 										<span class="text-xs text-white font-bold">{dataPoint.count}</span>
 									</div>
@@ -231,8 +233,8 @@
 		<h3 class="h3 mb-2">💡 About Analytics</h3>
 		<div class="space-y-2 text-sm">
 			<p>
-				When you create a secret message with analytics enabled (default), we embed a unique post
-				ID in the invisible payload. This allows us to track:
+				When you create a secret message with analytics enabled (default), we embed a unique post ID
+				in the invisible payload. This allows us to track:
 			</p>
 			<ul class="list-disc list-inside space-y-1 ml-4">
 				<li>How many times your message has been decoded</li>

@@ -41,10 +41,7 @@
 
 <svelte:head>
 	<title>Demo - Try Ghostpost Reveal Button</title>
-	<meta
-		name="description"
-		content="Test the Ghostpost Reveal button with sample hidden messages"
-	/>
+	<meta name="description" content="Test the Ghostpost Reveal button with sample hidden messages" />
 </svelte:head>
 
 <div class="container mx-auto p-8 max-w-4xl space-y-6">

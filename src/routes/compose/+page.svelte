@@ -240,15 +240,14 @@
 			{:else}
 				<label class="label">
 					<span>Secret Image (to hide in the post)</span>
-					<input
-						type="file"
-						accept="image/*"
-						class="file-input"
-						on:change={handleSecretFile}
-					/>
+					<input type="file" accept="image/*" class="file-input" on:change={handleSecretFile} />
 					{#if imagePreview}
 						<div class="mt-2">
-							<img src={imagePreview} alt="Preview" class="max-w-xs max-h-48 object-contain rounded" />
+							<img
+								src={imagePreview}
+								alt="Preview"
+								class="max-w-xs max-h-48 object-contain rounded"
+							/>
 						</div>
 					{/if}
 				</label>
@@ -257,7 +256,9 @@
 			<button
 				class="btn variant-filled-secondary"
 				on:click={handleEncode}
-				disabled={isEncoding || (secretType === 'text' && !secretMessage.trim()) || (secretType === 'image' && !secretImage)}
+				disabled={isEncoding ||
+					(secretType === 'text' && !secretMessage.trim()) ||
+					(secretType === 'image' && !secretImage)}
 			>
 				{#if isEncoding}
 					<span>🔒 Encoding...</span>

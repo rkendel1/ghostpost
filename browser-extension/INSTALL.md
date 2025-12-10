@@ -27,6 +27,7 @@
 ### Method 2: Install from ZIP
 
 1. **Build** the extension:
+
    ```bash
    cd ghostpost
    npm run build:extension
@@ -47,33 +48,37 @@
 ## Troubleshooting
 
 ### Extension Not Loading
+
 - Make sure Developer Mode is enabled
 - Check that all files are present in the folder
 - Look for error messages in the extensions page
 
 ### Badge Not Showing
+
 - Refresh the page after installing the extension
 - Click "Rescan Page" in the sidebar
 - Check browser console (F12) for errors
 
 ### Sidebar Not Opening
+
 - Make sure your browser supports Manifest V3 and Side Panel API
 - Chrome 114+, Edge 114+, Brave (recent version)
 - Try reloading the extension
 
 ### Decoding Errors
+
 - Ensure the WASM files are present in the `wasm` folder
 - Check browser console for WASM loading errors
 - Try reloading the extension
 
 ## Browser Compatibility
 
-| Browser | Version | Status |
-|---------|---------|--------|
-| Chrome  | 114+    | ✅ Supported |
-| Edge    | 114+    | ✅ Supported |
-| Brave   | 1.54+   | ✅ Supported |
-| Firefox | -       | ⏳ Coming Soon |
+| Browser | Version | Status           |
+| ------- | ------- | ---------------- |
+| Chrome  | 114+    | ✅ Supported     |
+| Edge    | 114+    | ✅ Supported     |
+| Brave   | 1.54+   | ✅ Supported     |
+| Firefox | -       | ⏳ Coming Soon   |
 | Safari  | -       | ❌ Not Supported |
 
 ## Next Steps

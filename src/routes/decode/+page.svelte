@@ -13,19 +13,20 @@
 	// Constants for text size thresholds
 	const MAX_AUTO_DECODE_SIZE = 2000; // ~2KB limit for auto-decode
 	const MAX_SEGMENT_EXTRACT_SIZE = 5000; // ~5KB threshold for segment extraction
-	
+
 	// Regular expression for detecting invisible Unicode characters
-	// Note: \u180E deprecated in Unicode 11.0, but included for backward compatibility
-	const INVISIBLE_CHARS_REGEX = /[\u200B\u200C\u200D\u2060\uFEFF\u180E]/;
+	// Must match the encoding scheme: \u2060, \u200B, \u200C, \u200D, \u200E, \u200F, \u202D, \u202C
+	// Plus \uFEFF used as delimiter
+	const INVISIBLE_CHARS_REGEX = /[\u200B\u200C\u200D\u200E\u200F\u202C\u202D\u2060\uFEFF]/;
 
 	onMount(async () => {
 		await initWasm();
-		
+
 		// Check for text parameter from URL (for mobile share or overlay button)
 		const urlText = $page.url.searchParams.get('text');
 		if (urlText) {
 			encodedInput = decodeURIComponent(urlText);
-			
+
 			// Only auto-decode if text is small enough to prevent unresponsiveness
 			// Large texts from overlay button should be manually decoded by user
 			if (encodedInput.length <= MAX_AUTO_DECODE_SIZE) {
@@ -38,16 +39,16 @@
 	// Extract segments of text that contain invisible Unicode characters
 	function extractEncodedSegments(text: string): string[] {
 		const segments: string[] = [];
-		
+
 		// Split by newlines and carriage returns to preserve encoded content
 		const lines = text.split(/[\r\n]+/);
-		
+
 		for (const line of lines) {
 			if (line.trim() && INVISIBLE_CHARS_REGEX.test(line)) {
 				segments.push(line.trim());
 			}
 		}
-		
+
 		return segments;
 	}
 
@@ -65,13 +66,14 @@
 			// For large texts, extract only segments with invisible characters
 			const inputText = encodedInput.trim();
 			const segments = extractEncodedSegments(inputText);
-			
+
 			// If we found segments with invisible chars in large text, decode only those segments
 			// Otherwise, decode the full text (for smaller texts or when no segments found)
-			const textToDecode = segments.length > 0 && inputText.length > MAX_SEGMENT_EXTRACT_SIZE 
-				? segments.join('\n') 
-				: inputText;
-			
+			const textToDecode =
+				segments.length > 0 && inputText.length > MAX_SEGMENT_EXTRACT_SIZE
+					? segments.join('\n')
+					: inputText;
+
 			const result = await decodeMessage(textToDecode);
 
 			if (!result.message || result.message.trim() === '') {

@@ -21,7 +21,7 @@ let client: KVStore;
 try {
 	// Try to connect to Redis if URL is provided
 	const REDIS_URL = env.REDIS_URL;
-	
+
 	if (REDIS_URL) {
 		const redis = new Redis(REDIS_URL, {
 			// Connection options

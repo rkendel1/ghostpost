@@ -141,11 +141,7 @@
 			</button>
 		{/if}
 
-		<button
-			class="btn variant-filled-tertiary w-full"
-			on:click={handleCopy}
-			disabled={copySuccess}
-		>
+		<button class="btn variant-filled-tertiary w-full" on:click={handleCopy} disabled={copySuccess}>
 			{#if copySuccess}
 				<span>✓</span>
 				<span>Copied!</span>
@@ -194,9 +190,9 @@
 	<div class="card p-6 space-y-2">
 		<h3 class="h3 text-base">🎭 About Hidden Messages</h3>
 		<p class="text-sm opacity-75">
-			Ghostpost uses invisible Unicode characters to hide secret messages within normal text.
-			These characters are invisible but can be decoded to reveal the hidden content. Perfect for
-			private communication in public spaces!
+			Ghostpost uses invisible Unicode characters to hide secret messages within normal text. These
+			characters are invisible but can be decoded to reveal the hidden content. Perfect for private
+			communication in public spaces!
 		</p>
 		<a href="/" class="anchor text-sm">Learn more →</a>
 	</div>

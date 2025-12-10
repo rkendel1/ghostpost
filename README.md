@@ -1,6 +1,5 @@
 # 🎭 Hidenly - AI Ghostpost Application
 
-
 Hide your secrets within your messages using invisible Unicode characters. Now with AI-powered content generation, browser extension, and universal reveal button!
 
 ## 🌟 Features
@@ -30,8 +29,8 @@ Quick access to decode hidden messages on mobile devices:
 - **Add to Home Screen**: Install as a web app for instant access
 - **URL Parameters**: Supports pre-filled text from share intents
 
-[Use Mobile Decoder →](/share)
-=======
+# [Use Mobile Decoder →](/share)
+
 Hide your secrets within your messages using invisible Unicode characters. Now with AI-powered content generation, analytics tracking, and a browser extension!
 
 ## 🌟 Features
@@ -45,7 +44,7 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
 - **Referral Tracking**: See where your decoders are coming from
 - **Public Analytics**: Allow anyone to check aggregate stats for viral discovery
 - **Privacy-Focused**: Anonymous tracking with no PII collection
->>>>>>> main
+  > > > > > > > main
 
 ### Browser Extension
 
@@ -76,12 +75,10 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
 
 ### Decode Page
 
-
 - **Enhanced!** Dedicated page for recipients to decode hidden messages
 - Paste any encoded message to reveal its secret
 - Supports both hidden text and images
-- URL parameter support for mobile share workflows
-=======
+- # URL parameter support for mobile share workflows
 - Dedicated page for recipients to decode hidden messages
 - Paste any encoded message to reveal its secret
 - Supports both hidden text and images
@@ -210,6 +207,7 @@ This is the **fastest and easiest** way to use Ghostpost:
 5. **Click the button** when it shows a counter to reveal hidden messages
 
 The floating 👻 button will:
+
 - Automatically scan every page for hidden Ghostpost messages
 - Show a red counter badge when secrets are detected
 - Pulse red to draw your attention
