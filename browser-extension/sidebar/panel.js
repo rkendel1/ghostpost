@@ -12,109 +12,109 @@ let wasmInitialized = false;
  * Initialize WASM module
  */
 async function initWasm() {
-  if (!wasmInitialized) {
-    try {
-      // Fetch the WASM file as ArrayBuffer to avoid CSP issues with instantiateStreaming
-      const wasmUrl = chrome.runtime.getURL('wasm/wasm_bg.wasm');
-      const response = await fetch(wasmUrl);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch WASM file: ${response.status} ${response.statusText}`);
-      }
-      
-      const wasmBytes = await response.arrayBuffer();
-      await init({ module_or_path: wasmBytes });
-      wasmInitialized = true;
-      console.log('[Hidenly Sidebar] WASM initialized successfully');
-    } catch (error) {
-      console.error('[Hidenly Sidebar] Failed to initialize WASM:', error);
-      throw error;
-    }
-  }
+	if (!wasmInitialized) {
+		try {
+			// Fetch the WASM file as ArrayBuffer to avoid CSP issues with instantiateStreaming
+			const wasmUrl = chrome.runtime.getURL('wasm/wasm_bg.wasm');
+			const response = await fetch(wasmUrl);
+
+			if (!response.ok) {
+				throw new Error(`Failed to fetch WASM file: ${response.status} ${response.statusText}`);
+			}
+
+			const wasmBytes = await response.arrayBuffer();
+			await init({ module_or_path: wasmBytes });
+			wasmInitialized = true;
+			console.log('[Hidenly Sidebar] WASM initialized successfully');
+		} catch (error) {
+			console.error('[Hidenly Sidebar] Failed to initialize WASM:', error);
+			throw error;
+		}
+	}
 }
 
 /**
  * Decode a message using WASM
  */
 async function decodeMessage(encodedText) {
-  await initWasm();
-  try {
-    return decode(encodedText);
-  } catch (error) {
-    console.error('[Hidenly Sidebar] Decode error:', error);
-    throw error;
-  }
+	await initWasm();
+	try {
+		return decode(encodedText);
+	} catch (error) {
+		console.error('[Hidenly Sidebar] Decode error:', error);
+		throw error;
+	}
 }
 
 /**
  * Tab Management
  */
 class TabManager {
-  constructor() {
-    this.tabs = document.querySelectorAll('.tab-button');
-    this.panels = document.querySelectorAll('.tab-panel');
-    this.init();
-  }
+	constructor() {
+		this.tabs = document.querySelectorAll('.tab-button');
+		this.panels = document.querySelectorAll('.tab-panel');
+		this.init();
+	}
 
-  init() {
-    this.tabs.forEach(tab => {
-      tab.addEventListener('click', () => this.switchTab(tab));
-    });
-  }
+	init() {
+		this.tabs.forEach((tab) => {
+			tab.addEventListener('click', () => this.switchTab(tab));
+		});
+	}
 
-  switchTab(selectedTab) {
-    const targetPanel = selectedTab.dataset.tab;
+	switchTab(selectedTab) {
+		const targetPanel = selectedTab.dataset.tab;
 
-    // Update tab buttons
-    this.tabs.forEach(tab => tab.classList.remove('active'));
-    selectedTab.classList.add('active');
+		// Update tab buttons
+		this.tabs.forEach((tab) => tab.classList.remove('active'));
+		selectedTab.classList.add('active');
 
-    // Update panels
-    this.panels.forEach(panel => panel.classList.remove('active'));
-    document.getElementById(`${targetPanel}-panel`).classList.add('active');
-  }
+		// Update panels
+		this.panels.forEach((panel) => panel.classList.remove('active'));
+		document.getElementById(`${targetPanel}-panel`).classList.add('active');
+	}
 }
 
 /**
  * Detection Panel Manager
  */
 class DetectionPanel {
-  constructor() {
-    this.statusContainer = document.getElementById('status-container');
-    this.messagesContainer = document.getElementById('messages-container');
-    this.rescanButton = document.getElementById('rescan-button');
-    
-    this.init();
-  }
+	constructor() {
+		this.statusContainer = document.getElementById('status-container');
+		this.messagesContainer = document.getElementById('messages-container');
+		this.rescanButton = document.getElementById('rescan-button');
 
-  init() {
-    this.rescanButton.addEventListener('click', () => this.rescanPage());
-    this.loadPageData();
-  }
+		this.init();
+	}
 
-  async loadPageData() {
-    try {
-      // Get data from background script
-      const response = await chrome.runtime.sendMessage({ type: 'GET_TAB_DATA' });
-      
-      if (response.success && response.data) {
-        this.displayStatus(response.data);
-        this.displayMessages(response.data.results);
-      } else {
-        this.displayNoData();
-      }
-    } catch (error) {
-      console.error('[Hidenly Sidebar] Error loading page data:', error);
-      this.displayError();
-    }
-  }
+	init() {
+		this.rescanButton.addEventListener('click', () => this.rescanPage());
+		this.loadPageData();
+	}
 
-  displayStatus(data) {
-    const count = data.count || 0;
-    
-    let statusHTML;
-    if (count > 0) {
-      statusHTML = `
+	async loadPageData() {
+		try {
+			// Get data from background script
+			const response = await chrome.runtime.sendMessage({ type: 'GET_TAB_DATA' });
+
+			if (response.success && response.data) {
+				this.displayStatus(response.data);
+				this.displayMessages(response.data.results);
+			} else {
+				this.displayNoData();
+			}
+		} catch (error) {
+			console.error('[Hidenly Sidebar] Error loading page data:', error);
+			this.displayError();
+		}
+	}
+
+	displayStatus(data) {
+		const count = data.count || 0;
+
+		let statusHTML;
+		if (count > 0) {
+			statusHTML = `
         <div class="status-badge success">
           <span>✓</span>
           <span>Hidden Content Detected</span>
@@ -124,8 +124,8 @@ class DetectionPanel {
           <p><strong>URL:</strong> ${this.truncateUrl(data.url)}</p>
         </div>
       `;
-    } else {
-      statusHTML = `
+		} else {
+			statusHTML = `
         <div class="status-badge info">
           <span>ℹ️</span>
           <span>No Hidden Content</span>
@@ -134,13 +134,13 @@ class DetectionPanel {
           <p>This page appears to have no hidden messages.</p>
         </div>
       `;
-    }
-    
-    this.statusContainer.innerHTML = statusHTML;
-  }
+		}
 
-  displayNoData() {
-    this.statusContainer.innerHTML = `
+		this.statusContainer.innerHTML = statusHTML;
+	}
+
+	displayNoData() {
+		this.statusContainer.innerHTML = `
       <div class="status-badge warning">
         <span>⚠️</span>
         <span>No Scan Data</span>
@@ -149,10 +149,10 @@ class DetectionPanel {
         <p>Click "Rescan Page" to check for hidden content.</p>
       </div>
     `;
-  }
+	}
 
-  displayError() {
-    this.statusContainer.innerHTML = `
+	displayError() {
+		this.statusContainer.innerHTML = `
       <div class="status-badge warning">
         <span>⚠️</span>
         <span>Error Loading Data</span>
@@ -161,18 +161,21 @@ class DetectionPanel {
         <p>Unable to load page data. Try rescanning.</p>
       </div>
     `;
-  }
+	}
 
-  displayMessages(results) {
-    if (!results || results.length === 0) {
-      this.messagesContainer.innerHTML = '<p class="empty-state">No hidden messages detected yet.</p>';
-      return;
-    }
+	displayMessages(results) {
+		if (!results || results.length === 0) {
+			this.messagesContainer.innerHTML =
+				'<p class="empty-state">No hidden messages detected yet.</p>';
+			return;
+		}
 
-    // Store results for reference instead of in data attributes
-    this.currentResults = results;
+		// Store results for reference instead of in data attributes
+		this.currentResults = results;
 
-    const messagesHTML = results.map((result, index) => `
+		const messagesHTML = results
+			.map(
+				(result, index) => `
       <div class="message-item" data-index="${index}">
         <div class="message-header">
           <span class="message-location">${result.location}</span>
@@ -191,97 +194,132 @@ class DetectionPanel {
           </button>
         </div>
       </div>
-    `).join('');
+    `
+			)
+			.join('');
 
-    this.messagesContainer.innerHTML = messagesHTML;
+		this.messagesContainer.innerHTML = messagesHTML;
 
-    // Add event listeners
-    this.messagesContainer.querySelectorAll('.button-decode').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const index = parseInt(e.currentTarget.dataset.index);
-        const text = this.currentResults[index].text;
-        this.decodeAndShow(text);
-      });
-    });
+		// Add event listeners
+		this.messagesContainer.querySelectorAll('.button-decode').forEach((btn) => {
+			btn.addEventListener('click', (e) => {
+				const index = parseInt(e.currentTarget.dataset.index);
+				const text = this.currentResults[index].text;
+				this.decodeAndShow(text, e.currentTarget);
+			});
+		});
 
-    this.messagesContainer.querySelectorAll('.button-copy').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const index = parseInt(e.currentTarget.dataset.index);
-        const text = this.currentResults[index].text;
-        this.copyToClipboard(text, e.currentTarget);
-      });
-    });
-  }
+		this.messagesContainer.querySelectorAll('.button-copy').forEach((btn) => {
+			btn.addEventListener('click', (e) => {
+				const index = parseInt(e.currentTarget.dataset.index);
+				const text = this.currentResults[index].text;
+				this.copyToClipboard(text, e.currentTarget);
+			});
+		});
+	}
 
-  async decodeAndShow(encodedText) {
-    try {
-      const decoded = await decodeMessage(encodedText);
-      
-      // Switch to decoder tab and show result
-      const decoderTab = document.querySelector('[data-tab="decoder"]');
-      decoderTab.click();
-      
-      // Display result
-      const resultContainer = document.getElementById('decode-result');
-      const resultOutput = document.getElementById('decode-output');
-      
-      resultContainer.classList.remove('hidden');
-      
-      // Check if it's an image
-      if (decoded.startsWith('data:image')) {
-        // Create image element safely
-        const img = document.createElement('img');
-        img.src = decoded;
-        img.alt = 'Decoded image';
-        resultOutput.innerHTML = '';
-        resultOutput.appendChild(img);
-      } else {
-        // Use textContent for text to prevent XSS
-        resultOutput.textContent = decoded;
-      }
-    } catch (error) {
-      alert('Error decoding message: ' + error.message);
-    }
-  }
+	async decodeAndShow(encodedText, buttonElement) {
+		// Show confirmation dialog before decoding
+		const shouldDecode = confirm(
+			'This will decode and reveal the hidden content.\n\n' +
+				'The content may contain:\n' +
+				'• Private or sensitive information\n' +
+				'• Images or text you may not want to see\n' +
+				'• Content not intended for you\n\n' +
+				'Do you want to continue?'
+		);
 
-  async copyToClipboard(text, btnElement) {
-    try {
-      await navigator.clipboard.writeText(text);
-      // Show temporary feedback
-      const originalText = btnElement.innerHTML;
-      btnElement.innerHTML = '<span>✓</span><span>Copied!</span>';
-      setTimeout(() => {
-        btnElement.innerHTML = originalText;
-      }, 2000);
-    } catch (error) {
-      alert('Failed to copy to clipboard');
-    }
-  }
+		if (!shouldDecode) {
+			return; // User cancelled
+		}
 
-  async rescanPage() {
-    // Define unsupported URL protocols
-    const UNSUPPORTED_PROTOCOLS = ['chrome://', 'about:', 'chrome-extension://', 'edge://', 'moz-extension://'];
-    
-    this.rescanButton.disabled = true;
-    this.statusContainer.innerHTML = `
+		try {
+			// Show loading state
+			if (buttonElement) {
+				const originalContent = buttonElement.innerHTML;
+				buttonElement.disabled = true;
+				buttonElement.innerHTML = '<span>⏳</span><span>Decoding...</span>';
+
+				// Restore button after a moment
+				setTimeout(() => {
+					buttonElement.disabled = false;
+					buttonElement.innerHTML = originalContent;
+				}, 2000);
+			}
+
+			const decoded = await decodeMessage(encodedText);
+
+			// Switch to decoder tab and show result
+			const decoderTab = document.querySelector('[data-tab="decoder"]');
+			decoderTab.click();
+
+			// Display result
+			const resultContainer = document.getElementById('decode-result');
+			const resultOutput = document.getElementById('decode-output');
+
+			resultContainer.classList.remove('hidden');
+
+			// Check if it's an image
+			if (decoded.startsWith('data:image')) {
+				// Create image element safely
+				const img = document.createElement('img');
+				img.src = decoded;
+				img.alt = 'Decoded image';
+				resultOutput.innerHTML = '';
+				resultOutput.appendChild(img);
+			} else {
+				// Use textContent for text to prevent XSS
+				resultOutput.textContent = decoded;
+			}
+		} catch (error) {
+			alert('Error decoding message: ' + error.message);
+		}
+	}
+
+	async copyToClipboard(text, btnElement) {
+		try {
+			await navigator.clipboard.writeText(text);
+			// Show temporary feedback
+			const originalText = btnElement.innerHTML;
+			btnElement.innerHTML = '<span>✓</span><span>Copied!</span>';
+			setTimeout(() => {
+				btnElement.innerHTML = originalText;
+			}, 2000);
+		} catch (error) {
+			alert('Failed to copy to clipboard');
+		}
+	}
+
+	async rescanPage() {
+		// Define unsupported URL protocols
+		const UNSUPPORTED_PROTOCOLS = [
+			'chrome://',
+			'about:',
+			'chrome-extension://',
+			'edge://',
+			'moz-extension://'
+		];
+
+		this.rescanButton.disabled = true;
+		this.statusContainer.innerHTML = `
       <div class="loading">
         <div class="spinner"></div>
         <p>Rescanning page...</p>
       </div>
     `;
 
-    try {
-      // Get the current active tab
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      
-      if (!tab) {
-        throw new Error('No active tab found');
-      }
+		try {
+			// Get the current active tab
+			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-      // Check if the tab URL is a valid URL where content scripts can run
-      const url = tab.url || '';
-      if (UNSUPPORTED_PROTOCOLS.some(protocol => url.startsWith(protocol))) {
-        this.statusContainer.innerHTML = `
+			if (!tab) {
+				throw new Error('No active tab found');
+			}
+
+			// Check if the tab URL is a valid URL where content scripts can run
+			const url = tab.url || '';
+			if (UNSUPPORTED_PROTOCOLS.some((protocol) => url.startsWith(protocol))) {
+				this.statusContainer.innerHTML = `
           <div class="status-badge warning">
             <span>⚠️</span>
             <span>Cannot Scan This Page</span>
@@ -291,25 +329,28 @@ class DetectionPanel {
             <p>Please navigate to a regular web page to scan for hidden content.</p>
           </div>
         `;
-        this.rescanButton.disabled = false;
-        return;
-      }
+				this.rescanButton.disabled = false;
+				return;
+			}
 
-      // Send message to content script to rescan
-      try {
-        const response = await chrome.tabs.sendMessage(tab.id, { type: 'RESCAN_PAGE' });
-        
-        // Wait a bit for the scan to complete
-        setTimeout(() => {
-          this.loadPageData();
-          this.rescanButton.disabled = false;
-        }, 1000);
-      } catch (messageError) {
-        // Content script might not be loaded, try to inject it
-        console.warn('[Hidenly Sidebar] Content script not responding, attempting to reload:', messageError);
-        
-        // Show a message to reload the page
-        this.statusContainer.innerHTML = `
+			// Send message to content script to rescan
+			try {
+				const response = await chrome.tabs.sendMessage(tab.id, { type: 'RESCAN_PAGE' });
+
+				// Wait a bit for the scan to complete
+				setTimeout(() => {
+					this.loadPageData();
+					this.rescanButton.disabled = false;
+				}, 1000);
+			} catch (messageError) {
+				// Content script might not be loaded, try to inject it
+				console.warn(
+					'[Hidenly Sidebar] Content script not responding, attempting to reload:',
+					messageError
+				);
+
+				// Show a message to reload the page
+				this.statusContainer.innerHTML = `
           <div class="status-badge warning">
             <span>⚠️</span>
             <span>Extension Not Ready</span>
@@ -319,11 +360,11 @@ class DetectionPanel {
             <p>Please <strong>reload the page</strong> and try scanning again.</p>
           </div>
         `;
-        this.rescanButton.disabled = false;
-      }
-    } catch (error) {
-      console.error('[Hidenly Sidebar] Rescan error:', error);
-      this.statusContainer.innerHTML = `
+				this.rescanButton.disabled = false;
+			}
+		} catch (error) {
+			console.error('[Hidenly Sidebar] Rescan error:', error);
+			this.statusContainer.innerHTML = `
         <div class="status-badge warning">
           <span>⚠️</span>
           <span>Error Scanning Page</span>
@@ -337,107 +378,107 @@ class DetectionPanel {
           </ul>
         </div>
       `;
-      this.rescanButton.disabled = false;
-    }
-  }
+			this.rescanButton.disabled = false;
+		}
+	}
 
-  truncateText(text, maxLength) {
-    const escaped = this.escapeHtml(text);
-    if (escaped.length <= maxLength) return escaped;
-    return escaped.substring(0, maxLength) + '...';
-  }
+	truncateText(text, maxLength) {
+		const escaped = this.escapeHtml(text);
+		if (escaped.length <= maxLength) return escaped;
+		return escaped.substring(0, maxLength) + '...';
+	}
 
-  truncateUrl(url, maxLength = 50) {
-    if (url.length <= maxLength) return url;
-    return url.substring(0, maxLength) + '...';
-  }
+	truncateUrl(url, maxLength = 50) {
+		if (url.length <= maxLength) return url;
+		return url.substring(0, maxLength) + '...';
+	}
 
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
+	escapeHtml(text) {
+		const div = document.createElement('div');
+		div.textContent = text;
+		return div.innerHTML;
+	}
 }
 
 /**
  * Decoder Panel Manager
  */
 class DecoderPanel {
-  constructor() {
-    this.input = document.getElementById('decode-input');
-    this.button = document.getElementById('decode-button');
-    this.resultContainer = document.getElementById('decode-result');
-    this.resultOutput = document.getElementById('decode-output');
-    
-    this.init();
-  }
+	constructor() {
+		this.input = document.getElementById('decode-input');
+		this.button = document.getElementById('decode-button');
+		this.resultContainer = document.getElementById('decode-result');
+		this.resultOutput = document.getElementById('decode-output');
 
-  init() {
-    this.button.addEventListener('click', () => this.decode());
-    
-    // Enable decode on Enter (Ctrl+Enter for textarea)
-    this.input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-        this.decode();
-      }
-    });
-  }
+		this.init();
+	}
 
-  async decode() {
-    const text = this.input.value.trim();
-    
-    if (!text) {
-      alert('Please enter some text to decode');
-      return;
-    }
+	init() {
+		this.button.addEventListener('click', () => this.decode());
 
-    this.button.disabled = true;
-    this.button.textContent = 'Decoding...';
-    this.resultContainer.classList.add('hidden');
+		// Enable decode on Enter (Ctrl+Enter for textarea)
+		this.input.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+				this.decode();
+			}
+		});
+	}
 
-    try {
-      const decoded = await decodeMessage(text);
-      
-      this.resultContainer.classList.remove('hidden');
-      
-      // Check if it's an image
-      if (decoded.startsWith('data:image')) {
-        // Create image element safely
-        const img = document.createElement('img');
-        img.src = decoded;
-        img.alt = 'Decoded image';
-        this.resultOutput.innerHTML = '';
-        this.resultOutput.appendChild(img);
-      } else {
-        this.resultOutput.textContent = decoded;
-      }
-    } catch (error) {
-      this.resultOutput.textContent = `Error: ${error.message}`;
-      this.resultContainer.classList.remove('hidden');
-    } finally {
-      this.button.disabled = false;
-      this.button.innerHTML = '<span>🔓</span><span>Decode Message</span>';
-    }
-  }
+	async decode() {
+		const text = this.input.value.trim();
+
+		if (!text) {
+			alert('Please enter some text to decode');
+			return;
+		}
+
+		this.button.disabled = true;
+		this.button.textContent = 'Decoding...';
+		this.resultContainer.classList.add('hidden');
+
+		try {
+			const decoded = await decodeMessage(text);
+
+			this.resultContainer.classList.remove('hidden');
+
+			// Check if it's an image
+			if (decoded.startsWith('data:image')) {
+				// Create image element safely
+				const img = document.createElement('img');
+				img.src = decoded;
+				img.alt = 'Decoded image';
+				this.resultOutput.innerHTML = '';
+				this.resultOutput.appendChild(img);
+			} else {
+				this.resultOutput.textContent = decoded;
+			}
+		} catch (error) {
+			this.resultOutput.textContent = `Error: ${error.message}`;
+			this.resultContainer.classList.remove('hidden');
+		} finally {
+			this.button.disabled = false;
+			this.button.innerHTML = '<span>🔓</span><span>Decode Message</span>';
+		}
+	}
 }
 
 /**
  * Initialize the sidebar
  */
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('[Hidenly Sidebar] Initializing...');
-  
-  try {
-    // Initialize WASM
-    await initWasm();
-    
-    // Initialize managers
-    new TabManager();
-    new DetectionPanel();
-    new DecoderPanel();
-    
-    console.log('[Hidenly Sidebar] Initialization complete');
-  } catch (error) {
-    console.error('[Hidenly Sidebar] Initialization error:', error);
-  }
+	console.log('[Hidenly Sidebar] Initializing...');
+
+	try {
+		// Initialize WASM
+		await initWasm();
+
+		// Initialize managers
+		new TabManager();
+		new DetectionPanel();
+		new DecoderPanel();
+
+		console.log('[Hidenly Sidebar] Initialization complete');
+	} catch (error) {
+		console.error('[Hidenly Sidebar] Initialization error:', error);
+	}
 });
