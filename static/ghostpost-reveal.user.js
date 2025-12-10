@@ -308,6 +308,313 @@
 		}
 	}
 
+	// Store for tracking highlighted elements
+	const highlightedElements = new Set();
+
+	// Function to get element description for display
+	function getElementDescription(element) {
+		// Try to find a meaningful context
+		const tagName = element.tagName.toLowerCase();
+		
+		// Get visible text preview (first 50 chars)
+		let visibleText = element.textContent.trim();
+		visibleText = visibleText.substring(0, 50);
+		if (element.textContent.length > 50) visibleText += '...';
+		
+		// Get location context
+		let location = tagName;
+		if (element.id) location = `#${element.id}`;
+		else if (element.className) {
+			const classes = element.className.split(' ').slice(0, 2).join('.');
+			if (classes) location = `.${classes}`;
+		}
+		
+		return { location, visibleText };
+	}
+
+	// Function to highlight element on the page
+	function highlightElement(element) {
+		if (highlightedElements.has(element)) return;
+		
+		element.style.outline = '3px solid #ef4444';
+		element.style.outlineOffset = '2px';
+		element.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+		element.style.transition = 'all 0.3s ease';
+		highlightedElements.add(element);
+	}
+
+	// Function to remove highlight from element
+	function removeHighlight(element) {
+		element.style.outline = '';
+		element.style.outlineOffset = '';
+		element.style.backgroundColor = '';
+		highlightedElements.delete(element);
+	}
+
+	// Function to remove all highlights
+	function removeAllHighlights() {
+		highlightedElements.forEach(element => {
+			element.style.outline = '';
+			element.style.outlineOffset = '';
+			element.style.backgroundColor = '';
+		});
+		highlightedElements.clear();
+	}
+
+	// Function to scroll element into view smoothly
+	function scrollToElement(element) {
+		element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	}
+
+	// Function to reveal a single message by opening decode page
+	function revealSingleMessage(encodedText, element, itemElement, revealBtn) {
+		// Extract the encoded text from the element
+		const encodedMessage = encodeURIComponent(encodedText);
+		const decodeUrl = `${DECODE_API_URL}?text=${encodedMessage}`;
+		
+		// Open in a smaller window positioned near the button
+		const windowFeatures = 'width=600,height=500,left=100,top=100';
+		const decodeWindow = window.open(decodeUrl, '_blank', windowFeatures);
+		
+		if (decodeWindow) {
+			// Update UI to show it's been revealed
+			revealBtn.style.display = 'none';
+			itemElement.innerHTML = `
+				<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
+					<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+						<span style="font-size: 20px;">✅</span>
+						<span style="font-weight: 600; color: #059669;">Opening decoder...</span>
+					</div>
+					<p style="font-size: 13px; color: #065f46; margin: 0;">The secret will be revealed in the new window.</p>
+					<button onclick="this.parentElement.remove(); this.parentElement.parentElement.querySelector('.reveal-btn').style.display='inline-flex';" style="margin-top: 10px; padding: 6px 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">OK</button>
+				</div>
+			`;
+			
+			// Flash the element on page to indicate which one was revealed
+			highlightElement(element);
+			setTimeout(() => {
+				element.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+			}, 300);
+		} else {
+			// Popup was blocked
+			showNotification('Please allow popups to reveal messages', 'error');
+		}
+	}
+
+	// Utility function to escape HTML
+	function escapeHtml(text) {
+		const div = document.createElement('div');
+		div.textContent = text;
+		return div.innerHTML;
+	}
+
+	// Function to create and show the reveal modal
+	function showRevealModal(hiddenMessages) {
+		// Remove any existing modal
+		const existingModal = document.getElementById('ghostpost-reveal-modal');
+		if (existingModal) {
+			existingModal.remove();
+		}
+
+		// Highlight all elements with hidden messages
+		hiddenMessages.forEach(node => {
+			const element = node.parentElement;
+			if (element) highlightElement(element);
+		});
+
+		// Create modal
+		const modal = document.createElement('div');
+		modal.id = 'ghostpost-reveal-modal';
+		modal.style.cssText = `
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			width: 90%;
+			max-width: 600px;
+			max-height: 80vh;
+			background: white;
+			border-radius: 12px;
+			box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+			z-index: 1000000;
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+			display: flex;
+			flex-direction: column;
+			animation: modalSlideIn 0.3s ease;
+		`;
+
+		// Create backdrop
+		const backdrop = document.createElement('div');
+		backdrop.id = 'ghostpost-modal-backdrop';
+		backdrop.style.cssText = `
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(0, 0, 0, 0.5);
+			z-index: 999999;
+			animation: fadeIn 0.3s ease;
+		`;
+
+		// Modal header
+		const header = document.createElement('div');
+		header.style.cssText = `
+			padding: 20px;
+			border-bottom: 1px solid #e5e7eb;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		`;
+		header.innerHTML = `
+			<div>
+				<h2 style="margin: 0; font-size: 20px; font-weight: 600; color: #111827;">
+					<span style="font-size: 24px;">👻</span> Hidden Messages Found
+				</h2>
+				<p style="margin: 5px 0 0 0; font-size: 14px; color: #6b7280;">
+					Found ${hiddenMessages.length} message${hiddenMessages.length > 1 ? 's' : ''} on this page
+				</p>
+			</div>
+			<button id="ghostpost-close-modal" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">×</button>
+		`;
+
+		// Modal content
+		const content = document.createElement('div');
+		content.style.cssText = `
+			padding: 20px;
+			overflow-y: auto;
+			flex: 1;
+		`;
+
+		// Add message items
+		hiddenMessages.forEach((node, index) => {
+			const element = node.parentElement;
+			if (!element) return;
+
+			const { location, visibleText } = getElementDescription(element);
+			
+			const item = document.createElement('div');
+			item.style.cssText = `
+				margin-bottom: 15px;
+				padding: 15px;
+				border: 1px solid #e5e7eb;
+				border-radius: 8px;
+				background: #f9fafb;
+			`;
+
+			item.innerHTML = `
+				<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+					<div style="flex: 1;">
+						<div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">
+							<strong>Location:</strong> ${escapeHtml(location)}
+						</div>
+						<div style="font-size: 13px; color: #374151; font-family: monospace; background: white; padding: 8px; border-radius: 4px; overflow: hidden; text-overflow: ellipsis;">
+							${escapeHtml(visibleText)}
+						</div>
+					</div>
+				</div>
+				<div style="display: flex; gap: 8px;">
+					<button class="reveal-btn" data-index="${index}" style="flex: 1; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s;">
+						<span>🔓</span>
+						<span>Reveal Secret</span>
+					</button>
+					<button class="locate-btn" data-index="${index}" style="padding: 8px 16px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
+						<span>📍</span>
+						<span>Locate</span>
+					</button>
+				</div>
+				<div class="reveal-content"></div>
+			`;
+
+			content.appendChild(item);
+		});
+
+		modal.appendChild(header);
+		modal.appendChild(content);
+
+		// Add animations
+		const style = document.createElement('style');
+		style.textContent = `
+			@keyframes modalSlideIn {
+				from {
+					opacity: 0;
+					transform: translate(-50%, -45%);
+				}
+				to {
+					opacity: 1;
+					transform: translate(-50%, -50%);
+				}
+			}
+			@keyframes fadeIn {
+				from { opacity: 0; }
+				to { opacity: 1; }
+			}
+			#ghostpost-close-modal:hover {
+				background: #f3f4f6;
+			}
+			.reveal-btn:hover {
+				background: #5568d3;
+			}
+			.locate-btn:hover {
+				background: #e5e7eb;
+				border-color: #9ca3af;
+			}
+		`;
+		document.head.appendChild(style);
+
+		// Add to page
+		document.body.appendChild(backdrop);
+		document.body.appendChild(modal);
+
+		// Close button handler
+		const closeModal = () => {
+			modal.style.animation = 'modalSlideIn 0.2s ease reverse';
+			backdrop.style.animation = 'fadeIn 0.2s ease reverse';
+			setTimeout(() => {
+				modal.remove();
+				backdrop.remove();
+				removeAllHighlights();
+			}, 200);
+		};
+
+		document.getElementById('ghostpost-close-modal').onclick = closeModal;
+		backdrop.onclick = closeModal;
+
+		// Reveal button handlers
+		document.querySelectorAll('.reveal-btn').forEach(btn => {
+			btn.onclick = function() {
+				const index = parseInt(this.dataset.index);
+				const node = hiddenMessages[index];
+				const element = node.parentElement;
+				const encodedText = element.textContent;
+				const contentDiv = this.parentElement.nextElementSibling;
+				
+				// Reveal the message
+				revealSingleMessage(encodedText, element, contentDiv, this);
+			};
+		});
+
+		// Locate button handlers
+		document.querySelectorAll('.locate-btn').forEach(btn => {
+			btn.onclick = function() {
+				const index = parseInt(this.dataset.index);
+				const node = hiddenMessages[index];
+				const element = node.parentElement;
+				
+				// Scroll to element
+				scrollToElement(element);
+				
+				// Flash highlight
+				element.style.outline = '5px solid #ef4444';
+				element.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
+				setTimeout(() => {
+					element.style.outline = '3px solid #ef4444';
+					element.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+				}, 500);
+			};
+		});
+	}
+
 	// Function to reveal all hidden messages
 	function revealMessages() {
 		const hiddenMessages = detectHiddenMessages();
@@ -317,37 +624,8 @@
 			return;
 		}
 
-		// Extract text from nodes containing hidden messages only
-		let extractedText = '';
-		hiddenMessages.forEach((node) => {
-			// Get parent element text to include context
-			const parent = node.parentElement;
-			if (parent) {
-				extractedText += parent.innerText + '\n\n';
-			}
-		});
-
-		// Limit text size to prevent URL length issues (max ~8KB)
-		const maxLength = 8000;
-		if (extractedText.length > maxLength) {
-			extractedText = extractedText.substring(0, maxLength);
-			showNotification(
-				'Note: Text truncated due to size. Some messages may not be included.',
-				'info'
-			);
-		}
-
-		// Open decode page with the text
-		const encodedText = encodeURIComponent(extractedText);
-		const decodeUrl = `${DECODE_API_URL}?text=${encodedText}`;
-
-		// Open in new window
-		window.open(decodeUrl, '_blank', 'width=800,height=600');
-
-		showNotification(
-			`Found ${hiddenMessages.length} hidden message(s)! Opening decoder...`,
-			'success'
-		);
+		// Show the reveal modal instead of opening decode page
+		showRevealModal(hiddenMessages);
 	}
 
 	// Function to show notification
