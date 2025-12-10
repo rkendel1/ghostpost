@@ -247,7 +247,9 @@
 			'reddit.com',
 			'tiktok.com',
 			'threads.net',
-			'mastodon'
+			'mastodon.social',
+			'mastodon.online',
+			'mstdn.social'
 		];
 		return socialDomains.some((domain) => hostname.includes(domain));
 	}
