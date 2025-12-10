@@ -200,14 +200,14 @@
 					<div class="flex flex-wrap justify-center gap-4 pt-4">
 						<a
 							href="/install"
-							class="btn variant-filled-primary btn-xl text-lg md:text-xl font-bold hover:scale-105 transition-transform"
+							class="btn variant-filled-primary btn-xl font-bold hover:scale-105 transition-transform"
 						>
 							<span>⚡</span>
 							<span>Install Reveal Button</span>
 						</a>
 						<a
 							href="/demo"
-							class="btn variant-ghost-surface btn-xl text-lg hover:scale-105 transition-transform"
+							class="btn variant-ghost-surface btn-xl hover:scale-105 transition-transform"
 						>
 							<span>🧪</span>
 							<span>Try Demo</span>
@@ -479,6 +479,12 @@
 
 	.btn-xl {
 		padding: 1rem 2rem;
-		font-size: 1.125rem;
+	}
+
+	@media (min-width: 768px) {
+		.btn-xl {
+			padding: 1.25rem 2.5rem;
+			font-size: 1.25rem;
+		}
 	}
 </style>
