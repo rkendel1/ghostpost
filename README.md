@@ -1,10 +1,20 @@
 # 🎭 Hidenly - AI Ghostpost Application
 
-Hide your secrets within your messages using invisible Unicode characters. Now with AI-powered content generation for social media and a browser extension!
+Hide your secrets within your messages using invisible Unicode characters. Now with AI-powered content generation, analytics tracking, and a browser extension!
 
 ## 🌟 Features
 
-### Browser Extension 🆕
+### Analytics Dashboard 🆕
+
+- **Per-Post Analytics**: Track decode events for every secret message you create
+- **Real-time Insights**: See total decodes, unique users, and decode timeline
+- **Platform Breakdown**: Understand which platforms your audience uses (Twitter, Instagram, LinkedIn, etc.)
+- **Geographic Data**: View country-level distribution of your audience
+- **Referral Tracking**: See where your decoders are coming from
+- **Public Analytics**: Allow anyone to check aggregate stats for viral discovery
+- **Privacy-Focused**: Anonymous tracking with no PII collection
+
+### Browser Extension
 
 - **Automatic Detection**: Scans web pages for hidden content in real-time
 - **Continuous Monitoring**: Enhanced scanning for social media feeds (Twitter/X, Facebook, LinkedIn, etc.)
@@ -20,6 +30,7 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
 
 - **AI-Powered Content Generation**: Use OpenAI to generate platform-optimized posts (Twitter, LinkedIn, Facebook, TikTok)
 - **Secret Message Encoding**: Hide messages within posts using invisible Unicode characters
+- **Analytics Integration**: Automatically embeds tracking IDs for decode analytics
 - **Easy Sharing**: Copy/paste workflow for manual posting to social platforms
 - **Platform Stubs**: Ready-to-extend API stubs for future direct platform integrations
 
@@ -32,9 +43,10 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
 
 ### Decode Page
 
-- **NEW!** Dedicated page for recipients to decode hidden messages
+- Dedicated page for recipients to decode hidden messages
 - Paste any encoded message to reveal its secret
 - Supports both hidden text and images
+- Automatic analytics tracking (privacy-focused)
 - User-friendly interface for secret revelation
 
 ## 🚀 Quick Start
@@ -43,7 +55,8 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
 
 - Node.js 18+
 - npm or pnpm
-- OpenAI API key (for AI features)
+- OpenAI API key (for AI features - optional)
+- Vercel KV (for analytics in production - optional, uses mock in dev)
 - Optional: Rust and wasm-pack (only if you want to rebuild the WASM module)
 
 ### Installation
@@ -92,19 +105,29 @@ ghostpost/
 ├── src/
 │   ├── routes/
 │   │   ├── api/
-│   │   │   ├── ai-compose/    # AI content generation endpoint
-│   │   │   └── post/          # Platform posting stub endpoint
-│   │   ├── compose/           # AI Ghostpost composer page
-│   │   ├── decode/            # Secret message decoder page
-│   │   └── +page.svelte       # Home page with classic tool
+│   │   │   ├── ai-compose/         # AI content generation endpoint
+│   │   │   ├── post/               # Platform posting stub endpoint
+│   │   │   └── analytics/          # Analytics API endpoints 🆕
+│   │   │       ├── track/          # Track decode events
+│   │   │       ├── post/           # Get post analytics
+│   │   │       └── public/         # Public aggregate stats
+│   │   ├── compose/                # AI Ghostpost composer page
+│   │   ├── decode/                 # Secret message decoder page
+│   │   ├── dashboard/              # Analytics dashboard 🆕
+│   │   ├── analytics/              # Public analytics page 🆕
+│   │   └── +page.svelte            # Home page with classic tool
 │   └── lib/
-│       ├── ghostpost.ts       # WASM integration module
-│       └── cards/             # Classic hide/unhide components
-├── browser-extension/         # Browser extension 🆕
-│   ├── manifest.json         # Extension configuration
-│   ├── scripts/              # Content & background scripts
-│   ├── sidebar/              # Sidebar UI
-│   ├── styles/               # Extension styles
+│       ├── ghostpost.ts            # WASM integration module with analytics
+│       ├── analytics.ts            # Analytics service layer 🆕
+│       ├── mock-kv.ts              # Mock KV for local dev 🆕
+│       ├── types/
+│       │   └── analytics.ts        # Analytics TypeScript types 🆕
+│       └── cards/                  # Classic hide/unhide components
+├── browser-extension/              # Browser extension
+│   ├── manifest.json               # Extension configuration
+│   ├── scripts/                    # Content & background scripts
+│   ├── sidebar/                    # Sidebar UI
+│   ├── styles/                     # Extension styles
 │   └── wasm/                 # WASM decoder module
 ├── wasm/                      # Rust WASM source code
 │   ├── src/
@@ -132,10 +155,11 @@ ghostpost/
 1. **Go to `/compose` page**
 2. **Select platform** (Twitter, LinkedIn, Facebook, or TikTok)
 3. **Enter your prompt** - Describe what you want to post
-4. **Generate content** - AI creates platform-optimized content
+4. **Generate content** - AI creates platform-optimized content (requires OpenAI API key)
 5. **Add secret message** - Enter the message you want to hide
-6. **Encode** - Create the encoded message
-7. **Copy & paste** - Copy the encoded message and manually post it on your chosen platform
+6. **Encode** - Create the encoded message with embedded analytics ID
+7. **Copy post ID** - Note the UUID shown for tracking your post's analytics
+8. **Copy & paste** - Copy the encoded message and manually post it on your chosen platform
 
 ### Decoding a Secret Message
 
@@ -143,6 +167,25 @@ ghostpost/
 2. **Paste encoded message** - Paste any message that may contain a secret
 3. **Click Decode** - Reveal the hidden content
 4. **View the secret** - See the decoded message or image
+5. **Analytics tracked** - Decode events are automatically tracked (if analytics enabled)
+
+### Viewing Analytics
+
+1. **Go to `/dashboard` page**
+2. **Enter post ID** - Paste the UUID from when you created the post
+3. **View insights** - See:
+   - Total decodes and unique users
+   - Platform breakdown (where people decoded from)
+   - Geographic distribution (country-level data)
+   - Referral sources
+   - Time series of decodes over time
+
+### Public Analytics
+
+1. **Go to `/analytics` page**
+2. **View global stats** - See aggregate Ghostpost statistics worldwide
+3. **Check any message** - Paste any encoded message to see its public stats
+4. **Share insights** - Use for viral discovery and proving engagement
 
 ## 🔧 Development
 
@@ -203,8 +246,13 @@ npm run format
 ### Deploy to Vercel
 
 1. **Connect your GitHub repository** to Vercel
-2. **Set environment variables** in Vercel dashboard:
-   - `OPENAI_API_KEY` - Your OpenAI API key
+2. **Add Vercel KV storage**:
+   - Go to your Vercel project dashboard
+   - Navigate to Storage tab
+   - Create a new KV store
+   - Connect it to your project (environment variables set automatically)
+3. **Set environment variables** in Vercel dashboard:
+   - `OPENAI_API_KEY` - Your OpenAI API key (optional, for AI features)
 3. **Deploy** - Vercel will automatically detect SvelteKit and deploy
 
 The app is configured with `@sveltejs/adapter-vercel` for seamless deployment.
@@ -214,8 +262,14 @@ The app is configured with `@sveltejs/adapter-vercel` for seamless deployment.
 Create a `.env` file based on `.env.example`:
 
 ```bash
-# Required for AI features
+# Optional - for AI features
 OPENAI_API_KEY=sk-your-openai-api-key-here
+
+# Optional - for analytics in production (auto-set by Vercel when using KV)
+# KV_URL=your-kv-url
+# KV_REST_API_URL=your-kv-rest-api-url
+# KV_REST_API_TOKEN=your-kv-rest-api-token
+# KV_REST_API_READ_ONLY_TOKEN=your-kv-rest-api-read-only-token
 
 # Optional - for future platform integrations
 TWITTER_API_KEY=your-twitter-api-key
@@ -224,6 +278,8 @@ LINKEDIN_CLIENT_ID=your-linkedin-client-id
 FACEBOOK_APP_ID=your-facebook-app-id
 TIKTOK_CLIENT_KEY=your-tiktok-client-key
 ```
+
+**Note**: Local development works without KV credentials using an in-memory mock store.
 
 ## 🔌 Extending Platform Integrations
 
