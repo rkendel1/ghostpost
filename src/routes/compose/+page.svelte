@@ -29,6 +29,13 @@
 	let isEncoding = false;
 	let error = '';
 
+	// Computed properties
+	$: isEncodeDisabled =
+		isEncoding ||
+		!visibleMessage.trim() ||
+		(secretType === 'text' && !secretMessage.trim()) ||
+		(secretType === 'image' && !secretImage);
+
 	onMount(async () => {
 		await initWasm();
 	});
@@ -305,10 +312,7 @@
 					<button
 						class="btn variant-filled-primary w-full"
 						on:click={handleEncode}
-						disabled={isEncoding ||
-							!visibleMessage.trim() ||
-							(secretType === 'text' && !secretMessage.trim()) ||
-							(secretType === 'image' && !secretImage)}
+						disabled={isEncodeDisabled}
 					>
 						{#if isEncoding}
 							<span>🔒 Encoding...</span>
