@@ -214,7 +214,7 @@ class DetectionPanel {
 			btn.addEventListener('click', (e) => {
 				const index = parseInt(e.currentTarget.dataset.index);
 				const text = this.currentResults[index].text;
-				this.decodeAndShow(text, e.currentTarget, index);
+				this.decodeAndShow(text, e.currentTarget);
 			});
 		});
 
@@ -234,7 +234,7 @@ class DetectionPanel {
 		});
 	}
 
-	async decodeAndShow(encodedText, buttonElement, messageIndex) {
+	async decodeAndShow(encodedText, buttonElement) {
 		// Show confirmation dialog before decoding
 		const shouldDecode = confirm(
 			'This will decode and reveal the hidden content.\n\n' +
@@ -254,7 +254,7 @@ class DetectionPanel {
 		}
 
 		const originalContent = buttonElement.innerHTML;
-		
+
 		try {
 			// Show loading state
 			buttonElement.disabled = true;
