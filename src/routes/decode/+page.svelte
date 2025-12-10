@@ -17,10 +17,33 @@
 		const urlText = $page.url.searchParams.get('text');
 		if (urlText) {
 			encodedInput = decodeURIComponent(urlText);
-			// Auto-decode if text is provided
-			await handleDecode();
+			
+			// Only auto-decode if text is small enough to prevent unresponsiveness
+			// Large texts from overlay button should be manually decoded by user
+			const MAX_AUTO_DECODE_SIZE = 2000; // ~2KB limit for auto-decode
+			if (encodedInput.length <= MAX_AUTO_DECODE_SIZE) {
+				await handleDecode();
+			}
+			// For larger texts, we let the user click the decode button manually
 		}
 	});
+
+	// Extract segments of text that contain invisible Unicode characters
+	function extractEncodedSegments(text: string): string[] {
+		const invisibleChars = /[\u200B\u200C\u200D\u2060\uFEFF\u180E]/;
+		const segments: string[] = [];
+		
+		// Split by common delimiters while preserving encoded content
+		const lines = text.split(/\n+/);
+		
+		for (const line of lines) {
+			if (line.trim() && invisibleChars.test(line)) {
+				segments.push(line.trim());
+			}
+		}
+		
+		return segments;
+	}
 
 	async function handleDecode() {
 		if (!encodedInput.trim()) {
@@ -33,7 +56,16 @@
 		showResult = false;
 
 		try {
-			const result = await decodeMessage(encodedInput);
+			// For large texts, extract only segments with invisible characters
+			const inputText = encodedInput.trim();
+			const segments = extractEncodedSegments(inputText);
+			
+			// If we found specific segments, try decoding them instead of the full text
+			const textToDecode = segments.length > 0 && inputText.length > 5000 
+				? segments.join('\n') 
+				: inputText;
+			
+			const result = await decodeMessage(textToDecode);
 
 			if (!result.message || result.message.trim() === '') {
 				error = 'No hidden message found in the text';
