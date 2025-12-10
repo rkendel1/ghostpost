@@ -428,16 +428,30 @@
 			}
 
 			// Decode base64 to get the secret message
-			const decodedBytes = atob(base64String);
-			const decoded = decodeURIComponent(escape(decodedBytes));
-			
-			// Check for post ID and strip it
-			const postIdIndex = decoded.indexOf(POST_ID_DELIMITER);
-			if (postIdIndex !== -1) {
-				return decoded.substring(0, postIdIndex);
+			// Use atob for base64 decoding, then properly decode UTF-8
+			try {
+				const decodedBytes = atob(base64String);
+				// Convert byte string to proper UTF-8
+				const decoded = decodeURIComponent(Array.from(decodedBytes, c => 
+					'%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+				).join(''));
+				
+				// Check for post ID and strip it
+				const postIdIndex = decoded.indexOf(POST_ID_DELIMITER);
+				if (postIdIndex !== -1) {
+					return decoded.substring(0, postIdIndex);
+				}
+				
+				return decoded;
+			} catch (e) {
+				// If UTF-8 decoding fails, return the raw decoded bytes
+				const decodedBytes = atob(base64String);
+				const postIdIndex = decodedBytes.indexOf(POST_ID_DELIMITER);
+				if (postIdIndex !== -1) {
+					return decodedBytes.substring(0, postIdIndex);
+				}
+				return decodedBytes;
 			}
-			
-			return decoded;
 		} catch (err) {
 			console.error('Decode error:', err);
 			throw new Error('Failed to decode: ' + err.message);
