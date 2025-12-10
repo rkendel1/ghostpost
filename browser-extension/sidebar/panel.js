@@ -235,6 +235,9 @@ class DetectionPanel {
 	}
 
 	async decodeAndShow(encodedText, buttonElement, messageIndex) {
+		// Decode button HTML constant
+		const DECODE_BUTTON_HTML = '<span>🔓</span><span>Decode</span>';
+
 		// Show confirmation dialog before decoding
 		const shouldDecode = confirm(
 			'This will decode and reveal the hidden content.\n\n' +
@@ -249,49 +252,46 @@ class DetectionPanel {
 			return; // User cancelled
 		}
 
+		if (!buttonElement) {
+			return;
+		}
+
+		const originalContent = buttonElement.innerHTML;
+		
 		try {
 			// Show loading state
-			if (buttonElement) {
-				const originalContent = buttonElement.innerHTML;
-				buttonElement.disabled = true;
-				buttonElement.innerHTML = '<span>⏳</span><span>Decoding...</span>';
+			buttonElement.disabled = true;
+			buttonElement.innerHTML = '<span>⏳</span><span>Decoding...</span>';
 
-				// Decode the message
-				const decoded = await decodeMessage(encodedText);
+			// Decode the message
+			const decoded = await decodeMessage(encodedText);
 
-				// Find the decoded content container for this message
-				const messageItem = buttonElement.closest('.message-item');
-				const decodedContainer = messageItem.querySelector('.decoded-content');
-				const decodedOutput = decodedContainer.querySelector('.decoded-output');
+			// Find the decoded content container for this message
+			const messageItem = buttonElement.closest('.message-item');
+			const decodedContainer = messageItem.querySelector('.decoded-content');
+			const decodedOutput = decodedContainer.querySelector('.decoded-output');
 
-				// Show the decoded content container
-				decodedContainer.classList.remove('hidden');
+			// Show the decoded content container
+			decodedContainer.classList.remove('hidden');
 
-				// Check if it's an image
-				if (decoded.startsWith('data:image')) {
-					// Create image element safely
-					const img = document.createElement('img');
-					img.src = decoded;
-					img.alt = 'Decoded image';
-					decodedOutput.innerHTML = '';
-					decodedOutput.appendChild(img);
-				} else {
-					// Use textContent for text to prevent XSS
-					decodedOutput.textContent = decoded;
-				}
-
-				// Restore button
-				buttonElement.disabled = false;
-				buttonElement.innerHTML = originalContent;
+			// Check if it's an image
+			if (decoded.startsWith('data:image')) {
+				// Create image element safely
+				const img = document.createElement('img');
+				img.src = decoded;
+				img.alt = 'Decoded image';
+				decodedOutput.innerHTML = '';
+				decodedOutput.appendChild(img);
+			} else {
+				// Use textContent for text to prevent XSS
+				decodedOutput.textContent = decoded;
 			}
 		} catch (error) {
 			alert('Error decoding message: ' + error.message);
-			// Restore button on error
-			if (buttonElement) {
-				const originalContent = '<span>🔓</span><span>Decode</span>';
-				buttonElement.disabled = false;
-				buttonElement.innerHTML = originalContent;
-			}
+		} finally {
+			// Always restore button state
+			buttonElement.disabled = false;
+			buttonElement.innerHTML = originalContent;
 		}
 	}
 
