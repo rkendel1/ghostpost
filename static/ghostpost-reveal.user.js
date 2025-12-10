@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      1.0.2
+// @version      1.1.0
 // @description  Reveal hidden Ghostpost messages on any webpage with one click
 // @author       Ghostpost
 // @match        *://*/*
@@ -100,6 +100,12 @@
 		button.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
 	};
 
+	// Performance optimization constants
+	const DEBOUNCE_DELAY = 2000; // Wait 2 seconds after last change before scanning
+	const MAX_TEXT_NODE_LENGTH = 50000; // Skip very large text nodes
+	const MAX_NODES_PER_SCAN = 1000; // Limit nodes scanned in one pass
+	const SCAN_TIMEOUT = 100; // Maximum time for a single scan in ms
+
 	// List of invisible Unicode characters used for encoding
 	// Must match the encoding scheme: \u2060, \u200B, \u200C, \u200D, \u200E, \u200F, \u202D, \u202C
 	// Plus \uFEFF used as delimiter
@@ -122,20 +128,49 @@
 	// Minimum threshold - Hidenly uses pairs of chars, so minimum 8 chars = ~4 base64 chars
 	const MIN_INVISIBLE_CHAR_COUNT = 8;
 
+	// Quick pre-check using indexOf for performance
+	function hasInvisibleChars(text) {
+		// Quick check for delimiter first (most reliable indicator)
+		if (text.indexOf('\uFEFF') !== -1) return true;
+		// Check for at least one of the common encoding chars
+		return (
+			text.indexOf('\u200B') !== -1 ||
+			text.indexOf('\u200C') !== -1 ||
+			text.indexOf('\u200D') !== -1 ||
+			text.indexOf('\u2060') !== -1 ||
+			text.indexOf('\u200E') !== -1 ||
+			text.indexOf('\u200F') !== -1 ||
+			text.indexOf('\u202C') !== -1 ||
+			text.indexOf('\u202D') !== -1
+		);
+	}
+
 	/**
 	 * Check if text likely contains a Hidenly encoded message
 	 * Returns false for legitimate uses like RTL text support
+	 * Optimized for performance
 	 */
 	function isLikelyHidenlyMessage(text) {
-		const matches = text.match(invisibleCharRegex);
+		// Skip empty or extremely long text nodes
+		if (!text || text.length === 0 || text.length > MAX_TEXT_NODE_LENGTH) {
+			return false;
+		}
 
-		if (!matches || matches.length < MIN_INVISIBLE_CHAR_COUNT) {
+		// Quick pre-check before expensive regex
+		if (!hasInvisibleChars(text)) {
 			return false;
 		}
 
 		// If we have the delimiter character (FEFF), it's very likely an encoded message
-		if (text.includes('\uFEFF')) {
+		// The encoding wraps secrets with FEFF delimiters
+		if (text.indexOf('\uFEFF') !== -1) {
 			return true;
+		}
+
+		const matches = text.match(invisibleCharRegex);
+
+		if (!matches || matches.length < MIN_INVISIBLE_CHAR_COUNT) {
+			return false;
 		}
 
 		// Calculate ratio of invisible chars to total length
@@ -151,13 +186,38 @@
 		return matches.length > 30 || ratio > 0.1;
 	}
 
-	// Function to detect hidden messages
+	// Function to detect hidden messages with performance optimization
 	function detectHiddenMessages() {
 		const textNodes = [];
+		const startTime = Date.now();
+		let nodesChecked = 0;
+
 		const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
 
 		let node;
 		while ((node = walker.nextNode())) {
+			// Safety check: stop if taking too long
+			if (Date.now() - startTime > SCAN_TIMEOUT) {
+				console.log(
+					'[Ghostpost] Scan timeout - stopping early for performance. Checked',
+					nodesChecked,
+					'nodes'
+				);
+				break;
+			}
+
+			// Limit number of nodes processed
+			if (nodesChecked >= MAX_NODES_PER_SCAN) {
+				console.log(
+					'[Ghostpost] Max nodes reached - stopping scan. Checked',
+					nodesChecked,
+					'nodes'
+				);
+				break;
+			}
+
+			nodesChecked++;
+
 			if (node.textContent && isLikelyHidenlyMessage(node.textContent)) {
 				textNodes.push(node);
 			}
@@ -270,12 +330,33 @@
 	// Add button to page
 	document.body.appendChild(button);
 
-	// Initial counter update
-	updateCounter();
+	// Initial counter update (debounced to let page load)
+	setTimeout(updateCounter, 1000);
 
-	// Monitor for dynamic content changes
-	const observer = new MutationObserver(() => {
-		updateCounter();
+	// Debounced update function to prevent excessive scanning
+	let debounceTimeout;
+	function debouncedUpdateCounter() {
+		clearTimeout(debounceTimeout);
+		debounceTimeout = setTimeout(updateCounter, DEBOUNCE_DELAY);
+	}
+
+	// Monitor for dynamic content changes with debouncing
+	const observer = new MutationObserver((mutations) => {
+		// Only update if there are actual content changes
+		let hasContentChange = false;
+		for (const mutation of mutations) {
+			if (
+				mutation.type === 'characterData' ||
+				(mutation.type === 'childList' && mutation.addedNodes.length > 0)
+			) {
+				hasContentChange = true;
+				break;
+			}
+		}
+
+		if (hasContentChange) {
+			debouncedUpdateCounter();
+		}
 	});
 
 	observer.observe(document.body, {
@@ -284,5 +365,7 @@
 		characterData: true
 	});
 
-	console.log('Ghostpost Reveal extension loaded! Click the 👻 button to reveal hidden messages.');
+	console.log(
+		'Ghostpost Reveal extension loaded! Click the 👻 button to reveal hidden messages. Scanning is optimized for performance.'
+	);
 })();
