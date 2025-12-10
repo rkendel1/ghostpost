@@ -32,8 +32,8 @@
 					error = authError.message;
 				} else {
 					modalStore.close();
-					// Show success message
-					alert('Account created! Please check your email to verify your account.');
+					error = 'Account created! Please check your email to verify your account.';
+					// Note: In production, use a proper toast notification system
 				}
 			} else {
 				const { data, error: authError } = await authStore.signIn(email, password);

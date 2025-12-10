@@ -136,7 +136,7 @@
 					});
 				} catch (dbError) {
 					console.error('Failed to save to database:', dbError);
-					// Don't show error to user, post is still encoded
+					error = 'Post encoded successfully, but failed to save to your account. You can still use the encoded message.';
 				}
 			}
 
