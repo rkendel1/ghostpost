@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import { clipboard } from '@skeletonlabs/skeleton';
 	import { decodeMessage, initWasm } from '$lib/ghostpost';
 
@@ -11,6 +12,14 @@
 
 	onMount(async () => {
 		await initWasm();
+		
+		// Check for text parameter from URL (for mobile share or overlay button)
+		const urlText = $page.url.searchParams.get('text');
+		if (urlText) {
+			encodedInput = decodeURIComponent(urlText);
+			// Auto-decode if text is provided
+			await handleDecode();
+		}
 	});
 
 	async function handleDecode() {

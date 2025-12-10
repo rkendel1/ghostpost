@@ -1,10 +1,37 @@
 # 🎭 Hidenly - AI Ghostpost Application
 
-Hide your secrets within your messages using invisible Unicode characters. Now with AI-powered content generation for social media and a browser extension!
+Hide your secrets within your messages using invisible Unicode characters. Now with AI-powered content generation, browser extension, and universal reveal button!
 
 ## 🌟 Features
 
-### Browser Extension 🆕
+### 👻 Universal Reveal Button (NEW!)
+
+The **fastest way** to detect and reveal hidden Ghostpost messages on any website!
+
+- **One-Click Installation**: Install a lightweight userscript (5KB) that works everywhere
+- **Automatic Detection**: Floating 👻 button appears on every website and scans for hidden messages
+- **Visual Counter**: Red badge shows how many hidden messages are on the current page
+- **Instant Reveal**: Click to decode all hidden content with one click
+- **Works Everywhere**: Twitter, Reddit, Discord, Instagram, Facebook, and any website
+- **Zero Setup**: No browser extension needed - just install the userscript
+- **Privacy-First**: All processing happens locally in your browser
+- **Auto-Updates**: Stays current automatically
+
+[Install Reveal Button →](/install) | [Try Demo →](/demo)
+
+### 📱 Mobile Share Decoder (NEW!)
+
+Quick access to decode hidden messages on mobile devices:
+
+- **One-Tap Decoding**: Paste and reveal with mobile-optimized interface
+- **iOS & Android**: Works on all mobile browsers
+- **Share Sheet Ready**: Easy copy/paste workflow for mobile messengers
+- **Add to Home Screen**: Install as a web app for instant access
+- **URL Parameters**: Supports pre-filled text from share intents
+
+[Use Mobile Decoder →](/share)
+
+### Browser Extension
 
 - **Automatic Detection**: Scans web pages for hidden content in real-time
 - **Continuous Monitoring**: Enhanced scanning for social media feeds (Twitter/X, Facebook, LinkedIn, etc.)
@@ -32,9 +59,10 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
 
 ### Decode Page
 
-- **NEW!** Dedicated page for recipients to decode hidden messages
+- **Enhanced!** Dedicated page for recipients to decode hidden messages
 - Paste any encoded message to reveal its secret
 - Supports both hidden text and images
+- URL parameter support for mobile share workflows
 - User-friendly interface for secret revelation
 
 ## 🚀 Quick Start
@@ -95,12 +123,17 @@ ghostpost/
 │   │   │   ├── ai-compose/    # AI content generation endpoint
 │   │   │   └── post/          # Platform posting stub endpoint
 │   │   ├── compose/           # AI Ghostpost composer page
-│   │   ├── decode/            # Secret message decoder page
+│   │   ├── decode/            # Secret message decoder page (enhanced with URL params)
+│   │   ├── install/           # Userscript installation page 🆕
+│   │   ├── share/             # Mobile share decoder page 🆕
+│   │   ├── demo/              # Demo page for overlay button 🆕
 │   │   └── +page.svelte       # Home page with classic tool
 │   └── lib/
 │       ├── ghostpost.ts       # WASM integration module
 │       └── cards/             # Classic hide/unhide components
-├── browser-extension/         # Browser extension 🆕
+├── static/
+│   └── ghostpost-reveal.user.js  # Universal overlay button userscript 🆕
+├── browser-extension/         # Browser extension
 │   ├── manifest.json         # Extension configuration
 │   ├── scripts/              # Content & background scripts
 │   ├── sidebar/              # Sidebar UI
@@ -116,6 +149,35 @@ ghostpost/
 ```
 
 ## 🎯 Usage
+
+### Using the Universal Reveal Button (Recommended!)
+
+This is the **fastest and easiest** way to use Ghostpost:
+
+1. **Visit the install page** at `/install`
+2. **Install a userscript manager** (Tampermonkey, Violentmonkey, or Greasemonkey)
+3. **Click "Install Reveal Button"** to add the userscript
+4. **Visit any webpage** - The 👻 button appears automatically!
+5. **Click the button** when it shows a counter to reveal hidden messages
+
+The floating 👻 button will:
+- Automatically scan every page for hidden Ghostpost messages
+- Show a red counter badge when secrets are detected
+- Pulse red to draw your attention
+- Open the decoder with one click to reveal all secrets
+
+[Installation Guide →](/install) | [Try Demo →](/demo)
+
+### Using Mobile Share (For Mobile Users)
+
+Quick decoding on mobile devices:
+
+1. **Copy text** from any app (Messages, Twitter, WhatsApp, etc.)
+2. **Open** the share page at `/share` (bookmark it!)
+3. **Paste the text** in the text box
+4. **Tap "Reveal Secret"** to decode
+
+**Pro Tip**: Add the share page to your home screen for instant access!
 
 ### Using the Browser Extension
 
