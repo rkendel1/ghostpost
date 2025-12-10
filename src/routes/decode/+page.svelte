@@ -10,6 +10,13 @@
 	let error = '';
 	let showResult = false;
 
+	// Constants for text size thresholds
+	const MAX_AUTO_DECODE_SIZE = 2000; // ~2KB limit for auto-decode
+	const MAX_SEGMENT_EXTRACT_SIZE = 5000; // ~5KB threshold for segment extraction
+	
+	// Regular expression for detecting invisible Unicode characters
+	const INVISIBLE_CHARS_REGEX = /[\u200B\u200C\u200D\u2060\uFEFF\u180E]/;
+
 	onMount(async () => {
 		await initWasm();
 		
@@ -20,7 +27,6 @@
 			
 			// Only auto-decode if text is small enough to prevent unresponsiveness
 			// Large texts from overlay button should be manually decoded by user
-			const MAX_AUTO_DECODE_SIZE = 2000; // ~2KB limit for auto-decode
 			if (encodedInput.length <= MAX_AUTO_DECODE_SIZE) {
 				await handleDecode();
 			}
@@ -30,14 +36,13 @@
 
 	// Extract segments of text that contain invisible Unicode characters
 	function extractEncodedSegments(text: string): string[] {
-		const invisibleChars = /[\u200B\u200C\u200D\u2060\uFEFF\u180E]/;
 		const segments: string[] = [];
 		
 		// Split by common delimiters while preserving encoded content
 		const lines = text.split(/\n+/);
 		
 		for (const line of lines) {
-			if (line.trim() && invisibleChars.test(line)) {
+			if (line.trim() && INVISIBLE_CHARS_REGEX.test(line)) {
 				segments.push(line.trim());
 			}
 		}
@@ -61,7 +66,7 @@
 			const segments = extractEncodedSegments(inputText);
 			
 			// If we found specific segments, try decoding them instead of the full text
-			const textToDecode = segments.length > 0 && inputText.length > 5000 
+			const textToDecode = segments.length > 0 && inputText.length > MAX_SEGMENT_EXTRACT_SIZE 
 				? segments.join('\n') 
 				: inputText;
 			
