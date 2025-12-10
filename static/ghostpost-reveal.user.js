@@ -254,13 +254,14 @@
 			return hostname === domain || hostname.endsWith('.' + domain);
 		});
 
-		// For Mastodon, check if 'mastodon' appears as the subdomain or main domain
-		// This matches: mastodon.social, mastodon.online, mstdn.jp, etc.
-		// But rejects: mastodon-fake.evil.com
+		// For Mastodon, check if 'mastodon' or 'mstdn' appears as a proper subdomain
+		// This matches: mastodon.social, mastodon.online, social.mastodon.example, mstdn.jp
+		// But rejects: evil.mastodon.fake.com, mastodon-fake.evil.com
+		const parts = hostname.split('.');
 		const isMastodon =
-			hostname.startsWith('mastodon.') ||
-			hostname.startsWith('mstdn.') ||
-			hostname.includes('.mastodon.');
+			parts[0] === 'mastodon' ||
+			parts[0] === 'mstdn' ||
+			(parts.length > 2 && parts[parts.length - 2] === 'mastodon');
 
 		return isKnownSocial || isMastodon;
 	}
