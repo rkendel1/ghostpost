@@ -6,7 +6,13 @@
 		drawerStore.close();
 	}
 
-	let menus = [{ href: '/', label: 'Home' }];
+	let menus = [
+		{ href: '/', label: 'Home' },
+		{ href: '/compose', label: '✍️ Compose' },
+		{ href: '/decode', label: '🔍 Decode' },
+		{ href: '/dashboard', label: '📊 Dashboard' },
+		{ href: '/analytics', label: '🌐 Public Analytics' }
+	];
 </script>
 
 <nav class="list-nav p-4">

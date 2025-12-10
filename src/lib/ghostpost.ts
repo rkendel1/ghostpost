@@ -31,8 +31,13 @@
  */
 
 import init, { encode, decode } from 'wasm';
+import { v4 as uuidv4 } from 'uuid';
 
 let wasmInitialized = false;
+
+// Delimiter for post ID in the secret payload
+const POST_ID_DELIMITER = '||ghostid:';
+const POST_ID_END = '||';
 
 /**
  * Initialize the WASM module
@@ -46,36 +51,70 @@ export async function initWasm(): Promise<void> {
 }
 
 /**
- * Encode a secret message into a visible message
+ * Encode a secret message into a visible message with analytics tracking
  * @param visibleMessage - The message that will be shown publicly
  * @param secretMessage - The hidden message to encode
- * @returns The visible message with the secret encoded in invisible Unicode characters
+ * @param enableAnalytics - Whether to include a tracking ID (default: true)
+ * @returns Object with encoded message and postId (if analytics enabled)
  */
 export async function encodeMessage(
 	visibleMessage: string,
-	secretMessage: string
-): Promise<string> {
+	secretMessage: string,
+	enableAnalytics = true
+): Promise<{ encoded: string; postId?: string }> {
 	await initWasm();
-	return encode(visibleMessage, secretMessage);
+
+	let finalSecret = secretMessage;
+	let postId: string | undefined;
+
+	// Add post ID to secret if analytics enabled
+	if (enableAnalytics) {
+		postId = uuidv4();
+		finalSecret = `${secretMessage}${POST_ID_DELIMITER}${postId}${POST_ID_END}`;
+	}
+
+	const encoded = encode(visibleMessage, finalSecret);
+	return { encoded, postId };
 }
 
 /**
  * Decode a message to reveal the hidden secret
  * @param encodedMessage - The message containing the hidden secret
- * @returns The decoded secret message
+ * @returns Object with decoded message and postId (if present)
  */
-export async function decodeMessage(encodedMessage: string): Promise<string> {
+export async function decodeMessage(
+	encodedMessage: string
+): Promise<{ message: string; postId?: string }> {
 	await initWasm();
-	return decode(encodedMessage);
+	const decoded = decode(encodedMessage);
+
+	// Check if there's a post ID in the decoded message
+	const postIdIndex = decoded.indexOf(POST_ID_DELIMITER);
+	if (postIdIndex !== -1) {
+		const postIdStart = postIdIndex + POST_ID_DELIMITER.length;
+		const postIdEnd = decoded.indexOf(POST_ID_END, postIdStart);
+		if (postIdEnd !== -1) {
+			const postId = decoded.substring(postIdStart, postIdEnd);
+			const message = decoded.substring(0, postIdIndex);
+			return { message, postId };
+		}
+	}
+
+	return { message: decoded };
 }
 
 /**
- * Encode an image into a visible message
+ * Encode an image into a visible message with analytics tracking
  * @param visibleMessage - The message that will be shown publicly
  * @param imageFile - The image file to encode
- * @returns The visible message with the image encoded
+ * @param enableAnalytics - Whether to include a tracking ID (default: true)
+ * @returns Object with encoded message and postId (if analytics enabled)
  */
-export async function encodeImage(visibleMessage: string, imageFile: File): Promise<string> {
+export async function encodeImage(
+	visibleMessage: string,
+	imageFile: File,
+	enableAnalytics = true
+): Promise<{ encoded: string; postId?: string }> {
 	await initWasm();
 
 	// Convert image to base64
@@ -88,17 +127,42 @@ export async function encodeImage(visibleMessage: string, imageFile: File): Prom
 	});
 
 	const base64Image = btoa(binaryString);
-	const imageWithMeta = `data:${imageFile.type};base64,${base64Image}`;
+	let imageWithMeta = `data:${imageFile.type};base64,${base64Image}`;
 
-	return encode(visibleMessage, imageWithMeta);
+	let postId: string | undefined;
+
+	// Add post ID to secret if analytics enabled
+	if (enableAnalytics) {
+		postId = uuidv4();
+		imageWithMeta = `${imageWithMeta}${POST_ID_DELIMITER}${postId}${POST_ID_END}`;
+	}
+
+	const encoded = encode(visibleMessage, imageWithMeta);
+	return { encoded, postId };
 }
 
 /**
  * Decode an image from an encoded message
  * @param encodedMessage - The message containing the hidden image
- * @returns The decoded image as a data URL
+ * @returns Object with decoded image URL and postId (if present)
  */
-export async function decodeImage(encodedMessage: string): Promise<string> {
+export async function decodeImage(
+	encodedMessage: string
+): Promise<{ imageUrl: string; postId?: string }> {
 	await initWasm();
-	return decode(encodedMessage);
+	const decoded = decode(encodedMessage);
+
+	// Check if there's a post ID in the decoded message
+	const postIdIndex = decoded.indexOf(POST_ID_DELIMITER);
+	if (postIdIndex !== -1) {
+		const postIdStart = postIdIndex + POST_ID_DELIMITER.length;
+		const postIdEnd = decoded.indexOf(POST_ID_END, postIdStart);
+		if (postIdEnd !== -1) {
+			const postId = decoded.substring(postIdStart, postIdEnd);
+			const imageUrl = decoded.substring(0, postIdIndex);
+			return { imageUrl, postId };
+		}
+	}
+
+	return { imageUrl: decoded };
 }

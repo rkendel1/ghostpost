@@ -33,13 +33,32 @@
 		showResult = false;
 
 		try {
-			decodedSecret = await decodeMessage(encodedInput);
+			const result = await decodeMessage(encodedInput);
 
-			if (!decodedSecret || decodedSecret.trim() === '') {
+			if (!result.message || result.message.trim() === '') {
 				error = 'No hidden message found in the text';
 			} else {
+				decodedSecret = result.message;
 				showResult = true;
 				error = '';
+
+				// Track analytics if postId is present
+				if (result.postId) {
+					try {
+						await fetch('/api/analytics/track', {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json'
+							},
+							body: JSON.stringify({
+								postId: result.postId
+							})
+						});
+					} catch (err) {
+						// Don't show error to user if analytics tracking fails
+						console.warn('Analytics tracking failed:', err);
+					}
+				}
 			}
 		} catch (err) {
 			error = 'Failed to decode message. Make sure it contains a hidden secret.';

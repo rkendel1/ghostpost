@@ -11,6 +11,7 @@
 	let secretImage: File | null = null;
 	let imagePreview = '';
 	let encodedMessage = '';
+	let currentPostId = '';
 	let isGenerating = false;
 	let isEncoding = false;
 	let error = '';
@@ -98,11 +99,14 @@
 		error = '';
 
 		try {
+			let result;
 			if (secretType === 'image') {
-				encodedMessage = await encodeImage(visibleMessage, secretImage!);
+				result = await encodeImage(visibleMessage, secretImage!);
 			} else {
-				encodedMessage = await encodeMessage(visibleMessage, secretMessage);
+				result = await encodeMessage(visibleMessage, secretMessage);
 			}
+			encodedMessage = result.encoded;
+			currentPostId = result.postId || '';
 			error = '';
 		} catch (err) {
 			error = 'Failed to encode message';
@@ -270,6 +274,19 @@
 			<p class="text-sm opacity-75">
 				Your message has been encoded! Copy it and paste it on your social media platform.
 			</p>
+
+			{#if currentPostId}
+				<div class="card p-4 variant-ghost-success">
+					<p class="text-sm font-bold">📊 Analytics Enabled</p>
+					<p class="text-xs opacity-75 mt-1">
+						Post ID: <code class="code">{currentPostId}</code>
+					</p>
+					<p class="text-xs opacity-75 mt-2">
+						Track this post's analytics on the
+						<a href="/dashboard" class="anchor">Dashboard page</a>
+					</p>
+				</div>
+			{/if}
 
 			<label class="label">
 				<span>Encoded Message (copy this)</span>
