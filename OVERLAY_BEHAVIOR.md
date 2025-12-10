@@ -57,9 +57,15 @@ When you click "Reveal" on a message:
 
 ## Version History
 
-### v2.0.0 (Current)
+### v2.0.1 (Current)
+- ✅ Version bump to force auto-update in userscript managers
+- ✅ Ensures all users running old v1.x get updated to inline modal version
+- ✅ Same features as v2.0.0
+
+### v2.0.0
 - ✅ **Inline decoding** - No more redirects to decode page
 - ✅ **Compact modal** - Positioned above ghost button
+- ✅ **Three-step workflow** - Notify → Identify → Reveal, all inline
 - ✅ **Client-side only** - No authentication needed
 - ✅ **Copy to clipboard** - Easy sharing of revealed secrets
 
@@ -67,6 +73,8 @@ When you click "Reveal" on a message:
 - ❌ Used to redirect to `/decode` page
 - ❌ Required navigation away from current page
 - ❌ Less user-friendly workflow
+- ⚠️ If you see a new tab/window opening to `/decode`, you're running an old version
+- ⚠️ Please reinstall from `/install` page to get v2.0.1+
 
 ## Implementation
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.0.0
+// @version      2.0.1
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -19,9 +19,14 @@
 /**
  * Ghostpost Reveal Userscript
  *
- * NEW in v2.0.0:
+ * NEW in v2.0.1:
+ * - Version bump to force auto-update in userscript managers
+ * - Ensures all users get the inline modal experience
+ *
+ * v2.0.0 Features:
  * - Inline decoding: No more redirects! Secrets are revealed directly in the modal
  * - Compact modal: Positioned above the ghost button for better UX
+ * - Three-step workflow: Notify → Identify → Reveal, all in one modal
  * - Client-side only: All decoding happens locally, no authentication needed
  * - Copy to clipboard: Easy sharing of revealed secrets
  * 
@@ -46,15 +51,26 @@
 
 	// Configuration
 	const BUTTON_ID = 'ghostpost-reveal-button';
+	const SCRIPT_VERSION = '2.0.1';
 
-	// Check if button already exists
-	if (document.getElementById(BUTTON_ID)) {
-		return;
+	// Check if button already exists (might be from an old version)
+	const existingButton = document.getElementById(BUTTON_ID);
+	if (existingButton) {
+		// Check if this is an old version by looking for the data-version attribute
+		const existingVersion = existingButton.dataset.version;
+		if (existingVersion && existingVersion !== SCRIPT_VERSION) {
+			console.warn(`[Ghostpost] Detected old version ${existingVersion}. Current version is ${SCRIPT_VERSION}. Please update your userscript.`);
+			existingButton.remove(); // Remove old button
+		} else if (existingButton) {
+			// Same version already running, don't load again
+			return;
+		}
 	}
 
 	// Create floating reveal button using DOM methods for security
 	const button = document.createElement('div');
 	button.id = BUTTON_ID;
+	button.dataset.version = SCRIPT_VERSION; // Store version for future compatibility checks
 
 	const container = document.createElement('div');
 	container.style.cssText = 'position: relative; width: 100%; height: 100%;';
