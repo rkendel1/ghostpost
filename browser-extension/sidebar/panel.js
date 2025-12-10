@@ -266,21 +266,26 @@ class DetectionPanel {
 			// Find the decoded content container for this message
 			const messageItem = buttonElement.closest('.message-item');
 			if (!messageItem) {
-				throw new Error('Message item container not found');
+				throw new Error('Could not find message container for decoding');
 			}
 
 			const decodedContainer = messageItem.querySelector('.decoded-content');
 			if (!decodedContainer) {
-				throw new Error('Decoded content container not found');
+				throw new Error('Decoded content element missing from DOM');
 			}
 
 			const decodedOutput = decodedContainer.querySelector('.decoded-output');
 			if (!decodedOutput) {
-				throw new Error('Decoded output container not found');
+				throw new Error('Decoded output element missing from DOM');
 			}
 
 			// Show the decoded content container
 			decodedContainer.classList.remove('hidden');
+
+			// Clear any existing content safely
+			while (decodedOutput.firstChild) {
+				decodedOutput.removeChild(decodedOutput.firstChild);
+			}
 
 			// Check if it's an image
 			if (decoded.startsWith('data:image')) {
@@ -288,7 +293,6 @@ class DetectionPanel {
 				const img = document.createElement('img');
 				img.src = decoded;
 				img.alt = 'Decoded image';
-				decodedOutput.innerHTML = '';
 				decodedOutput.appendChild(img);
 			} else {
 				// Use textContent for text to prevent XSS
@@ -297,9 +301,11 @@ class DetectionPanel {
 		} catch (error) {
 			alert('Error decoding message: ' + error.message);
 		} finally {
-			// Always restore button state
-			buttonElement.disabled = false;
-			buttonElement.innerHTML = originalContent;
+			// Always restore button state if element still exists
+			if (buttonElement && buttonElement.parentNode) {
+				buttonElement.disabled = false;
+				buttonElement.innerHTML = originalContent;
+			}
 		}
 	}
 
@@ -309,10 +315,13 @@ class DetectionPanel {
 		);
 		if (decodedContainer) {
 			decodedContainer.classList.add('hidden');
-			// Clear the output
+			// Clear the output safely
 			const decodedOutput = decodedContainer.querySelector('.decoded-output');
 			if (decodedOutput) {
-				decodedOutput.innerHTML = '';
+				// Remove all child nodes safely
+				while (decodedOutput.firstChild) {
+					decodedOutput.removeChild(decodedOutput.firstChild);
+				}
 			}
 		}
 	}
