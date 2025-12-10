@@ -34,11 +34,23 @@
 		}
 	}
 
-	function handleCopy() {
+	async function handleCopy() {
 		const shareUrl = window.location.origin + '/decode';
-		navigator.clipboard.writeText(shareUrl);
-		copySuccess = true;
-		setTimeout(() => (copySuccess = false), 2000);
+		try {
+			await navigator.clipboard.writeText(shareUrl);
+			copySuccess = true;
+			setTimeout(() => (copySuccess = false), 2000);
+		} catch (err) {
+			// Fallback: create temporary input for older browsers
+			const input = document.createElement('input');
+			input.value = shareUrl;
+			document.body.appendChild(input);
+			input.select();
+			document.execCommand('copy');
+			document.body.removeChild(input);
+			copySuccess = true;
+			setTimeout(() => (copySuccess = false), 2000);
+		}
 	}
 </script>
 

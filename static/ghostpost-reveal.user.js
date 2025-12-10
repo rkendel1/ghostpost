@@ -1,14 +1,31 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      1.0.0
+// @version      1.0.1
 // @description  Reveal hidden Ghostpost messages on any webpage with one click
 // @author       Ghostpost
 // @match        *://*/*
+// @exclude      *://*/login*
+// @exclude      *://*/signin*
+// @exclude      *://*/banking*
+// @exclude      *://*/account*
+// @exclude      *://*.bank.*/*
+// @exclude      *://*.paypal.*/*
 // @grant        none
 // @updateURL    https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // @downloadURL  https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // ==/UserScript==
+
+/**
+ * Ghostpost Reveal Userscript
+ * 
+ * Security & Privacy Notes:
+ * - All processing happens locally in your browser
+ * - No data is sent to external servers during detection
+ * - Only extracts text when you explicitly click the reveal button
+ * - Common sensitive domains (banking, login) are excluded
+ * - Uses DOM manipulation only, no eval() or dynamic code execution
+ */
 
 (function() {
     'use strict';
@@ -22,29 +39,38 @@
         return;
     }
 
-    // Create floating reveal button
+    // Create floating reveal button using DOM methods for security
     const button = document.createElement('div');
     button.id = BUTTON_ID;
-    button.innerHTML = `
-        <div style="position: relative; width: 100%; height: 100%;">
-            <span style="font-size: 32px;">👻</span>
-            <span id="ghostpost-counter" style="
-                position: absolute;
-                top: -5px;
-                right: -5px;
-                background: #ef4444;
-                color: white;
-                border-radius: 50%;
-                width: 20px;
-                height: 20px;
-                font-size: 12px;
-                font-weight: bold;
-                display: none;
-                align-items: center;
-                justify-content: center;
-            "></span>
-        </div>
+    
+    const container = document.createElement('div');
+    container.style.cssText = 'position: relative; width: 100%; height: 100%;';
+    
+    const ghost = document.createElement('span');
+    ghost.textContent = '👻';
+    ghost.style.fontSize = '32px';
+    
+    const counter = document.createElement('span');
+    counter.id = 'ghostpost-counter';
+    counter.style.cssText = `
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #ef4444;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        font-size: 12px;
+        font-weight: bold;
+        display: none;
+        align-items: center;
+        justify-content: center;
     `;
+    
+    container.appendChild(ghost);
+    container.appendChild(counter);
+    button.appendChild(container);
     
     button.style.cssText = `
         position: fixed;
@@ -131,11 +157,25 @@
             return;
         }
 
-        // Extract all text content from the page
-        const pageText = document.body.innerText;
+        // Extract text from nodes containing hidden messages only
+        let extractedText = '';
+        hiddenMessages.forEach(node => {
+            // Get parent element text to include context
+            const parent = node.parentElement;
+            if (parent) {
+                extractedText += parent.innerText + '\n\n';
+            }
+        });
+        
+        // Limit text size to prevent URL length issues (max ~8KB)
+        const maxLength = 8000;
+        if (extractedText.length > maxLength) {
+            extractedText = extractedText.substring(0, maxLength);
+            showNotification('Note: Text truncated due to size. Some messages may not be included.', 'info');
+        }
         
         // Open decode page with the text
-        const encodedText = encodeURIComponent(pageText);
+        const encodedText = encodeURIComponent(extractedText);
         const decodeUrl = `${DECODE_API_URL}?text=${encodedText}`;
         
         // Open in new window
