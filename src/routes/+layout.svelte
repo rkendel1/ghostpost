@@ -83,7 +83,10 @@
 							Sign In
 						</button>
 					{/if}
-					<a href="https://github.com/rkendel1/ghostpost" class="no-underline hover:no-underline text-inherit">
+					<a
+						href="https://github.com/rkendel1/ghostpost"
+						class="no-underline hover:no-underline text-inherit"
+					>
 						<GitHubIcon width="24" />
 					</a>
 				</div>

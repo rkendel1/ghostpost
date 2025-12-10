@@ -15,7 +15,7 @@
 
 	onMount(async () => {
 		await initWasm();
-		
+
 		// Load the reveal button script to demonstrate overlay detection
 		loadRevealScript();
 	});
@@ -35,7 +35,7 @@
 
 	async function handleEncode() {
 		if (!demoVisibleMessage || !demoSecretMessage) return;
-		
+
 		isEncoding = true;
 		showEncoded = false;
 		showDecoded = false;
@@ -57,7 +57,7 @@
 
 	async function handleDecode() {
 		if (!demoEncodedMessage) return;
-		
+
 		isDecoding = true;
 		showDecoded = false;
 		errorMessage = '';
@@ -99,8 +99,6 @@
 		showEncoded = false;
 		showDecoded = false;
 	}
-
-
 </script>
 
 <svelte:head>
@@ -228,9 +226,7 @@
 							<button
 								class="btn variant-filled-primary w-full"
 								on:click={handleEncode}
-								disabled={isEncoding ||
-									!demoVisibleMessage.trim() ||
-									!demoSecretMessage.trim()}
+								disabled={isEncoding || !demoVisibleMessage.trim() || !demoSecretMessage.trim()}
 							>
 								{#if isEncoding}
 									<span class="animate-spin">⚙️</span>
@@ -251,10 +247,7 @@
 											<label class="label">
 												<span class="text-sm font-semibold">Encoded Message</span>
 											</label>
-											<button
-												class="btn btn-sm variant-ghost-surface"
-												on:click={handleCopy}
-											>
+											<button class="btn btn-sm variant-ghost-surface" on:click={handleCopy}>
 												📋 Copy
 											</button>
 										</div>
@@ -309,7 +302,8 @@
 					<div class="card p-4 variant-ghost-primary text-center text-sm">
 						<p class="font-semibold mb-2">💡 Live Demo!</p>
 						<p class="opacity-90">
-							The 👻 reveal button in the bottom-right corner will automatically detect your encoded message! Watch the counter update when you encode.
+							The 👻 reveal button in the bottom-right corner will automatically detect your encoded
+							message! Watch the counter update when you encode.
 						</p>
 					</div>
 				</div>
@@ -387,9 +381,7 @@
 				<div class="card p-6 space-y-3 hover:scale-105 transition-transform">
 					<div class="text-4xl">🤖</div>
 					<h3 class="h3 text-lg font-semibold">AI-Powered</h3>
-					<p class="text-sm opacity-75">
-						Generate platform-optimized content with AI integration
-					</p>
+					<p class="text-sm opacity-75">Generate platform-optimized content with AI integration</p>
 				</div>
 
 				<div class="card p-6 space-y-3 hover:scale-105 transition-transform">
