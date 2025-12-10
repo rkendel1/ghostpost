@@ -193,6 +193,15 @@ class DetectionPanel {
             <span>Copy</span>
           </button>
         </div>
+        <div class="decoded-content hidden" data-index="${index}">
+          <div class="decoded-header">
+            <span class="decoded-title">✨ Decoded Content:</span>
+            <button class="button-small button-close-decoded" data-index="${index}">
+              <span>✕</span>
+            </button>
+          </div>
+          <div class="decoded-output"></div>
+        </div>
       </div>
     `
 			)
@@ -205,7 +214,7 @@ class DetectionPanel {
 			btn.addEventListener('click', (e) => {
 				const index = parseInt(e.currentTarget.dataset.index);
 				const text = this.currentResults[index].text;
-				this.decodeAndShow(text, e.currentTarget);
+				this.decodeAndShow(text, e.currentTarget, index);
 			});
 		});
 
@@ -216,9 +225,16 @@ class DetectionPanel {
 				this.copyToClipboard(text, e.currentTarget);
 			});
 		});
+
+		this.messagesContainer.querySelectorAll('.button-close-decoded').forEach((btn) => {
+			btn.addEventListener('click', (e) => {
+				const index = parseInt(e.currentTarget.dataset.index);
+				this.closeDecodedContent(index);
+			});
+		});
 	}
 
-	async decodeAndShow(encodedText, buttonElement) {
+	async decodeAndShow(encodedText, buttonElement, messageIndex) {
 		// Show confirmation dialog before decoding
 		const shouldDecode = confirm(
 			'This will decode and reveal the hidden content.\n\n' +
@@ -240,39 +256,56 @@ class DetectionPanel {
 				buttonElement.disabled = true;
 				buttonElement.innerHTML = '<span>⏳</span><span>Decoding...</span>';
 
-				// Restore button after a moment
-				setTimeout(() => {
-					buttonElement.disabled = false;
-					buttonElement.innerHTML = originalContent;
-				}, 2000);
-			}
+				// Decode the message
+				const decoded = await decodeMessage(encodedText);
 
-			const decoded = await decodeMessage(encodedText);
+				// Find the decoded content container for this message
+				const messageItem = buttonElement.closest('.message-item');
+				const decodedContainer = messageItem.querySelector('.decoded-content');
+				const decodedOutput = decodedContainer.querySelector('.decoded-output');
 
-			// Switch to decoder tab and show result
-			const decoderTab = document.querySelector('[data-tab="decoder"]');
-			decoderTab.click();
+				// Show the decoded content container
+				decodedContainer.classList.remove('hidden');
 
-			// Display result
-			const resultContainer = document.getElementById('decode-result');
-			const resultOutput = document.getElementById('decode-output');
+				// Check if it's an image
+				if (decoded.startsWith('data:image')) {
+					// Create image element safely
+					const img = document.createElement('img');
+					img.src = decoded;
+					img.alt = 'Decoded image';
+					decodedOutput.innerHTML = '';
+					decodedOutput.appendChild(img);
+				} else {
+					// Use textContent for text to prevent XSS
+					decodedOutput.textContent = decoded;
+				}
 
-			resultContainer.classList.remove('hidden');
-
-			// Check if it's an image
-			if (decoded.startsWith('data:image')) {
-				// Create image element safely
-				const img = document.createElement('img');
-				img.src = decoded;
-				img.alt = 'Decoded image';
-				resultOutput.innerHTML = '';
-				resultOutput.appendChild(img);
-			} else {
-				// Use textContent for text to prevent XSS
-				resultOutput.textContent = decoded;
+				// Restore button
+				buttonElement.disabled = false;
+				buttonElement.innerHTML = originalContent;
 			}
 		} catch (error) {
 			alert('Error decoding message: ' + error.message);
+			// Restore button on error
+			if (buttonElement) {
+				const originalContent = '<span>🔓</span><span>Decode</span>';
+				buttonElement.disabled = false;
+				buttonElement.innerHTML = originalContent;
+			}
+		}
+	}
+
+	closeDecodedContent(messageIndex) {
+		const decodedContainer = this.messagesContainer.querySelector(
+			`.decoded-content[data-index="${messageIndex}"]`
+		);
+		if (decodedContainer) {
+			decodedContainer.classList.add('hidden');
+			// Clear the output
+			const decodedOutput = decodedContainer.querySelector('.decoded-output');
+			if (decodedOutput) {
+				decodedOutput.innerHTML = '';
+			}
 		}
 	}
 
