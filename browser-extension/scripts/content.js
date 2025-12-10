@@ -41,12 +41,22 @@ const SPARSE_COUNT_THRESHOLD = 20;
 // Threshold for high invisible char count that likely indicates encoded content
 const HIGH_COUNT_THRESHOLD = 30;
 
+// Clustering detection constants
+const MIN_CLUSTER_SIZE = 5; // Minimum invisible chars needed for clustering analysis
+const CLUSTER_DISTANCE = 50; // Maximum characters between invisible chars to be considered clustered
+const CLUSTER_RATIO_THRESHOLD = 0.6; // Minimum ratio of clustered chars to confirm encoding
+
+// Scanning performance constants
+const PRIORITY_SCAN_MIN_DELAY = 300; // Minimum delay for priority feed scans (ms)
+const INCREMENTAL_SCAN_THRESHOLD = 50; // Max new nodes to scan incrementally vs full rescan
+const PERIODIC_SCAN_INTERVAL = 10000; // Periodic background scan interval for social media (ms)
+
 /**
  * Check if invisible characters appear clustered (indicating encoding)
  * vs scattered (indicating legitimate formatting)
  */
 function areClustered(text, matches) {
-	if (matches.length < 5) return false;
+	if (matches.length < MIN_CLUSTER_SIZE) return false;
 
 	// Find positions of all invisible characters
 	const positions = [];
@@ -58,20 +68,20 @@ function areClustered(text, matches) {
 		index++;
 	}
 
-	if (positions.length < 5) return false;
+	if (positions.length < MIN_CLUSTER_SIZE) return false;
 
 	// Check if most invisible chars are close together (clustered)
 	// Hidenly encoding typically clusters invisible chars together
 	let clusteredCount = 0;
 	for (let i = 1; i < positions.length; i++) {
-		// If within 50 characters of previous invisible char, it's clustered
-		if (positions[i] - positions[i - 1] < 50) {
+		// If within CLUSTER_DISTANCE characters of previous invisible char, it's clustered
+		if (positions[i] - positions[i - 1] < CLUSTER_DISTANCE) {
 			clusteredCount++;
 		}
 	}
 
-	// If more than 60% are clustered, likely encoded content
-	return clusteredCount / positions.length > 0.6;
+	// If more than CLUSTER_RATIO_THRESHOLD are clustered, likely encoded content
+	return clusteredCount / positions.length > CLUSTER_RATIO_THRESHOLD;
 }
 
 /**
@@ -397,11 +407,13 @@ const observer = new MutationObserver((mutations) => {
 		}
 
 		// Use faster debounce for priority scans (feed content)
-		const delay = priorityScan ? Math.min(getDebounceDelay(), 300) : getDebounceDelay();
+		const delay = priorityScan
+			? Math.min(getDebounceDelay(), PRIORITY_SCAN_MIN_DELAY)
+			: getDebounceDelay();
 
 		window.hidenlyScanTimeout = setTimeout(() => {
 			// For performance, scan only new nodes first
-			if (nodesToScan.length > 0 && nodesToScan.length < 50) {
+			if (nodesToScan.length > 0 && nodesToScan.length < INCREMENTAL_SCAN_THRESHOLD) {
 				const newDetections = scanNewNodes(nodesToScan);
 				if (newDetections.length > 0) {
 					console.log(
@@ -438,10 +450,10 @@ observer.observe(document.body, {
 if (isSocialMediaSite()) {
 	console.log('[Hidenly] Social media site detected - enabling enhanced feed monitoring');
 
-	// Periodic scan every 10 seconds for social feeds (catches missed mutations)
+	// Periodic scan to catch any missed mutations (e.g., from infinite scroll)
 	setInterval(() => {
 		performInitialScan();
-	}, 10000);
+	}, PERIODIC_SCAN_INTERVAL);
 }
 
 console.log('[Hidenly] Content script loaded and monitoring for hidden content');
