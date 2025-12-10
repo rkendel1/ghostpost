@@ -317,9 +317,9 @@
 		const tagName = element.tagName.toLowerCase();
 		
 		// Get visible text preview (first 50 chars)
-		let visibleText = element.textContent.trim();
-		visibleText = visibleText.substring(0, 50);
-		if (element.textContent.length > 50) visibleText += '...';
+		const textContent = element.textContent.trim();
+		let visibleText = textContent.substring(0, 50);
+		if (textContent.length > 50) visibleText += '...';
 		
 		// Get location context
 		let location = tagName;
@@ -386,9 +386,20 @@
 						<span style="font-weight: 600; color: #059669;">Opening decoder...</span>
 					</div>
 					<p style="font-size: 13px; color: #065f46; margin: 0;">The secret will be revealed in the new window.</p>
-					<button onclick="this.parentElement.remove(); this.parentElement.parentElement.querySelector('.reveal-btn').style.display='inline-flex';" style="margin-top: 10px; padding: 6px 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">OK</button>
+					<button class="close-reveal-status" style="margin-top: 10px; padding: 6px 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">OK</button>
 				</div>
 			`;
+			
+			// Add event listener for the OK button
+			setTimeout(() => {
+				const okButton = itemElement.querySelector('.close-reveal-status');
+				if (okButton) {
+					okButton.onclick = function() {
+						this.parentElement.remove();
+						revealBtn.style.display = 'inline-flex';
+					};
+				}
+			}, 0);
 			
 			// Flash the element on page to indicate which one was revealed
 			highlightElement(element);
@@ -545,9 +556,23 @@
 					transform: translate(-50%, -50%);
 				}
 			}
+			@keyframes modalSlideOut {
+				from {
+					opacity: 1;
+					transform: translate(-50%, -50%);
+				}
+				to {
+					opacity: 0;
+					transform: translate(-50%, -45%);
+				}
+			}
 			@keyframes fadeIn {
 				from { opacity: 0; }
 				to { opacity: 1; }
+			}
+			@keyframes fadeOut {
+				from { opacity: 1; }
+				to { opacity: 0; }
 			}
 			#ghostpost-close-modal:hover {
 				background: #f3f4f6;
@@ -568,8 +593,8 @@
 
 		// Close button handler
 		const closeModal = () => {
-			modal.style.animation = 'modalSlideIn 0.2s ease reverse';
-			backdrop.style.animation = 'fadeIn 0.2s ease reverse';
+			modal.style.animation = 'modalSlideOut 0.2s ease';
+			backdrop.style.animation = 'fadeOut 0.2s ease';
 			setTimeout(() => {
 				modal.remove();
 				backdrop.remove();
@@ -581,9 +606,9 @@
 		backdrop.onclick = closeModal;
 
 		// Reveal button handlers
-		document.querySelectorAll('.reveal-btn').forEach(btn => {
+		modal.querySelectorAll('.reveal-btn').forEach(btn => {
 			btn.onclick = function() {
-				const index = parseInt(this.dataset.index);
+				const index = parseInt(this.dataset.index, 10);
 				const node = hiddenMessages[index];
 				const element = node.parentElement;
 				const encodedText = element.textContent;
@@ -595,9 +620,9 @@
 		});
 
 		// Locate button handlers
-		document.querySelectorAll('.locate-btn').forEach(btn => {
+		modal.querySelectorAll('.locate-btn').forEach(btn => {
 			btn.onclick = function() {
-				const index = parseInt(this.dataset.index);
+				const index = parseInt(this.dataset.index, 10);
 				const node = hiddenMessages[index];
 				const element = node.parentElement;
 				
