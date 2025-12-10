@@ -1,23 +1,10 @@
 /**
- * Analytics Service using Vercel KV
+ * Analytics Service using Redis
  * Handles storage and retrieval of decode analytics
  */
 
-import { mockKv } from './mock-kv';
+import { redisClient as kv } from './redis';
 import type { DecodeEvent, DashboardStats } from '$lib/types/analytics';
-
-// Use mock KV for development, real KV for production
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let kv: any;
-try {
-	// Try to import real KV
-	const { kv: realKv } = await import('@vercel/kv');
-	kv = realKv;
-} catch {
-	// Fall back to mock KV for local development
-	console.log('Using mock KV store for local development');
-	kv = mockKv;
-}
 
 const KV_PREFIX = 'analytics:';
 const KV_POST_PREFIX = `${KV_PREFIX}post:`;

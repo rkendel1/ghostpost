@@ -95,7 +95,7 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
 - Node.js 18+
 - npm or pnpm
 - OpenAI API key (for AI features - optional)
-- Vercel KV (for analytics in production - optional, uses mock in dev)
+- Redis instance (for analytics in production - optional, uses mock in dev)
 - Optional: Rust and wasm-pack (only if you want to rebuild the WASM module)
 
 ### Installation
@@ -334,14 +334,13 @@ npm run format
 ### Deploy to Vercel
 
 1. **Connect your GitHub repository** to Vercel
-2. **Add Vercel KV storage**:
-   - Go to your Vercel project dashboard
-   - Navigate to Storage tab
-   - Create a new KV store
-   - Connect it to your project (environment variables set automatically)
+2. **Set up Redis storage**:
+   - Provision a Redis instance (e.g., Redis Labs, Upstash, or Vercel's Redis)
+   - Add the `REDIS_URL` environment variable in Vercel dashboard
 3. **Set environment variables** in Vercel dashboard:
    - `OPENAI_API_KEY` - Your OpenAI API key (optional, for AI features)
-3. **Deploy** - Vercel will automatically detect SvelteKit and deploy
+   - `REDIS_URL` - Your Redis connection URL (optional, for analytics)
+4. **Deploy** - Vercel will automatically detect SvelteKit and deploy
 
 The app is configured with `@sveltejs/adapter-vercel` for seamless deployment.
 
@@ -353,11 +352,9 @@ Create a `.env` file based on `.env.example`:
 # Optional - for AI features
 OPENAI_API_KEY=sk-your-openai-api-key-here
 
-# Optional - for analytics in production (auto-set by Vercel when using KV)
-# KV_URL=your-kv-url
-# KV_REST_API_URL=your-kv-rest-api-url
-# KV_REST_API_TOKEN=your-kv-rest-api-token
-# KV_REST_API_READ_ONLY_TOKEN=your-kv-rest-api-read-only-token
+# Optional - for analytics in production
+# Format: redis://[username]:[password]@[host]:[port]
+REDIS_URL=redis://default:password@redis-host.com:6379
 
 # Optional - for future platform integrations
 TWITTER_API_KEY=your-twitter-api-key
@@ -367,7 +364,7 @@ FACEBOOK_APP_ID=your-facebook-app-id
 TIKTOK_CLIENT_KEY=your-tiktok-client-key
 ```
 
-**Note**: Local development works without KV credentials using an in-memory mock store.
+**Note**: Local development works without Redis credentials using an in-memory mock store.
 
 ## 🔌 Extending Platform Integrations
 
