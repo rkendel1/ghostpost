@@ -259,10 +259,8 @@
 		// But rejects: mastodon-fake.evil.com
 		const isMastodon =
 			hostname.startsWith('mastodon.') ||
-			hostname === 'mastodon.social' ||
 			hostname.startsWith('mstdn.') ||
-			hostname.includes('.mastodon.') ||
-			(hostname.includes('mastodon') && hostname.split('.')[0] === 'mastodon');
+			hostname.includes('.mastodon.');
 
 		return isKnownSocial || isMastodon;
 	}
