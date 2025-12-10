@@ -3,421 +3,363 @@
 	import { decodeMessage, encodeMessage, initWasm } from '$lib/ghostpost';
 
 	// Demo state
-	let demoStep = 'idle'; // idle, encoding, encoded, decoding, decoded
-	let demoVisibleMessage = 'Hey everyone! Just wanted to share some exciting news! 🎉';
-	let demoSecretMessage = 'The secret is: GhostPost is amazing!';
+	let demoVisibleMessage = 'Just shipped our latest feature! 🚀';
+	let demoSecretMessage = 'Beta access code: GHOST2024';
 	let demoEncodedMessage = '';
 	let demoDecodedSecret = '';
-	let isProcessing = false;
+	let isEncoding = false;
+	let isDecoding = false;
+	let showEncoded = false;
+	let showDecoded = false;
+	let errorMessage = '';
 
 	onMount(async () => {
 		await initWasm();
+		
+		// Load the reveal button script to demonstrate overlay detection
+		loadRevealScript();
 	});
 
-	async function runDemo() {
-		isProcessing = true;
-		demoStep = 'encoding';
+	function loadRevealScript() {
+		// Check if script already loaded
+		if (document.getElementById('ghostpost-reveal-script')) {
+			return;
+		}
 
-		// Simulate encoding
-		await new Promise((resolve) => setTimeout(resolve, 800));
+		const script = document.createElement('script');
+		script.id = 'ghostpost-reveal-script';
+		script.src = '/ghostpost-reveal.user.js';
+		script.async = true;
+		document.body.appendChild(script);
+	}
+
+	async function handleEncode() {
+		if (!demoVisibleMessage || !demoSecretMessage) return;
+		
+		isEncoding = true;
+		showEncoded = false;
+		showDecoded = false;
+		demoDecodedSecret = '';
+		errorMessage = '';
 
 		try {
-			const result = await encodeMessage(demoVisibleMessage, demoSecretMessage);
+			await new Promise((resolve) => setTimeout(resolve, 500));
+			const result = await encodeMessage(demoVisibleMessage, demoSecretMessage, false);
 			demoEncodedMessage = result.encoded;
-			demoStep = 'encoded';
-
-			// Wait a bit
-			await new Promise((resolve) => setTimeout(resolve, 1500));
-
-			// Decode
-			demoStep = 'decoding';
-			await new Promise((resolve) => setTimeout(resolve, 800));
-
-			const decodeResult = await decodeMessage(demoEncodedMessage);
-			demoDecodedSecret = decodeResult.message;
-			demoStep = 'decoded';
+			showEncoded = true;
 		} catch (err) {
-			console.error('Demo error:', err);
-			demoStep = 'idle';
+			console.error('Encoding error:', err);
+			errorMessage = 'Error encoding message. Please try again.';
 		} finally {
-			isProcessing = false;
+			isEncoding = false;
+		}
+	}
+
+	async function handleDecode() {
+		if (!demoEncodedMessage) return;
+		
+		isDecoding = true;
+		showDecoded = false;
+		errorMessage = '';
+
+		try {
+			await new Promise((resolve) => setTimeout(resolve, 500));
+			const result = await decodeMessage(demoEncodedMessage);
+			demoDecodedSecret = result.message;
+			showDecoded = true;
+		} catch (err) {
+			console.error('Decoding error:', err);
+			errorMessage = 'Error decoding message. Please try again.';
+		} finally {
+			isDecoding = false;
+		}
+	}
+
+	async function handleCopy() {
+		try {
+			await navigator.clipboard.writeText(demoEncodedMessage);
+			// Show success feedback
+			const btn = document.activeElement;
+			const originalText = btn?.textContent;
+			if (btn) {
+				btn.textContent = '✅ Copied!';
+				setTimeout(() => {
+					if (btn) btn.textContent = originalText;
+				}, 2000);
+			}
+		} catch (err) {
+			console.error('Copy failed:', err);
+			errorMessage = 'Failed to copy to clipboard. Please copy manually.';
 		}
 	}
 
 	function resetDemo() {
-		demoStep = 'idle';
 		demoEncodedMessage = '';
 		demoDecodedSecret = '';
+		showEncoded = false;
+		showDecoded = false;
 	}
 
-	// Features data
-	const features = [
-		{
-			icon: '🔒',
-			title: 'Invisible Encoding',
-			description:
-				'Hide text or images within any message using invisible Unicode characters that are imperceptible to the human eye'
-		},
-		{
-			icon: '🤖',
-			title: 'AI-Powered',
-			description:
-				'Generate platform-optimized content with AI, then seamlessly embed your secret message'
-		},
-		{
-			icon: '📊',
-			title: 'Analytics Tracking',
-			description:
-				'Track who decodes your messages with detailed analytics (when signed in) - see views, platforms, and geographic data'
-		},
-		{
-			icon: '🌐',
-			title: 'Universal Sharing',
-			description:
-				'Share on any platform - Twitter, LinkedIn, Discord, Messages, or anywhere that supports text'
-		},
-		{
-			icon: '🔓',
-			title: 'Easy Decoding',
-			description:
-				'Recipients can decode with our web app, browser extension, or mobile-friendly interface'
-		},
-		{
-			icon: '🚀',
-			title: 'No Sign-Up Required',
-			description:
-				'Start encoding and decoding immediately. Optional account for saving posts and analytics'
-		}
-	];
 
-	// Use cases
-	const useCases = [
-		{
-			emoji: '💼',
-			title: 'Business',
-			description: 'Share public announcements with hidden details for stakeholders'
-		},
-		{
-			emoji: '🎮',
-			title: 'Gaming',
-			description: 'Hide Easter eggs and secret messages in your game posts'
-		},
-		{
-			emoji: '💬',
-			title: 'Social',
-			description: 'Share dual-layer messages on social media for different audiences'
-		},
-		{
-			emoji: '🎓',
-			title: 'Education',
-			description: 'Create interactive learning content with hidden answers'
-		}
-	];
 </script>
 
 <svelte:head>
-	<title>GhostPost - Hide Secrets in Messages</title>
+	<title>GhostPost - Hide Secret Messages in Plain Sight</title>
 	<meta
 		name="description"
-		content="Hide secret messages within any text using invisible Unicode characters. Share publicly, reveal selectively."
+		content="Hide secret messages within any text using invisible Unicode characters. Share publicly, reveal selectively. Try our interactive demo now!"
 	/>
 </svelte:head>
 
-<div class="min-h-screen">
-	<!-- Hero Section -->
-	<section class="container mx-auto px-4 py-16 lg:py-24">
-		<div class="max-w-5xl mx-auto text-center space-y-8">
-			<!-- Logo/Icon -->
-			<div class="flex justify-center">
-				<div
-					class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-6xl md:text-7xl animate-pulse"
-				>
-					👻
-				</div>
-			</div>
+<div class="min-h-screen bg-gradient-to-br from-surface-900 via-surface-800 to-surface-900">
+	<!-- Hero Section with Demo -->
+	<section class="relative overflow-hidden">
+		<!-- Gradient Overlay -->
+		<div
+			class="absolute inset-0 bg-gradient-to-r from-primary-500/10 via-secondary-500/10 to-tertiary-500/10"
+		></div>
 
-			<!-- Headline -->
-			<div class="space-y-4">
-				<h1 class="h1 text-4xl md:text-6xl lg:text-7xl font-bold">
-					Welcome to <span class="text-gradient">GhostPost</span>
-				</h1>
-				<p class="text-xl md:text-2xl opacity-75 max-w-3xl mx-auto">
-					Hide secret messages within any text. Share publicly, reveal selectively.
-				</p>
-			</div>
-
-			<!-- CTA Buttons -->
-			<div class="flex flex-wrap justify-center gap-4 pt-4">
-				<a href="/compose" class="btn variant-filled-primary btn-lg text-lg">
-					<span>✨</span>
-					<span>Create GhostPost</span>
-				</a>
-				<a href="/decode" class="btn variant-ghost-surface btn-lg text-lg">
-					<span>🔍</span>
-					<span>Decode Message</span>
-				</a>
-			</div>
-
-			<!-- Quick Stats -->
-			<div class="grid grid-cols-3 gap-4 max-w-2xl mx-auto pt-8">
-				<div class="card p-4 variant-ghost-primary">
-					<div class="h2 text-2xl md:text-3xl">100%</div>
-					<div class="text-xs md:text-sm opacity-75">Invisible</div>
-				</div>
-				<div class="card p-4 variant-ghost-secondary">
-					<div class="h2 text-2xl md:text-3xl">∞</div>
-					<div class="text-xs md:text-sm opacity-75">Platforms</div>
-				</div>
-				<div class="card p-4 variant-ghost-tertiary">
-					<div class="h2 text-2xl md:text-3xl">Free</div>
-					<div class="text-xs md:text-sm opacity-75">No Limits</div>
-				</div>
-			</div>
-		</div>
-	</section>
-
-	<!-- Reveal Button Installation CTA - Prominent Section -->
-	<section class="bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 py-12">
-		<div class="container mx-auto px-4">
-			<div class="max-w-4xl mx-auto">
-				<div class="card p-8 bg-surface-50-900-token space-y-6 text-center">
-					<div class="space-y-3">
-						<div class="flex justify-center">
-							<span class="text-6xl md:text-7xl">👻</span>
+		<div class="container mx-auto px-4 py-12 lg:py-20 relative z-10">
+			<div class="grid lg:grid-cols-2 gap-12 items-center max-w-7xl mx-auto">
+				<!-- Left Side: Value Proposition -->
+				<div class="space-y-8 text-center lg:text-left">
+					<div class="inline-flex items-center justify-center lg:justify-start">
+						<div
+							class="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-5xl md:text-6xl animate-pulse"
+						>
+							👻
 						</div>
-						<h2 class="h2 text-2xl md:text-4xl font-bold">
-							Discover Hidden Messages Everywhere!
-						</h2>
-						<p class="text-lg md:text-xl opacity-90">
-							Install the Reveal Button to automatically detect and decode GhostPost messages on any
-							website
-						</p>
-						<p class="text-sm md:text-base opacity-75">
-							✨ No sign-up required • Works on all websites • One-click reveal
+					</div>
+
+					<div class="space-y-4">
+						<h1 class="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
+							Hide Secrets in
+							<span
+								class="bg-gradient-to-r from-primary-400 via-secondary-400 to-tertiary-400 bg-clip-text text-transparent"
+							>
+								Plain Sight
+							</span>
+						</h1>
+						<p class="text-xl md:text-2xl opacity-90 max-w-2xl">
+							Share messages publicly with hidden content only you choose to reveal. Perfect for
+							announcements, Easter eggs, and dual-layer communication.
 						</p>
 					</div>
 
-					<div class="flex flex-wrap justify-center gap-4 pt-4">
-						<a
-							href="/install"
-							class="btn variant-filled-primary btn-xl font-bold hover:scale-105 transition-transform"
-						>
+					<!-- Key Features -->
+					<div class="grid grid-cols-2 gap-4 max-w-md mx-auto lg:mx-0">
+						<div class="card p-4 variant-ghost-primary">
+							<div class="text-2xl mb-1">🔒</div>
+							<div class="font-semibold text-sm">Invisible Unicode</div>
+						</div>
+						<div class="card p-4 variant-ghost-secondary">
+							<div class="text-2xl mb-1">🌐</div>
+							<div class="font-semibold text-sm">Share Anywhere</div>
+						</div>
+						<div class="card p-4 variant-ghost-tertiary">
+							<div class="text-2xl mb-1">⚡</div>
+							<div class="font-semibold text-sm">Instant Reveal</div>
+						</div>
+						<div class="card p-4 variant-ghost-surface">
+							<div class="text-2xl mb-1">🚀</div>
+							<div class="font-semibold text-sm">No Sign-Up</div>
+						</div>
+					</div>
+
+					<!-- CTA Buttons -->
+					<div class="flex flex-wrap gap-4 justify-center lg:justify-start pt-4">
+						<a href="/compose" class="btn variant-filled-primary btn-lg">
+							<span>✨</span>
+							<span>Create GhostPost</span>
+						</a>
+						<a href="/install" class="btn variant-ghost-surface btn-lg">
 							<span>⚡</span>
 							<span>Install Reveal Button</span>
 						</a>
-						<a
-							href="/demo"
-							class="btn variant-ghost-surface btn-xl hover:scale-105 transition-transform"
-						>
-							<span>🧪</span>
-							<span>Try Demo</span>
-						</a>
+					</div>
+				</div>
+
+				<!-- Right Side: Interactive Demo -->
+				<div class="space-y-6">
+					<div class="card p-6 md:p-8 variant-glass-surface space-y-6">
+						<div class="text-center space-y-2">
+							<h2 class="h2 text-2xl md:text-3xl font-bold">Try It Now</h2>
+							<p class="text-sm opacity-75">
+								Enter your message and secret, then see the magic happen
+							</p>
+						</div>
+
+						<!-- Input Form -->
+						<div class="space-y-4">
+							{#if errorMessage}
+								<div class="card p-4 variant-ghost-error">
+									<p class="text-sm text-error-500">{errorMessage}</p>
+								</div>
+							{/if}
+
+							<div class="space-y-2">
+								<label for="visible-msg" class="label">
+									<span class="text-sm font-semibold">Public Message</span>
+								</label>
+								<textarea
+									id="visible-msg"
+									class="textarea"
+									rows="2"
+									placeholder="Everyone can see this..."
+									bind:value={demoVisibleMessage}
+									disabled={isEncoding || isDecoding}
+								></textarea>
+							</div>
+
+							<div class="space-y-2">
+								<label for="secret-msg" class="label">
+									<span class="text-sm font-semibold">Secret Message</span>
+								</label>
+								<textarea
+									id="secret-msg"
+									class="textarea"
+									rows="2"
+									placeholder="This will be hidden..."
+									bind:value={demoSecretMessage}
+									disabled={isEncoding || isDecoding}
+								></textarea>
+							</div>
+
+							<button
+								class="btn variant-filled-primary w-full"
+								on:click={handleEncode}
+								disabled={isEncoding ||
+									!demoVisibleMessage.trim() ||
+									!demoSecretMessage.trim()}
+							>
+								{#if isEncoding}
+									<span class="animate-spin">⚙️</span>
+									<span>Encoding...</span>
+								{:else}
+									<span>🔒</span>
+									<span>Encode Message</span>
+								{/if}
+							</button>
+						</div>
+
+						<!-- Encoded Result -->
+						{#if showEncoded}
+							<div class="space-y-4 animate-fade-in">
+								<div class="border-t border-surface-500/20 pt-4">
+									<div class="space-y-2">
+										<div class="flex items-center justify-between">
+											<label class="label">
+												<span class="text-sm font-semibold">Encoded Message</span>
+											</label>
+											<button
+												class="btn btn-sm variant-ghost-surface"
+												on:click={handleCopy}
+											>
+												📋 Copy
+											</button>
+										</div>
+										<div class="card p-4 variant-ghost-success">
+											<p class="text-sm break-all font-mono">{demoEncodedMessage}</p>
+										</div>
+										<p class="text-xs opacity-75 text-center">
+											👀 Looks normal, right? The secret is invisible!
+										</p>
+									</div>
+								</div>
+
+								<button
+									class="btn variant-filled-secondary w-full"
+									on:click={handleDecode}
+									disabled={isDecoding}
+								>
+									{#if isDecoding}
+										<span class="animate-spin">⚙️</span>
+										<span>Decoding...</span>
+									{:else}
+										<span>🔓</span>
+										<span>Reveal Secret</span>
+									{/if}
+								</button>
+							</div>
+						{/if}
+
+						<!-- Decoded Result -->
+						{#if showDecoded}
+							<div class="space-y-4 animate-fade-in">
+								<div class="border-t border-surface-500/20 pt-4">
+									<div class="space-y-2">
+										<label class="label">
+											<span class="text-sm font-semibold">🎉 Secret Revealed!</span>
+										</label>
+										<div class="card p-6 variant-glass-primary text-center">
+											<p class="text-lg font-bold">{demoDecodedSecret}</p>
+										</div>
+									</div>
+								</div>
+
+								<button class="btn variant-ghost-surface w-full" on:click={resetDemo}>
+									<span>🔄</span>
+									<span>Try Again</span>
+								</button>
+							</div>
+						{/if}
 					</div>
 
-					<div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-						<div class="space-y-2">
-							<div class="text-3xl">🔍</div>
-							<h3 class="h4 text-base font-semibold">Auto-Detect</h3>
-							<p class="text-sm opacity-75">Scans every page for hidden messages</p>
-						</div>
-						<div class="space-y-2">
-							<div class="text-3xl">🔔</div>
-							<h3 class="h4 text-base font-semibold">Live Counter</h3>
-							<p class="text-sm opacity-75">Shows how many secrets are found</p>
-						</div>
-						<div class="space-y-2">
-							<div class="text-3xl">⚡</div>
-							<h3 class="h4 text-base font-semibold">Instant Reveal</h3>
-							<p class="text-sm opacity-75">One click to decode all messages</p>
-						</div>
+					<!-- Overlay Detection Info -->
+					<div class="card p-4 variant-ghost-primary text-center text-sm">
+						<p class="font-semibold mb-2">💡 Live Demo!</p>
+						<p class="opacity-90">
+							The 👻 reveal button in the bottom-right corner will automatically detect your encoded message! Watch the counter update when you encode.
+						</p>
 					</div>
 				</div>
 			</div>
 		</div>
 	</section>
 
-	<!-- Interactive Demo Section -->
-	<section class="bg-surface-900/30 py-16">
-		<div class="container mx-auto px-4 max-w-4xl">
-			<div class="text-center mb-12">
-				<h2 class="h2 text-3xl md:text-4xl mb-4">See It In Action</h2>
-				<p class="text-lg opacity-75">Watch how GhostPost hides secrets in plain sight</p>
-			</div>
-
-			<div class="card p-8 space-y-6">
-				<!-- Demo Controls -->
-				{#if demoStep === 'idle'}
-					<div class="text-center space-y-4">
-						<div class="space-y-2">
-							<h3 class="h3">Demo Message</h3>
-							<div class="card p-4 variant-ghost-surface">
-								<p class="text-sm">
-									<strong>Visible:</strong>
-									{demoVisibleMessage}
-								</p>
-								<p class="text-sm mt-2">
-									<strong>Secret:</strong>
-									{demoSecretMessage}
-								</p>
-							</div>
-						</div>
-						<button
-							class="btn variant-filled-primary btn-lg"
-							on:click={runDemo}
-							disabled={isProcessing}
-						>
-							<span>🎬</span>
-							<span>Run Demo</span>
-						</button>
-					</div>
-				{/if}
-
-				<!-- Encoding Animation -->
-				{#if demoStep === 'encoding'}
-					<div class="text-center space-y-4">
-						<div class="flex justify-center">
-							<div class="w-16 h-16 animate-spin">
-								<span class="text-5xl">🔒</span>
-							</div>
-						</div>
-						<h3 class="h3">Encoding secret...</h3>
-						<p class="text-sm opacity-75">Adding invisible Unicode characters</p>
-					</div>
-				{/if}
-
-				<!-- Encoded Result -->
-				{#if demoStep === 'encoded'}
-					<div class="text-center space-y-4">
-						<div class="flex justify-center">
-							<span class="text-5xl">✅</span>
-						</div>
-						<h3 class="h3">Message Encoded!</h3>
-						<div class="card p-4 variant-ghost-success">
-							<p class="text-sm mb-2 opacity-75">This message looks normal but contains a secret:</p>
-							<p class="text-base break-all">{demoEncodedMessage}</p>
-						</div>
-						<p class="text-sm opacity-75">
-							Can you see the difference? Neither can anyone else! 👀
-						</p>
-					</div>
-				{/if}
-
-				<!-- Decoding Animation -->
-				{#if demoStep === 'decoding'}
-					<div class="text-center space-y-4">
-						<div class="flex justify-center">
-							<div class="w-16 h-16 animate-bounce">
-								<span class="text-5xl">🔓</span>
-							</div>
-						</div>
-						<h3 class="h3">Decoding secret...</h3>
-						<p class="text-sm opacity-75">Extracting hidden message</p>
-					</div>
-				{/if}
-
-				<!-- Decoded Result -->
-				{#if demoStep === 'decoded'}
-					<div class="text-center space-y-4">
-						<div class="flex justify-center">
-							<span class="text-5xl">🎉</span>
-						</div>
-						<h3 class="h3">Secret Revealed!</h3>
-						<div class="card p-6 variant-glass-primary">
-							<p class="text-xl font-bold">{demoDecodedSecret}</p>
-						</div>
-						<button class="btn variant-filled-secondary" on:click={resetDemo}>
-							<span>🔄</span>
-							<span>Run Again</span>
-						</button>
-					</div>
-				{/if}
-			</div>
-		</div>
-	</section>
-
-	<!-- Features Section -->
-	<section class="container mx-auto px-4 py-16">
-		<div class="max-w-6xl mx-auto">
-			<div class="text-center mb-12">
-				<h2 class="h2 text-3xl md:text-4xl mb-4">Powerful Features</h2>
-				<p class="text-lg opacity-75">Everything you need to share secrets securely</p>
-			</div>
-
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-				{#each features as feature}
-					<div class="card p-6 space-y-3 hover:scale-105 transition-transform">
-						<div class="text-4xl">{feature.icon}</div>
-						<h3 class="h3 text-lg">{feature.title}</h3>
-						<p class="text-sm opacity-75">{feature.description}</p>
-					</div>
-				{/each}
-			</div>
-		</div>
-	</section>
-
-	<!-- Use Cases Section -->
-	<section class="bg-surface-900/30 py-16">
+	<!-- How It Works -->
+	<section class="bg-surface-800/50 py-16">
 		<div class="container mx-auto px-4 max-w-6xl">
 			<div class="text-center mb-12">
-				<h2 class="h2 text-3xl md:text-4xl mb-4">Perfect For</h2>
-				<p class="text-lg opacity-75">Endless possibilities for hidden messaging</p>
-			</div>
-
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-				{#each useCases as useCase}
-					<div class="card p-6 text-center space-y-3 variant-ghost-primary">
-						<div class="text-5xl">{useCase.emoji}</div>
-						<h3 class="h3 text-lg">{useCase.title}</h3>
-						<p class="text-sm opacity-75">{useCase.description}</p>
-					</div>
-				{/each}
-			</div>
-		</div>
-	</section>
-
-	<!-- How It Works Section -->
-	<section class="container mx-auto px-4 py-16">
-		<div class="max-w-4xl mx-auto">
-			<div class="text-center mb-12">
-				<h2 class="h2 text-3xl md:text-4xl mb-4">How It Works</h2>
-				<p class="text-lg opacity-75">Simple, secure, and invisible</p>
+				<h2 class="h2 text-3xl md:text-4xl font-bold mb-4">How It Works</h2>
+				<p class="text-lg opacity-75">Three simple steps to hidden messaging</p>
 			</div>
 
 			<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
 				<div class="text-center space-y-4">
 					<div
-						class="w-20 h-20 mx-auto rounded-full bg-primary-500 flex items-center justify-center text-3xl"
+						class="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-3xl"
 					>
-						1️⃣
+						✍️
 					</div>
-					<h3 class="h3">Write Your Message</h3>
+					<h3 class="h3 text-xl font-semibold">Write Your Message</h3>
 					<p class="text-sm opacity-75">
-						Compose your public message and add a secret that only certain people should see
+						Create a public message and add your secret content. Use the demo above to try it!
 					</p>
 				</div>
 
 				<div class="text-center space-y-4">
 					<div
-						class="w-20 h-20 mx-auto rounded-full bg-secondary-500 flex items-center justify-center text-3xl"
+						class="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-secondary-500 to-secondary-600 flex items-center justify-center text-3xl"
 					>
-						2️⃣
+						🔒
 					</div>
-					<h3 class="h3">Encode & Share</h3>
+					<h3 class="h3 text-xl font-semibold">Encode & Share</h3>
 					<p class="text-sm opacity-75">
-						Our tool hides your secret using invisible Unicode. Post anywhere - Twitter, Discord,
-						anywhere!
+						We hide your secret using invisible Unicode. Share on Twitter, Discord, anywhere text
+						works!
 					</p>
 				</div>
 
 				<div class="text-center space-y-4">
 					<div
-						class="w-20 h-20 mx-auto rounded-full bg-tertiary-500 flex items-center justify-center text-3xl"
+						class="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-tertiary-500 to-tertiary-600 flex items-center justify-center text-3xl"
 					>
-						3️⃣
+						🔓
 					</div>
-					<h3 class="h3">Recipients Decode</h3>
+					<h3 class="h3 text-xl font-semibold">Recipients Decode</h3>
 					<p class="text-sm opacity-75">
-						Share the decode link with those who should see the secret. Others see just the public
+						Those with the reveal button or decode link see the secret. Others see just the public
 						message!
 					</p>
 				</div>
@@ -425,43 +367,144 @@
 		</div>
 	</section>
 
-	<!-- CTA Section -->
-	<section class="bg-gradient-to-br from-primary-500 to-secondary-500 py-16">
+	<!-- Features Grid -->
+	<section class="container mx-auto px-4 py-16">
+		<div class="max-w-6xl mx-auto">
+			<div class="text-center mb-12">
+				<h2 class="h2 text-3xl md:text-4xl font-bold mb-4">Powerful Features</h2>
+				<p class="text-lg opacity-75">Everything you need for secret messaging</p>
+			</div>
+
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+				<div class="card p-6 space-y-3 hover:scale-105 transition-transform">
+					<div class="text-4xl">🔒</div>
+					<h3 class="h3 text-lg font-semibold">Invisible Encoding</h3>
+					<p class="text-sm opacity-75">
+						Uses invisible Unicode characters imperceptible to the human eye
+					</p>
+				</div>
+
+				<div class="card p-6 space-y-3 hover:scale-105 transition-transform">
+					<div class="text-4xl">🤖</div>
+					<h3 class="h3 text-lg font-semibold">AI-Powered</h3>
+					<p class="text-sm opacity-75">
+						Generate platform-optimized content with AI integration
+					</p>
+				</div>
+
+				<div class="card p-6 space-y-3 hover:scale-105 transition-transform">
+					<div class="text-4xl">📊</div>
+					<h3 class="h3 text-lg font-semibold">Analytics Tracking</h3>
+					<p class="text-sm opacity-75">
+						Track decode events with detailed analytics (when signed in)
+					</p>
+				</div>
+
+				<div class="card p-6 space-y-3 hover:scale-105 transition-transform">
+					<div class="text-4xl">🌐</div>
+					<h3 class="h3 text-lg font-semibold">Universal Sharing</h3>
+					<p class="text-sm opacity-75">
+						Works on Twitter, LinkedIn, Discord, or anywhere text is supported
+					</p>
+				</div>
+
+				<div class="card p-6 space-y-3 hover:scale-105 transition-transform">
+					<div class="text-4xl">⚡</div>
+					<h3 class="h3 text-lg font-semibold">Auto-Detection</h3>
+					<p class="text-sm opacity-75">
+						Reveal button automatically finds hidden messages on any page
+					</p>
+				</div>
+
+				<div class="card p-6 space-y-3 hover:scale-105 transition-transform">
+					<div class="text-4xl">🚀</div>
+					<h3 class="h3 text-lg font-semibold">No Sign-Up Required</h3>
+					<p class="text-sm opacity-75">
+						Start encoding and decoding immediately, no account needed
+					</p>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- Use Cases -->
+	<section class="bg-surface-800/50 py-16">
+		<div class="container mx-auto px-4 max-w-6xl">
+			<div class="text-center mb-12">
+				<h2 class="h2 text-3xl md:text-4xl font-bold mb-4">Perfect For</h2>
+				<p class="text-lg opacity-75">Endless possibilities for hidden messaging</p>
+			</div>
+
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+				<div class="card p-6 text-center space-y-3 variant-ghost-primary">
+					<div class="text-5xl">💼</div>
+					<h3 class="h3 text-lg font-semibold">Business</h3>
+					<p class="text-sm opacity-75">Share announcements with hidden stakeholder details</p>
+				</div>
+
+				<div class="card p-6 text-center space-y-3 variant-ghost-secondary">
+					<div class="text-5xl">🎮</div>
+					<h3 class="h3 text-lg font-semibold">Gaming</h3>
+					<p class="text-sm opacity-75">Hide Easter eggs and secret messages in posts</p>
+				</div>
+
+				<div class="card p-6 text-center space-y-3 variant-ghost-tertiary">
+					<div class="text-5xl">💬</div>
+					<h3 class="h3 text-lg font-semibold">Social</h3>
+					<p class="text-sm opacity-75">Dual-layer messages for different audiences</p>
+				</div>
+
+				<div class="card p-6 text-center space-y-3 variant-ghost-surface">
+					<div class="text-5xl">🎓</div>
+					<h3 class="h3 text-lg font-semibold">Education</h3>
+					<p class="text-sm opacity-75">Interactive learning with hidden answers</p>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- Install CTA -->
+	<section class="bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 py-16">
 		<div class="container mx-auto px-4 text-center">
 			<div class="max-w-3xl mx-auto space-y-8">
+				<div class="flex justify-center">
+					<span class="text-7xl md:text-8xl">👻</span>
+				</div>
 				<h2 class="h2 text-3xl md:text-5xl font-bold text-white">
-					Ready to Start Hiding Secrets?
+					Ready to Discover Hidden Messages?
 				</h2>
 				<p class="text-xl text-white/90">
-					Join thousands using GhostPost for secure, invisible messaging
+					Install the Reveal Button to automatically detect GhostPost messages on any website
 				</p>
 				<div class="flex flex-wrap justify-center gap-4">
 					<a
-						href="/compose"
-						class="btn variant-filled bg-white text-primary-500 btn-lg hover:scale-105"
+						href="/install"
+						class="btn variant-filled bg-white text-primary-500 btn-lg hover:scale-105 transition-transform"
 					>
-						<span>✨</span>
-						<span>Create Your First GhostPost</span>
+						<span>⚡</span>
+						<span>Install Reveal Button</span>
 					</a>
-					<a href="/decode" class="btn variant-ringed ring-white text-white btn-lg hover:scale-105">
-						<span>🔍</span>
-						<span>Decode a Message</span>
+					<a
+						href="/demo"
+						class="btn variant-ringed ring-white text-white btn-lg hover:scale-105 transition-transform"
+					>
+						<span>🧪</span>
+						<span>Try Live Demo</span>
 					</a>
 				</div>
 			</div>
 		</div>
 	</section>
 
-	<!-- Footer Info -->
+	<!-- Footer -->
 	<section class="container mx-auto px-4 py-12">
 		<div class="max-w-4xl mx-auto">
 			<div class="card p-6 variant-ghost-surface">
 				<div class="text-center space-y-4">
-					<h3 class="h3">💡 Privacy First</h3>
+					<h3 class="h3 font-semibold">💡 Privacy First</h3>
 					<p class="text-sm opacity-75">
 						All encoding and decoding happens in your browser. We don't see your secrets. Optional
-						analytics (when signed in) track decode events anonymously without collecting personal
-						information.
+						analytics track decode events anonymously without personal information.
 					</p>
 				</div>
 			</div>
@@ -485,6 +528,21 @@
 		.btn-xl {
 			padding: 1.25rem 2.5rem;
 			font-size: 1.25rem;
+		}
+	}
+
+	.animate-fade-in {
+		animation: fadeIn 0.5s ease-in;
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+			transform: translateY(10px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
 		}
 	}
 </style>
