@@ -63,7 +63,7 @@
 				`[Ghostpost] Detected old version ${existingVersion}. Current version is ${SCRIPT_VERSION}. Please update your userscript.`
 			);
 			existingButton.remove(); // Remove old button
-		} else if (existingButton) {
+		} else {
 			// Same version already running, don't load again
 			return;
 		}
