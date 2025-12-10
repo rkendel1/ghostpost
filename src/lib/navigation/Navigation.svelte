@@ -7,11 +7,11 @@
 	}
 
 	let menus = [
-		{ href: '/', label: 'Home' },
+		{ href: '/', label: '🏠 Home' },
 		{ href: '/compose', label: '✍️ Compose' },
 		{ href: '/decode', label: '🔍 Decode' },
-		{ href: '/dashboard', label: '📊 Dashboard' },
-		{ href: '/analytics', label: '🌐 Public Analytics' }
+		{ href: '/dashboard', label: '📊 My Posts' },
+		{ href: '/analytics', label: '🌐 Analytics' }
 	];
 </script>
 

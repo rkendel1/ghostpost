@@ -1,11 +1,43 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { DashboardStats } from '$lib/types/analytics';
+	import AuthGuard from '$lib/components/AuthGuard.svelte';
+	import { authStore } from '$lib/stores/auth';
+	import { supabase } from '$lib/supabase';
 
 	let postId = '';
 	let analytics: DashboardStats | null = null;
 	let isLoading = false;
 	let error = '';
+	let userPosts: any[] = [];
+	let loadingPosts = true;
+
+	$: user = $authStore.user;
+
+	onMount(async () => {
+		if (user) {
+			await loadUserPosts();
+		}
+	});
+
+	async function loadUserPosts() {
+		if (!user) return;
+		
+		try {
+			const { data, error: fetchError } = await supabase
+				.from('posts')
+				.select('*')
+				.eq('user_id', user.id)
+				.order('created_at', { ascending: false });
+
+			if (fetchError) throw fetchError;
+			userPosts = data || [];
+		} catch (err) {
+			console.error('Failed to load user posts:', err);
+		} finally {
+			loadingPosts = false;
+		}
+	}
 
 	async function loadAnalytics() {
 		if (!postId.trim()) {
@@ -46,16 +78,72 @@
 </script>
 
 <svelte:head>
-	<title>Analytics Dashboard</title>
+	<title>My Posts - GhostPost</title>
 </svelte:head>
 
+<AuthGuard>
 <div class="container mx-auto p-8 max-w-6xl space-y-6">
 	<div class="flex justify-between items-center">
-		<h1 class="h1">📊 Analytics Dashboard</h1>
+		<h1 class="h1">📊 My Posts</h1>
 		<a href="/compose" class="btn variant-ghost-surface">
 			<span>✍️</span>
 			<span>Compose New</span>
 		</a>
+	</div>
+
+	<!-- User's Posts List -->
+	<div class="card p-6 space-y-4">
+		<h2 class="h2">Your GhostPosts</h2>
+		{#if loadingPosts}
+			<div class="text-center py-8">
+				<p class="opacity-75">Loading your posts...</p>
+			</div>
+		{:else if userPosts.length === 0}
+			<div class="text-center py-8 space-y-4">
+				<p class="opacity-75">You haven't created any GhostPosts yet.</p>
+				<a href="/compose" class="btn variant-filled-primary">
+					<span>✨</span>
+					<span>Create Your First Post</span>
+				</a>
+			</div>
+		{:else}
+			<div class="table-container">
+				<table class="table table-hover">
+					<thead>
+						<tr>
+							<th>Created</th>
+							<th>Visible Message</th>
+							<th>Platform</th>
+							<th>Post ID</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each userPosts as post}
+							<tr>
+								<td>{new Date(post.created_at).toLocaleDateString()}</td>
+								<td class="max-w-xs truncate">{post.visible_message}</td>
+								<td class="capitalize">{post.platform}</td>
+								<td>
+									<code class="code text-xs">{post.post_id.slice(0, 8)}...</code>
+								</td>
+								<td>
+									<button
+										class="btn btn-sm variant-ghost-primary"
+										on:click={() => {
+											postId = post.post_id;
+											loadAnalytics();
+										}}
+									>
+										View Analytics
+									</button>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{/if}
 	</div>
 
 	<div class="card p-6 space-y-4">
@@ -261,3 +349,4 @@
 		</ul>
 	</div>
 </div>
+</AuthGuard>
