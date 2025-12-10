@@ -87,8 +87,9 @@
 				Look for the floating <span class="text-2xl">👻</span> button in the bottom-right corner
 			</li>
 			<li>Notice the red badge showing the count of hidden messages ({demoMessages.length})</li>
-			<li>Click the button to reveal all hidden messages</li>
-			<li>You'll be taken to the decode page with the extracted messages</li>
+			<li>Click the button to open the Hidden Messages modal</li>
+			<li>In the modal, click "Reveal" on any message to decode it inline - no page navigation required!</li>
+			<li>Use the "Find" button to locate messages on the page</li>
 		</ol>
 	</div>
 
@@ -133,8 +134,8 @@
 			</div>
 
 			<div class="card p-4 variant-ghost-surface">
-				<h3 class="h3 text-base mb-2">⚡ Instant Reveal</h3>
-				<p class="text-sm">One click opens the decoder with all text extracted</p>
+				<h3 class="h3 text-base mb-2">⚡ Inline Reveal</h3>
+				<p class="text-sm">Decode secrets directly in the modal without leaving the page</p>
 			</div>
 
 			<div class="card p-4 variant-ghost-surface">

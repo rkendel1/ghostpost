@@ -190,7 +190,8 @@ The floating 👻 button will:
 - Automatically scan every page for hidden Ghostpost messages
 - Show a red counter badge when secrets are detected
 - Pulse red to draw your attention
-- Open the decoder with one click to reveal all secrets
+- Open a modal showing all detected messages with their locations
+- Let you reveal secrets inline without leaving the page
 
 [Installation Guide →](/install) | [Try Demo →](/demo)
 
