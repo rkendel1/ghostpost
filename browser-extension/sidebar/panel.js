@@ -235,9 +235,6 @@ class DetectionPanel {
 	}
 
 	async decodeAndShow(encodedText, buttonElement, messageIndex) {
-		// Decode button HTML constant
-		const DECODE_BUTTON_HTML = '<span>🔓</span><span>Decode</span>';
-
 		// Show confirmation dialog before decoding
 		const shouldDecode = confirm(
 			'This will decode and reveal the hidden content.\n\n' +
