@@ -18,6 +18,7 @@
 	--text-secondary: #757575;
 	--border-color: #e0e0e0;
 	--success-color: #4caf50;
+	--success-background: #e8f5e9;
 	--warning-color: #ff9800;
 	--error-color: #f44336;
 	--radius: 8px;
@@ -284,7 +285,7 @@ body {
 .decoded-content {
 	margin-top: 12px;
 	padding: 14px;
-	background: #e8f5e9;
+	background: var(--success-background);
 	border: 2px solid var(--success-color);
 	border-radius: var(--radius);
 	animation: slideDown 0.3s ease;
@@ -334,7 +335,7 @@ body {
 }
 
 .decoded-output {
-	background: white;
+	background: var(--surface);
 	padding: 12px;
 	border-radius: 4px;
 	border: 1px solid var(--border-color);
