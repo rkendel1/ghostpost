@@ -154,7 +154,7 @@
 	}
 
 	/**
-	 * Check if text likely contains a Hidenly encoded message
+	 * Check if text likely contains a Ghostpost encoded message
 	 * Returns false for legitimate uses like RTL text support
 	 * Optimized for performance
 	 */
@@ -254,10 +254,15 @@
 			return hostname === domain || hostname.endsWith('.' + domain);
 		});
 
-		// For Mastodon, check if hostname ends with common instance patterns
-		// Mastodon instances typically have 'mastodon' in the subdomain or domain
+		// For Mastodon, check if 'mastodon' appears as the subdomain or main domain
+		// This matches: mastodon.social, mastodon.online, mstdn.jp, etc.
+		// But rejects: mastodon-fake.evil.com
 		const isMastodon =
-			hostname.includes('mastodon') && (hostname.endsWith('.social') || hostname.includes('mstdn'));
+			hostname.startsWith('mastodon.') ||
+			hostname === 'mastodon.social' ||
+			hostname.startsWith('mstdn.') ||
+			hostname.includes('.mastodon.') ||
+			(hostname.includes('mastodon') && hostname.split('.')[0] === 'mastodon');
 
 		return isKnownSocial || isMastodon;
 	}
