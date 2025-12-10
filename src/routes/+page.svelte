@@ -11,6 +11,7 @@
 	let isDecoding = false;
 	let showEncoded = false;
 	let showDecoded = false;
+	let errorMessage = '';
 
 	onMount(async () => {
 		await initWasm();
@@ -39,6 +40,7 @@
 		showEncoded = false;
 		showDecoded = false;
 		demoDecodedSecret = '';
+		errorMessage = '';
 
 		try {
 			await new Promise((resolve) => setTimeout(resolve, 500));
@@ -47,7 +49,7 @@
 			showEncoded = true;
 		} catch (err) {
 			console.error('Encoding error:', err);
-			alert('Error encoding message. Please try again.');
+			errorMessage = 'Error encoding message. Please try again.';
 		} finally {
 			isEncoding = false;
 		}
@@ -58,6 +60,7 @@
 		
 		isDecoding = true;
 		showDecoded = false;
+		errorMessage = '';
 
 		try {
 			await new Promise((resolve) => setTimeout(resolve, 500));
@@ -66,9 +69,27 @@
 			showDecoded = true;
 		} catch (err) {
 			console.error('Decoding error:', err);
-			alert('Error decoding message. Please try again.');
+			errorMessage = 'Error decoding message. Please try again.';
 		} finally {
 			isDecoding = false;
+		}
+	}
+
+	async function handleCopy() {
+		try {
+			await navigator.clipboard.writeText(demoEncodedMessage);
+			// Show success feedback
+			const btn = document.activeElement;
+			const originalText = btn?.textContent;
+			if (btn) {
+				btn.textContent = '✅ Copied!';
+				setTimeout(() => {
+					if (btn) btn.textContent = originalText;
+				}, 2000);
+			}
+		} catch (err) {
+			console.error('Copy failed:', err);
+			errorMessage = 'Failed to copy to clipboard. Please copy manually.';
 		}
 	}
 
@@ -170,6 +191,12 @@
 
 						<!-- Input Form -->
 						<div class="space-y-4">
+							{#if errorMessage}
+								<div class="card p-4 variant-ghost-error">
+									<p class="text-sm text-error-500">{errorMessage}</p>
+								</div>
+							{/if}
+
 							<div class="space-y-2">
 								<label for="visible-msg" class="label">
 									<span class="text-sm font-semibold">Public Message</span>
@@ -226,10 +253,7 @@
 											</label>
 											<button
 												class="btn btn-sm variant-ghost-surface"
-												on:click={() => {
-													navigator.clipboard.writeText(demoEncodedMessage);
-													alert('Copied to clipboard!');
-												}}
+												on:click={handleCopy}
 											>
 												📋 Copy
 											</button>
