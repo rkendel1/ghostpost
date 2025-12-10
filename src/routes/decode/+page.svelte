@@ -15,6 +15,7 @@
 	const MAX_SEGMENT_EXTRACT_SIZE = 5000; // ~5KB threshold for segment extraction
 	
 	// Regular expression for detecting invisible Unicode characters
+	// Note: \u180E deprecated in Unicode 11.0, but included for backward compatibility
 	const INVISIBLE_CHARS_REGEX = /[\u200B\u200C\u200D\u2060\uFEFF\u180E]/;
 
 	onMount(async () => {
@@ -38,8 +39,8 @@
 	function extractEncodedSegments(text: string): string[] {
 		const segments: string[] = [];
 		
-		// Split by common delimiters while preserving encoded content
-		const lines = text.split(/\n+/);
+		// Split by newlines and carriage returns to preserve encoded content
+		const lines = text.split(/[\r\n]+/);
 		
 		for (const line of lines) {
 			if (line.trim() && INVISIBLE_CHARS_REGEX.test(line)) {
@@ -65,7 +66,8 @@
 			const inputText = encodedInput.trim();
 			const segments = extractEncodedSegments(inputText);
 			
-			// If we found specific segments, try decoding them instead of the full text
+			// If we found segments with invisible chars in large text, decode only those segments
+			// Otherwise, decode the full text (for smaller texts or when no segments found)
 			const textToDecode = segments.length > 0 && inputText.length > MAX_SEGMENT_EXTRACT_SIZE 
 				? segments.join('\n') 
 				: inputText;
