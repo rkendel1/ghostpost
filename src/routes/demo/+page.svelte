@@ -88,7 +88,10 @@
 			</li>
 			<li>Notice the red badge showing the count of hidden messages ({demoMessages.length})</li>
 			<li>Click the button to open the Hidden Messages modal</li>
-			<li>In the modal, click "Reveal" on any message to decode it inline - no page navigation required!</li>
+			<li>
+				In the modal, click "Reveal" on any message to decode it inline - no page navigation
+				required!
+			</li>
 			<li>Use the "Find" button to locate messages on the page</li>
 		</ol>
 	</div>

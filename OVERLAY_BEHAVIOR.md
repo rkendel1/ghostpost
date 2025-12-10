@@ -9,6 +9,7 @@ The Ghostpost Reveal overlay (userscript) provides a consistent experience acros
 ### 1. 👻 Notify
 
 When hidden messages are detected on a page:
+
 - The floating ghost button appears in the bottom-right corner
 - A **red badge** shows the count of detected messages
 - The button **pulses red** to draw attention
@@ -17,6 +18,7 @@ When hidden messages are detected on a page:
 ### 2. 🔍 Identify
 
 When you click the ghost button:
+
 - A **modal opens above the button** (not a redirect!)
 - Lists **all detected hidden messages** with:
   - Location (element type and ID/class)
@@ -28,6 +30,7 @@ When you click the ghost button:
 ### 3. ✨ Reveal
 
 When you click "Reveal" on a message:
+
 - Decoding happens **client-side** (no server request)
 - The decoded secret appears **inline** in the modal (no page navigation)
 - For text secrets: Shows the decoded message with a "Copy Secret" button
@@ -37,18 +40,21 @@ When you click "Reveal" on a message:
 ## Key Features
 
 ### Universal Behavior
+
 - ✅ Same behavior on Ghostpost site and external sites (Reddit, Twitter, etc.)
 - ✅ No redirects to decode pages
 - ✅ No authentication required
 - ✅ All decoding happens locally in your browser
 
 ### Security & Privacy
+
 - All scanning and decoding happens in your browser
 - No data sent to external servers
 - No tracking or analytics
 - Excluded from sensitive domains (banking, login pages)
 
 ### Performance
+
 - Debounced scanning (2 seconds after page changes)
 - Scan timeouts to prevent browser freezing
 - Node limits for large pages
@@ -57,16 +63,27 @@ When you click "Reveal" on a message:
 
 ## Version History
 
-### v2.0.0 (Current)
+### v2.0.1 (Current)
+
+- ✅ Version bump to force auto-update in userscript managers
+- ✅ Ensures all users running old v1.x get updated to inline modal version
+- ✅ Same features as v2.0.0
+
+### v2.0.0
+
 - ✅ **Inline decoding** - No more redirects to decode page
 - ✅ **Compact modal** - Positioned above ghost button
+- ✅ **Three-step workflow** - Notify → Identify → Reveal, all inline
 - ✅ **Client-side only** - No authentication needed
 - ✅ **Copy to clipboard** - Easy sharing of revealed secrets
 
 ### v1.x (Legacy - Deprecated)
+
 - ❌ Used to redirect to `/decode` page
 - ❌ Required navigation away from current page
 - ❌ Less user-friendly workflow
+- ⚠️ If you see a new tab/window opening to `/decode`, you're running an old version
+- ⚠️ Please reinstall from `/install` page to get v2.0.1+
 
 ## Implementation
 
@@ -80,12 +97,14 @@ The overlay is implemented as a userscript in `/static/ghostpost-reveal.user.js`
 ## Testing
 
 Test pages available:
+
 - `/demo` - Interactive demo with sample hidden messages
 - `/static/test-reveal.html` - Standalone test page
 
 ## Installation
 
 Users can install the overlay by:
+
 1. Installing a userscript manager (Tampermonkey, Violentmonkey, Greasemonkey)
 2. Visiting `/install` on the Ghostpost website
 3. Clicking "Install Reveal Button"
