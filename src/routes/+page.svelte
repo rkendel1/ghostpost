@@ -16,7 +16,25 @@
 		<h1 class="h1 text-center">🎭 Hidenly</h1>
 		<p class="text-center text-lg">Hide your secrets within your messages</p>
 
-		<div class="flex justify-center gap-4">
+		<!-- New: Overlay Button Feature -->
+		<div class="card p-6 variant-ghost-primary space-y-4">
+			<h2 class="h2 text-center text-xl">🚀 New: One-Click Reveal Button</h2>
+			<p class="text-center">
+				Detect and reveal hidden messages on ANY website with a single click!
+			</p>
+			<div class="flex justify-center gap-4">
+				<a href="/install" class="btn variant-filled-warning">
+					<span>👻</span>
+					<span>Install Overlay Button</span>
+				</a>
+				<a href="/demo" class="btn variant-ghost-surface">
+					<span>🧪</span>
+					<span>Try Demo</span>
+				</a>
+			</div>
+		</div>
+
+		<div class="flex flex-wrap justify-center gap-4">
 			<a href="/compose" class="btn variant-filled-primary">
 				<span>✨</span>
 				<span>AI Ghostpost Composer</span>
@@ -25,11 +43,15 @@
 				<span>🔍</span>
 				<span>Decode Messages</span>
 			</a>
+			<a href="/share" class="btn variant-filled-tertiary">
+				<span>📱</span>
+				<span>Mobile Share</span>
+			</a>
 		</div>
 
 		<div class="text-center text-sm opacity-75">
-			<p>New! Use AI to generate posts and hide secrets with our Ghostpost Composer.</p>
-			<p>Or use the classic Hide/Unhide tool below.</p>
+			<p>Use AI to generate posts, decode messages, or install the universal reveal button.</p>
+			<p>Classic Hide/Unhide tool available below.</p>
 		</div>
 	</div>
 
