@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      1.2.0
-// @description  Reveal hidden Ghostpost messages on any webpage with one click
+// @version      2.0.0
+// @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
 // @exclude      *://*/login*
@@ -19,6 +19,12 @@
 /**
  * Ghostpost Reveal Userscript
  *
+ * NEW in v2.0.0:
+ * - Inline decoding: No more redirects! Secrets are revealed directly in the modal
+ * - Compact modal: Positioned above the ghost button for better UX
+ * - Client-side only: All decoding happens locally, no authentication needed
+ * - Copy to clipboard: Easy sharing of revealed secrets
+ * 
  * Performance Optimizations:
  * - Debouncing: 2 second delay after page changes before scanning
  * - Scan timeouts: 100ms maximum for any single scan operation
@@ -29,8 +35,8 @@
  *
  * Security & Privacy Notes:
  * - All processing happens locally in your browser
- * - No data is sent to external servers during detection
- * - Only extracts text when you explicitly click the reveal button
+ * - No data is sent to external servers during detection or decoding
+ * - No authentication required to decode messages
  * - Common sensitive domains (banking, login) are excluded
  * - Uses DOM manipulation only, no eval() or dynamic code execution
  */
@@ -39,7 +45,6 @@
 	'use strict';
 
 	// Configuration
-	const DECODE_API_URL = 'https://ghostpost-six.vercel.app/decode';
 	const BUTTON_ID = 'ghostpost-reveal-button';
 
 	// Check if button already exists
@@ -366,50 +371,227 @@
 		element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 	}
 
-	// Function to reveal a single message by opening decode page
-	function revealSingleMessage(encodedText, element, itemElement, revealBtn) {
-		// Extract the encoded text from the element
-		const encodedMessage = encodeURIComponent(encodedText);
-		const decodeUrl = `${DECODE_API_URL}?text=${encodedMessage}`;
-		
-		// Open in a smaller window positioned near the button
-		const windowFeatures = 'width=600,height=500,left=100,top=100';
-		const decodeWindow = window.open(decodeUrl, '_blank', windowFeatures);
-		
-		if (decodeWindow) {
-			// Update UI to show it's been revealed
-			revealBtn.style.display = 'none';
-			itemElement.innerHTML = `
-				<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
-					<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-						<span style="font-size: 20px;">✅</span>
-						<span style="font-weight: 600; color: #059669;">Opening decoder...</span>
-					</div>
-					<p style="font-size: 13px; color: #065f46; margin: 0;">The secret will be revealed in the new window.</p>
-					<button class="close-reveal-status" style="margin-top: 10px; padding: 6px 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">OK</button>
-				</div>
-			`;
+	// Base64 character map for decoding
+	const BASE64_CHAR_MAP = {
+		'\u2060\u2060': 'A', '\u2060\u200B': 'B', '\u2060\u200C': 'C', '\u2060\u200D': 'D',
+		'\u2060\u200E': 'E', '\u2060\u200F': 'F', '\u2060\u202D': 'G', '\u2060\u202C': 'H',
+		'\u200B\u2060': 'I', '\u200B\u200B': 'J', '\u200B\u200C': 'K', '\u200B\u200D': 'L',
+		'\u200B\u200E': 'M', '\u200B\u200F': 'N', '\u200B\u202D': 'O', '\u200B\u202C': 'P',
+		'\u200C\u2060': 'Q', '\u200C\u200B': 'R', '\u200C\u200C': 'S', '\u200C\u200D': 'T',
+		'\u200C\u200E': 'U', '\u200C\u200F': 'V', '\u200C\u202D': 'W', '\u200C\u202C': 'X',
+		'\u200D\u2060': 'Y', '\u200D\u200B': 'Z', '\u200D\u200C': 'a', '\u200D\u200D': 'b',
+		'\u200D\u200E': 'c', '\u200D\u200F': 'd', '\u200D\u202D': 'e', '\u200D\u202C': 'f',
+		'\u200E\u2060': 'g', '\u200E\u200B': 'h', '\u200E\u200C': 'i', '\u200E\u200D': 'j',
+		'\u200E\u200E': 'k', '\u200E\u200F': 'l', '\u200E\u202D': 'm', '\u200E\u202C': 'n',
+		'\u200F\u2060': 'o', '\u200F\u200B': 'p', '\u200F\u200C': 'q', '\u200F\u200D': 'r',
+		'\u200F\u200E': 's', '\u200F\u200F': 't', '\u200F\u202D': 'u', '\u200F\u202C': 'v',
+		'\u202D\u2060': 'w', '\u202D\u200B': 'x', '\u202D\u200C': 'y', '\u202D\u200D': 'z',
+		'\u202D\u200E': '0', '\u202D\u200F': '1', '\u202D\u202D': '2', '\u202D\u202C': '3',
+		'\u202C\u2060': '4', '\u202C\u200B': '5', '\u202C\u200C': '6', '\u202C\u200D': '7',
+		'\u202C\u200E': '8', '\u202C\u200F': '9', '\u202C\u202D': '+', '\u202C\u202C': '/'
+	};
+
+	// Delimiter used in encoding
+	const POST_ID_DELIMITER = '||ghostid:';
+	const POST_ID_END = '||';
+
+	/**
+	 * Decode a hidden message from encoded text (client-side implementation)
+	 */
+	function decodeHiddenMessage(encodedText) {
+		try {
+			// Extract content between delimiters (FEFF characters)
+			const parts = encodedText.split('\uFEFF');
+			if (parts.length < 2) {
+				throw new Error('No hidden content found');
+			}
 			
-			// Add event listener for the OK button
-			setTimeout(() => {
-				const okButton = itemElement.querySelector('.close-reveal-status');
-				if (okButton) {
-					okButton.onclick = function() {
-						this.parentElement.remove();
-						revealBtn.style.display = 'inline-flex';
-					};
+			const unwrapped = parts[1];
+			if (!unwrapped || unwrapped.length === 0) {
+				throw new Error('Empty hidden content');
+			}
+
+			// Convert pairs of invisible chars back to base64
+			let base64String = '';
+			for (let i = 0; i < unwrapped.length; i += 2) {
+				if (i + 1 < unwrapped.length) {
+					const pair = unwrapped[i] + unwrapped[i + 1];
+					const base64Char = BASE64_CHAR_MAP[pair];
+					if (base64Char) {
+						base64String += base64Char;
+					}
 				}
-			}, 0);
+			}
+
+			if (!base64String) {
+				throw new Error('Invalid encoded content');
+			}
+
+			// Decode base64 to get the secret message
+			// Use atob for base64 decoding, then properly decode UTF-8
+			let decodedBytes;
+			try {
+				decodedBytes = atob(base64String);
+			} catch (e) {
+				throw new Error('Invalid base64 encoding');
+			}
 			
-			// Flash the element on page to indicate which one was revealed
-			highlightElement(element);
-			setTimeout(() => {
-				element.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
-			}, 300);
-		} else {
-			// Popup was blocked
-			showNotification('Please allow popups to reveal messages', 'error');
+			try {
+				// Convert byte string to proper UTF-8
+				const decoded = decodeURIComponent(Array.from(decodedBytes, c => 
+					'%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+				).join(''));
+				
+				// Check for post ID and strip it
+				const postIdIndex = decoded.indexOf(POST_ID_DELIMITER);
+				if (postIdIndex !== -1) {
+					return decoded.substring(0, postIdIndex);
+				}
+				
+				return decoded;
+			} catch (e) {
+				// If UTF-8 decoding fails, return the raw decoded bytes
+				const postIdIndex = decodedBytes.indexOf(POST_ID_DELIMITER);
+				if (postIdIndex !== -1) {
+					return decodedBytes.substring(0, postIdIndex);
+				}
+				return decodedBytes;
+			}
+		} catch (err) {
+			console.error('Decode error:', err);
+			throw new Error('Failed to decode: ' + err.message);
 		}
+	}
+
+	// Function to reveal a single message inline
+	function revealSingleMessage(encodedText, element, itemElement, revealBtn) {
+		// Hide the reveal button
+		revealBtn.style.display = 'none';
+		
+		// Show loading state
+		itemElement.innerHTML = `
+			<div style="padding: 15px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #3b82f6; margin-top: 10px;">
+				<div style="display: flex; align-items: center; gap: 10px;">
+					<span style="font-size: 20px;">🔓</span>
+					<span style="font-weight: 600; color: #1e40af;">Decoding secret...</span>
+				</div>
+			</div>
+		`;
+		
+		// Decode the message
+		setTimeout(() => {
+			try {
+				const decodedMessage = decodeHiddenMessage(encodedText);
+				
+				// Check if it's an image
+				const isImage = decodedMessage.startsWith('data:image/');
+				
+				// Show the decoded content
+				if (isImage) {
+					// Validate data URL format to prevent XSS
+					const dataUrlPattern = /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/;
+					if (!dataUrlPattern.test(decodedMessage)) {
+						throw new Error('Invalid image format');
+					}
+					
+					itemElement.innerHTML = `
+						<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
+							<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+								<span style="font-size: 20px;">✨</span>
+								<span style="font-weight: 600; color: #059669;">Hidden Image Revealed!</span>
+							</div>
+							<img src="${decodedMessage}" style="max-width: 100%; border-radius: 4px; margin-top: 8px;" alt="Decoded hidden image" />
+						</div>
+					`;
+				} else {
+					const escapedMessage = escapeHtml(decodedMessage);
+					itemElement.innerHTML = `
+						<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
+							<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+								<span style="font-size: 20px;">✨</span>
+								<span style="font-weight: 600; color: #059669;">Secret Revealed!</span>
+							</div>
+							<div style="font-size: 14px; color: #065f46; background: white; padding: 10px; border-radius: 4px; margin-top: 8px; white-space: pre-wrap; word-break: break-word;">${escapedMessage}</div>
+							<button class="copy-secret-btn" style="margin-top: 10px; padding: 6px 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+								<span>📋</span>
+								<span>Copy Secret</span>
+							</button>
+						</div>
+					`;
+					
+					// Add copy functionality
+					setTimeout(() => {
+						const copyBtn = itemElement.querySelector('.copy-secret-btn');
+						if (copyBtn) {
+							copyBtn.onclick = function() {
+								// Check if clipboard API is available
+								if (!navigator.clipboard || !navigator.clipboard.writeText) {
+									// Fallback for browsers without clipboard API
+									const textArea = document.createElement('textarea');
+									textArea.value = decodedMessage;
+									textArea.style.position = 'fixed';
+									textArea.style.left = '-999999px';
+									document.body.appendChild(textArea);
+									textArea.select();
+									try {
+										document.execCommand('copy');
+										this.innerHTML = '<span>✅</span><span>Copied!</span>';
+										setTimeout(() => {
+											this.innerHTML = '<span>📋</span><span>Copy Secret</span>';
+										}, 2000);
+									} catch (err) {
+										console.error('Copy failed:', err);
+										showNotification('Failed to copy to clipboard', 'error');
+									}
+									document.body.removeChild(textArea);
+									return;
+								}
+								
+								navigator.clipboard.writeText(decodedMessage).then(() => {
+									this.innerHTML = '<span>✅</span><span>Copied!</span>';
+									setTimeout(() => {
+										this.innerHTML = '<span>📋</span><span>Copy Secret</span>';
+									}, 2000);
+								}).catch(err => {
+									console.error('Copy failed:', err);
+									showNotification('Failed to copy to clipboard', 'error');
+								});
+							};
+						}
+					}, 0);
+				}
+				
+				// Flash the element on page to indicate which one was revealed
+				highlightElement(element);
+				setTimeout(() => {
+					element.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+				}, 300);
+				
+			} catch (err) {
+				// Show error
+				itemElement.innerHTML = `
+					<div style="padding: 15px; background: #fef2f2; border-radius: 8px; border-left: 4px solid #ef4444; margin-top: 10px;">
+						<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+							<span style="font-size: 20px;">❌</span>
+							<span style="font-weight: 600; color: #b91c1c;">Decoding Failed</span>
+						</div>
+						<p style="font-size: 13px; color: #991b1b; margin: 0;">${escapeHtml(err.message)}</p>
+						<button class="retry-reveal-btn" style="margin-top: 10px; padding: 6px 12px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Try Again</button>
+					</div>
+				`;
+				
+				// Add retry functionality
+				setTimeout(() => {
+					const retryBtn = itemElement.querySelector('.retry-reveal-btn');
+					if (retryBtn) {
+						retryBtn.onclick = function() {
+							itemElement.innerHTML = '';
+							revealBtn.style.display = 'inline-flex';
+						};
+					}
+				}, 0);
+			}
+		}, 100);
 	}
 
 	// Utility function to escape HTML
@@ -433,17 +615,25 @@
 			if (element) highlightElement(element);
 		});
 
+		// Calculate position above ghost button
+		const ghostButton = document.getElementById(BUTTON_ID);
+		const buttonRect = ghostButton.getBoundingClientRect();
+		const modalWidth = 400;
+		const modalMaxHeight = Math.min(500, window.innerHeight - 120);
+		
+		// Position modal above the button, centered horizontally with it
+		const modalLeft = Math.max(10, Math.min(window.innerWidth - modalWidth - 10, buttonRect.left + buttonRect.width / 2 - modalWidth / 2));
+		const modalBottom = window.innerHeight - buttonRect.top + 10; // 10px gap above button
+
 		// Create modal
 		const modal = document.createElement('div');
 		modal.id = 'ghostpost-reveal-modal';
 		modal.style.cssText = `
 			position: fixed;
-			top: 50%;
-			left: 50%;
-			transform: translate(-50%, -50%);
-			width: 90%;
-			max-width: 600px;
-			max-height: 80vh;
+			bottom: ${modalBottom}px;
+			left: ${modalLeft}px;
+			width: ${modalWidth}px;
+			max-height: ${modalMaxHeight}px;
 			background: white;
 			border-radius: 12px;
 			box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -451,7 +641,7 @@
 			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 			display: flex;
 			flex-direction: column;
-			animation: modalSlideIn 0.3s ease;
+			animation: modalSlideUp 0.3s ease;
 		`;
 
 		// Create backdrop
@@ -463,7 +653,7 @@
 			left: 0;
 			right: 0;
 			bottom: 0;
-			background: rgba(0, 0, 0, 0.5);
+			background: rgba(0, 0, 0, 0.3);
 			z-index: 999999;
 			animation: fadeIn 0.3s ease;
 		`;
@@ -471,28 +661,30 @@
 		// Modal header
 		const header = document.createElement('div');
 		header.style.cssText = `
-			padding: 20px;
+			padding: 16px;
 			border-bottom: 1px solid #e5e7eb;
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			border-radius: 12px 12px 0 0;
 		`;
 		header.innerHTML = `
 			<div>
-				<h2 style="margin: 0; font-size: 20px; font-weight: 600; color: #111827;">
-					<span style="font-size: 24px;">👻</span> Hidden Messages Found
+				<h2 style="margin: 0; font-size: 18px; font-weight: 600; color: white;">
+					<span style="font-size: 20px;">👻</span> Hidden Messages
 				</h2>
-				<p style="margin: 5px 0 0 0; font-size: 14px; color: #6b7280;">
-					Found ${hiddenMessages.length} message${hiddenMessages.length > 1 ? 's' : ''} on this page
+				<p style="margin: 3px 0 0 0; font-size: 13px; color: rgba(255,255,255,0.9);">
+					${hiddenMessages.length} secret${hiddenMessages.length > 1 ? 's' : ''} found
 				</p>
 			</div>
-			<button id="ghostpost-close-modal" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">×</button>
+			<button id="ghostpost-close-modal" style="background: rgba(255,255,255,0.2); border: none; font-size: 20px; cursor: pointer; color: white; padding: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: background 0.2s;">×</button>
 		`;
 
 		// Modal content
 		const content = document.createElement('div');
 		content.style.cssText = `
-			padding: 20px;
+			padding: 12px;
 			overflow-y: auto;
 			flex: 1;
 		`;
@@ -506,32 +698,32 @@
 			
 			const item = document.createElement('div');
 			item.style.cssText = `
-				margin-bottom: 15px;
-				padding: 15px;
+				margin-bottom: 12px;
+				padding: 12px;
 				border: 1px solid #e5e7eb;
 				border-radius: 8px;
 				background: #f9fafb;
 			`;
 
 			item.innerHTML = `
-				<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+				<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
 					<div style="flex: 1;">
-						<div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">
+						<div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">
 							<strong>Location:</strong> ${escapeHtml(location)}
 						</div>
-						<div style="font-size: 13px; color: #374151; font-family: monospace; background: white; padding: 8px; border-radius: 4px; overflow: hidden; text-overflow: ellipsis;">
+						<div style="font-size: 12px; color: #374151; font-family: monospace; background: white; padding: 6px; border-radius: 4px; overflow: hidden; text-overflow: ellipsis;">
 							${escapeHtml(visibleText)}
 						</div>
 					</div>
 				</div>
-				<div style="display: flex; gap: 8px;">
-					<button class="reveal-btn" data-index="${index}" style="flex: 1; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s;">
+				<div style="display: flex; gap: 6px;">
+					<button class="reveal-btn" data-index="${index}" style="flex: 1; padding: 7px 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: background 0.2s;">
 						<span>🔓</span>
-						<span>Reveal Secret</span>
+						<span>Reveal</span>
 					</button>
-					<button class="locate-btn" data-index="${index}" style="padding: 8px 16px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
+					<button class="locate-btn" data-index="${index}" style="padding: 7px 12px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s;">
 						<span>📍</span>
-						<span>Locate</span>
+						<span>Find</span>
 					</button>
 				</div>
 				<div class="reveal-content"></div>
@@ -546,24 +738,24 @@
 		// Add animations
 		const style = document.createElement('style');
 		style.textContent = `
-			@keyframes modalSlideIn {
+			@keyframes modalSlideUp {
 				from {
 					opacity: 0;
-					transform: translate(-50%, -45%);
+					transform: translateY(20px);
 				}
 				to {
 					opacity: 1;
-					transform: translate(-50%, -50%);
+					transform: translateY(0);
 				}
 			}
-			@keyframes modalSlideOut {
+			@keyframes modalSlideDown {
 				from {
 					opacity: 1;
-					transform: translate(-50%, -50%);
+					transform: translateY(0);
 				}
 				to {
 					opacity: 0;
-					transform: translate(-50%, -45%);
+					transform: translateY(20px);
 				}
 			}
 			@keyframes fadeIn {
@@ -575,14 +767,14 @@
 				to { opacity: 0; }
 			}
 			#ghostpost-close-modal:hover {
-				background: #f3f4f6;
+				background: rgba(255,255,255,0.3) !important;
 			}
 			.reveal-btn:hover {
-				background: #5568d3;
+				background: #5568d3 !important;
 			}
 			.locate-btn:hover {
-				background: #e5e7eb;
-				border-color: #9ca3af;
+				background: #e5e7eb !important;
+				border-color: #9ca3af !important;
 			}
 		`;
 		document.head.appendChild(style);
@@ -593,7 +785,7 @@
 
 		// Close button handler
 		const closeModal = () => {
-			modal.style.animation = 'modalSlideOut 0.2s ease';
+			modal.style.animation = 'modalSlideDown 0.2s ease';
 			backdrop.style.animation = 'fadeOut 0.2s ease';
 			setTimeout(() => {
 				modal.remove();
