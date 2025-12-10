@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      1.1.0
+// @version      1.2.0
 // @description  Reveal hidden Ghostpost messages on any webpage with one click
 // @author       Ghostpost
 // @match        *://*/*
@@ -18,6 +18,14 @@
 
 /**
  * Ghostpost Reveal Userscript
+ *
+ * Performance Optimizations:
+ * - Debouncing: 2 second delay after page changes before scanning
+ * - Scan timeouts: 100ms maximum for any single scan operation
+ * - Node limits: 1000 nodes maximum per scan to prevent browser freezing
+ * - Quick pre-checks: Fast indexOf checks before expensive regex matching
+ * - Large text rejection: Skips text nodes over 50KB to avoid performance issues
+ * - Micro-pulsing: Faster, subtler pulse animation (1.5s) for social media feeds
  *
  * Security & Privacy Notes:
  * - All processing happens locally in your browser
@@ -146,7 +154,7 @@
 	}
 
 	/**
-	 * Check if text likely contains a Hidenly encoded message
+	 * Check if text likely contains a Ghostpost encoded message
 	 * Returns false for legitimate uses like RTL text support
 	 * Optimized for performance
 	 */
@@ -226,6 +234,38 @@
 		return textNodes;
 	}
 
+	// Detect if on a social media site for micro-pulsing
+	function isSocialMediaSite() {
+		const hostname = window.location.hostname.toLowerCase();
+		const socialDomains = [
+			'twitter.com',
+			'x.com',
+			'facebook.com',
+			'fb.com',
+			'linkedin.com',
+			'instagram.com',
+			'reddit.com',
+			'tiktok.com',
+			'threads.net'
+		];
+
+		// Check for exact match or subdomain match (e.g., www.twitter.com, mobile.twitter.com)
+		const isKnownSocial = socialDomains.some((domain) => {
+			return hostname === domain || hostname.endsWith('.' + domain);
+		});
+
+		// For Mastodon, check if 'mastodon' or 'mstdn' appears as a proper subdomain
+		// This matches: mastodon.social, mastodon.online, social.mastodon.example, mstdn.jp
+		// But rejects: evil.mastodon.fake.com, mastodon-fake.evil.com
+		const parts = hostname.split('.');
+		const isMastodon =
+			parts[0] === 'mastodon' ||
+			parts[0] === 'mstdn' ||
+			(parts.length > 2 && parts[parts.length - 2] === 'mastodon');
+
+		return isKnownSocial || isMastodon;
+	}
+
 	// Function to update counter
 	function updateCounter() {
 		const hiddenMessages = detectHiddenMessages();
@@ -234,9 +274,13 @@
 		if (hiddenMessages.length > 0) {
 			counter.textContent = hiddenMessages.length;
 			counter.style.display = 'flex';
-			button.style.animation = 'pulse 2s infinite';
 
-			// Add pulse animation
+			// Use micro-pulsing for social media feeds for better attention without being intrusive
+			const useMicroPulse = isSocialMediaSite();
+			const animationName = useMicroPulse ? 'micropulse' : 'pulse';
+			button.style.animation = `${animationName} ${useMicroPulse ? '1.5s' : '2s'} infinite`;
+
+			// Add pulse animations
 			if (!document.getElementById('ghostpost-pulse-style')) {
 				const style = document.createElement('style');
 				style.id = 'ghostpost-pulse-style';
@@ -244,6 +288,16 @@
                     @keyframes pulse {
                         0%, 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
                         50% { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.6); }
+                    }
+                    @keyframes micropulse {
+                        0%, 100% { 
+                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                            transform: scale(1);
+                        }
+                        50% { 
+                            box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
+                            transform: scale(1.03);
+                        }
                     }
                 `;
 				document.head.appendChild(style);
