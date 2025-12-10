@@ -156,7 +156,11 @@
 			/>
 		</label>
 
-		<button class="btn variant-filled-primary" on:click={extractAndLoadAnalytics} disabled={isLoading}>
+		<button
+			class="btn variant-filled-primary"
+			on:click={extractAndLoadAnalytics}
+			disabled={isLoading}
+		>
 			{#if isLoading}
 				<span>⏳ Loading...</span>
 			{:else}

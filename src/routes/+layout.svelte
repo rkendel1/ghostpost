@@ -43,10 +43,7 @@
 			</svelte:fragment>
 			<svelte:fragment slot="trail">
 				<div class="flex items-center">
-					<a
-						href="https://github.com/"
-						class="no-underline hover:no-underline text-inherit"
-					>
+					<a href="https://github.com/" class="no-underline hover:no-underline text-inherit">
 						<GitHubIcon width="24" />
 					</a>
 				</div>

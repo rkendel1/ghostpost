@@ -9,13 +9,17 @@ The test page demonstrates the extension's ability to detect hidden content embe
 ## Key Features Demonstrated
 
 ### 1. Test Messages
+
 The page includes three test cases:
+
 - **Test Message 1**: Contains hidden content that should be detected
 - **Test Message 2**: Another example with hidden content
 - **Test Message 3**: Normal text with no hidden content (control test)
 
 ### 2. Expected Behavior
+
 When the extension is installed and the test page is loaded:
+
 - Extension badge shows the count of detected messages (e.g., "2")
 - Sidebar Detection tab lists all elements containing hidden content
 - Each detected message can be decoded by clicking the "Decode" button
@@ -44,6 +48,7 @@ See [INSTALL.md](./INSTALL.md) for detailed installation instructions.
 ## How It Works
 
 The extension scans web pages for invisible Unicode characters used in Hidenly encoding:
+
 - Zero Width Space (U+200B)
 - Zero Width Non-Joiner (U+200C)
 - Zero Width Joiner (U+200D)

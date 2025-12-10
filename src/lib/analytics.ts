@@ -246,7 +246,12 @@ export function detectPlatform(referrer?: string, userAgent?: string): string {
 			if (hostname === 'twitter.com' || hostname.endsWith('.twitter.com') || hostname === 't.co') {
 				return 'twitter';
 			}
-			if (hostname === 'facebook.com' || hostname.endsWith('.facebook.com') || hostname === 'fb.com' || hostname.endsWith('.fb.com')) {
+			if (
+				hostname === 'facebook.com' ||
+				hostname.endsWith('.facebook.com') ||
+				hostname === 'fb.com' ||
+				hostname.endsWith('.fb.com')
+			) {
 				return 'facebook';
 			}
 			if (hostname === 'instagram.com' || hostname.endsWith('.instagram.com')) {
@@ -258,7 +263,11 @@ export function detectPlatform(referrer?: string, userAgent?: string): string {
 			if (hostname === 'tiktok.com' || hostname.endsWith('.tiktok.com')) {
 				return 'tiktok';
 			}
-			if (hostname === 'discord.com' || hostname.endsWith('.discord.com') || hostname === 'discord.gg') {
+			if (
+				hostname === 'discord.com' ||
+				hostname.endsWith('.discord.com') ||
+				hostname === 'discord.gg'
+			) {
 				return 'discord';
 			}
 			if (hostname === 'reddit.com' || hostname.endsWith('.reddit.com')) {
