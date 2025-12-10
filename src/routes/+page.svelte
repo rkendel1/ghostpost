@@ -176,6 +176,66 @@
 		</div>
 	</section>
 
+	<!-- Reveal Button Installation CTA - Prominent Section -->
+	<section class="bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 py-12">
+		<div class="container mx-auto px-4">
+			<div class="max-w-4xl mx-auto">
+				<div class="card p-8 bg-surface-50-900-token space-y-6 text-center">
+					<div class="space-y-3">
+						<div class="flex justify-center">
+							<span class="text-6xl md:text-7xl">👻</span>
+						</div>
+						<h2 class="h2 text-2xl md:text-4xl font-bold">
+							Discover Hidden Messages Everywhere!
+						</h2>
+						<p class="text-lg md:text-xl opacity-90">
+							Install the Reveal Button to automatically detect and decode GhostPost messages on any
+							website
+						</p>
+						<p class="text-sm md:text-base opacity-75">
+							✨ No sign-up required • Works on all websites • One-click reveal
+						</p>
+					</div>
+
+					<div class="flex flex-wrap justify-center gap-4 pt-4">
+						<a
+							href="/install"
+							class="btn variant-filled-primary btn-xl text-lg md:text-xl font-bold hover:scale-105 transition-transform"
+						>
+							<span>⚡</span>
+							<span>Install Reveal Button</span>
+						</a>
+						<a
+							href="/demo"
+							class="btn variant-ghost-surface btn-xl text-lg hover:scale-105 transition-transform"
+						>
+							<span>🧪</span>
+							<span>Try Demo</span>
+						</a>
+					</div>
+
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+						<div class="space-y-2">
+							<div class="text-3xl">🔍</div>
+							<h3 class="h4 text-base font-semibold">Auto-Detect</h3>
+							<p class="text-sm opacity-75">Scans every page for hidden messages</p>
+						</div>
+						<div class="space-y-2">
+							<div class="text-3xl">🔔</div>
+							<h3 class="h4 text-base font-semibold">Live Counter</h3>
+							<p class="text-sm opacity-75">Shows how many secrets are found</p>
+						</div>
+						<div class="space-y-2">
+							<div class="text-3xl">⚡</div>
+							<h3 class="h4 text-base font-semibold">Instant Reveal</h3>
+							<p class="text-sm opacity-75">One click to decode all messages</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
 	<!-- Interactive Demo Section -->
 	<section class="bg-surface-900/30 py-16">
 		<div class="container mx-auto px-4 max-w-4xl">
@@ -415,5 +475,10 @@
 		-webkit-background-clip: text;
 		-webkit-text-fill-color: transparent;
 		background-clip: text;
+	}
+
+	.btn-xl {
+		padding: 1rem 2rem;
+		font-size: 1.125rem;
 	}
 </style>
