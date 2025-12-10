@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.0.1
+// @version      2.0.2
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -19,7 +19,12 @@
 /**
  * Ghostpost Reveal Userscript
  *
- * NEW in v2.0.1:
+ * NEW in v2.0.2:
+ * - Fixed X.com/Twitter decode issue: Now uses text node content directly instead of element.textContent
+ * - This preserves invisible Unicode characters that may be lost when accessing parent element content
+ * - Fixes "No hidden content found" error on X.com and similar platforms
+ *
+ * v2.0.1:
  * - Version bump to force auto-update in userscript managers
  * - Ensures all users get the inline modal experience
  *
@@ -51,7 +56,7 @@
 
 	// Configuration
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.0.1';
+	const SCRIPT_VERSION = '2.0.2';
 
 	// Check if button already exists (might be from an old version)
 	const existingButton = document.getElementById(BUTTON_ID);
@@ -533,7 +538,7 @@
 	}
 
 	// Function to reveal a single message inline
-	function revealSingleMessage(encodedText, element, itemElement, revealBtn) {
+	function revealSingleMessage(encodedText, textNode, element, itemElement, revealBtn) {
 		// Hide the reveal button
 		revealBtn.style.display = 'none';
 
@@ -880,11 +885,13 @@
 				const index = parseInt(this.dataset.index, 10);
 				const node = hiddenMessages[index];
 				const element = node.parentElement;
-				const encodedText = element.textContent;
+				// Use the text node's content directly to preserve invisible characters
+				// This is critical for X.com/Twitter where element.textContent may be normalized
+				const encodedText = node.textContent;
 				const contentDiv = this.parentElement.nextElementSibling;
 
 				// Reveal the message
-				revealSingleMessage(encodedText, element, contentDiv, this);
+				revealSingleMessage(encodedText, node, element, contentDiv, this);
 			};
 		});
 
