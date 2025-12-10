@@ -193,6 +193,15 @@ class DetectionPanel {
             <span>Copy</span>
           </button>
         </div>
+        <div class="decoded-content hidden" data-index="${index}">
+          <div class="decoded-header">
+            <span class="decoded-title">✨ Decoded Content:</span>
+            <button class="button-small button-close-decoded" data-index="${index}">
+              <span>✕</span>
+            </button>
+          </div>
+          <div class="decoded-output"></div>
+        </div>
       </div>
     `
 			)
@@ -216,6 +225,13 @@ class DetectionPanel {
 				this.copyToClipboard(text, e.currentTarget);
 			});
 		});
+
+		this.messagesContainer.querySelectorAll('.button-close-decoded').forEach((btn) => {
+			btn.addEventListener('click', (e) => {
+				const index = parseInt(e.currentTarget.dataset.index);
+				this.closeDecodedContent(index);
+			});
+		});
 	}
 
 	async decodeAndShow(encodedText, buttonElement) {
@@ -233,31 +249,43 @@ class DetectionPanel {
 			return; // User cancelled
 		}
 
+		if (!buttonElement) {
+			return;
+		}
+
+		const originalContent = buttonElement.innerHTML;
+
 		try {
 			// Show loading state
-			if (buttonElement) {
-				const originalContent = buttonElement.innerHTML;
-				buttonElement.disabled = true;
-				buttonElement.innerHTML = '<span>⏳</span><span>Decoding...</span>';
+			buttonElement.disabled = true;
+			buttonElement.innerHTML = '<span>⏳</span><span>Decoding...</span>';
 
-				// Restore button after a moment
-				setTimeout(() => {
-					buttonElement.disabled = false;
-					buttonElement.innerHTML = originalContent;
-				}, 2000);
-			}
-
+			// Decode the message
 			const decoded = await decodeMessage(encodedText);
 
-			// Switch to decoder tab and show result
-			const decoderTab = document.querySelector('[data-tab="decoder"]');
-			decoderTab.click();
+			// Find the decoded content container for this message
+			const messageItem = buttonElement.closest('.message-item');
+			if (!messageItem) {
+				throw new Error('Could not find message container for decoding');
+			}
 
-			// Display result
-			const resultContainer = document.getElementById('decode-result');
-			const resultOutput = document.getElementById('decode-output');
+			const decodedContainer = messageItem.querySelector('.decoded-content');
+			if (!decodedContainer) {
+				throw new Error('Decoded content element missing from DOM');
+			}
 
-			resultContainer.classList.remove('hidden');
+			const decodedOutput = decodedContainer.querySelector('.decoded-output');
+			if (!decodedOutput) {
+				throw new Error('Decoded output element missing from DOM');
+			}
+
+			// Show the decoded content container
+			decodedContainer.classList.remove('hidden');
+
+			// Clear any existing content safely
+			while (decodedOutput.firstChild) {
+				decodedOutput.removeChild(decodedOutput.firstChild);
+			}
 
 			// Check if it's an image
 			if (decoded.startsWith('data:image')) {
@@ -265,14 +293,36 @@ class DetectionPanel {
 				const img = document.createElement('img');
 				img.src = decoded;
 				img.alt = 'Decoded image';
-				resultOutput.innerHTML = '';
-				resultOutput.appendChild(img);
+				decodedOutput.appendChild(img);
 			} else {
 				// Use textContent for text to prevent XSS
-				resultOutput.textContent = decoded;
+				decodedOutput.textContent = decoded;
 			}
 		} catch (error) {
 			alert('Error decoding message: ' + error.message);
+		} finally {
+			// Always restore button state if element still exists
+			if (buttonElement && buttonElement.parentNode) {
+				buttonElement.disabled = false;
+				buttonElement.innerHTML = originalContent;
+			}
+		}
+	}
+
+	closeDecodedContent(messageIndex) {
+		const decodedContainer = this.messagesContainer.querySelector(
+			`.decoded-content[data-index="${messageIndex}"]`
+		);
+		if (decodedContainer) {
+			decodedContainer.classList.add('hidden');
+			// Clear the output safely
+			const decodedOutput = decodedContainer.querySelector('.decoded-output');
+			if (decodedOutput) {
+				// Remove all child nodes safely
+				while (decodedOutput.firstChild) {
+					decodedOutput.removeChild(decodedOutput.firstChild);
+				}
+			}
 		}
 	}
 
