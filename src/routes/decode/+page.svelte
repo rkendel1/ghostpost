@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { clipboard } from '@skeletonlabs/skeleton';
 	import { decodeMessage, initWasm } from '$lib/ghostpost';
+	import AuthGuard from '$lib/components/AuthGuard.svelte';
 
 	let encodedInput = '';
 	let decodedSecret = '';
@@ -125,6 +126,7 @@
 	<title>Decode Hidden Messages</title>
 </svelte:head>
 
+<AuthGuard>
 <div class="container mx-auto p-8 max-w-4xl space-y-6">
 	<div class="flex justify-between items-center">
 		<h1 class="h1">🔍 Decode Hidden Messages</h1>
@@ -237,3 +239,4 @@
 		</p>
 	</div>
 </div>
+</AuthGuard>

@@ -4,16 +4,41 @@
 	import '../app.postcss';
 	import './styles.css';
 
+	import { onMount } from 'svelte';
 	import GitHubIcon from '$lib/images/github.svg?component';
 
 	import { AppBar, AppShell } from '@skeletonlabs/skeleton';
-	import { Drawer, drawerStore } from '@skeletonlabs/skeleton';
+	import { Drawer, drawerStore, Modal, modalStore } from '@skeletonlabs/skeleton';
+	import type { ModalSettings } from '@skeletonlabs/skeleton';
 
 	import Navigation from '$lib/navigation/Navigation.svelte';
+	import AuthModal from '$lib/components/AuthModal.svelte';
+	import { authStore } from '$lib/stores/auth';
+
+	let mounted = false;
+
+	onMount(async () => {
+		await authStore.initialize();
+		mounted = true;
+	});
 
 	function drawerOpen(): void {
 		drawerStore.open({});
 	}
+
+	function openAuthModal(): void {
+		const modal: ModalSettings = {
+			type: 'component',
+			component: { ref: AuthModal }
+		};
+		modalStore.trigger(modal);
+	}
+
+	async function handleSignOut(): Promise<void> {
+		await authStore.signOut();
+	}
+
+	$: user = $authStore.user;
 </script>
 
 <Drawer>
@@ -21,6 +46,8 @@
 	<hr />
 	<Navigation />
 </Drawer>
+
+<Modal />
 
 <AppShell slotSidebarLeft="bg-surface-500/5 w-0">
 	<svelte:fragment slot="header">
@@ -36,14 +63,27 @@
 							</svg>
 						</span>
 					</button>
-					<a href="/" class="no-underline hover:no-underline text-inherit">
-						<strong class="text-xl uppercase"> Hidenly </strong>
+					<a href="/" class="no-underline hover:no-underline text-inherit flex items-center gap-2">
+						<span class="text-2xl">👻</span>
+						<strong class="text-xl uppercase"> GhostPost </strong>
 					</a>
 				</div>
 			</svelte:fragment>
 			<svelte:fragment slot="trail">
-				<div class="flex items-center">
-					<a href="https://github.com/" class="no-underline hover:no-underline text-inherit">
+				<div class="flex items-center gap-4">
+					{#if mounted && user}
+						<span class="text-sm opacity-75 hidden md:inline">
+							{user.email}
+						</span>
+						<button class="btn btn-sm variant-ghost-surface" on:click={handleSignOut}>
+							Sign Out
+						</button>
+					{:else if mounted}
+						<button class="btn btn-sm variant-filled-primary" on:click={openAuthModal}>
+							Sign In
+						</button>
+					{/if}
+					<a href="https://github.com/rkendel1/ghostpost" class="no-underline hover:no-underline text-inherit">
 						<GitHubIcon width="24" />
 					</a>
 				</div>
