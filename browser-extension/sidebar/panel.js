@@ -265,8 +265,19 @@ class DetectionPanel {
 
 			// Find the decoded content container for this message
 			const messageItem = buttonElement.closest('.message-item');
+			if (!messageItem) {
+				throw new Error('Message item container not found');
+			}
+
 			const decodedContainer = messageItem.querySelector('.decoded-content');
+			if (!decodedContainer) {
+				throw new Error('Decoded content container not found');
+			}
+
 			const decodedOutput = decodedContainer.querySelector('.decoded-output');
+			if (!decodedOutput) {
+				throw new Error('Decoded output container not found');
+			}
 
 			// Show the decoded content container
 			decodedContainer.classList.remove('hidden');
