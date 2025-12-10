@@ -247,32 +247,47 @@ function extractDomain(url: string): string {
 export function detectPlatform(referrer?: string, userAgent?: string): string {
 	if (!referrer && !userAgent) return 'unknown';
 
-	const refLower = referrer?.toLowerCase() || '';
 	const uaLower = userAgent?.toLowerCase() || '';
 
-	if (refLower.includes('twitter.com') || refLower.includes('t.co') || uaLower.includes('twitter')) {
+	// Parse referrer URL to check hostname properly
+	if (referrer) {
+		try {
+			const url = new URL(referrer);
+			const hostname = url.hostname.toLowerCase();
+
+			// Check if hostname ends with the platform domain (avoids subdomain issues)
+			if (hostname === 'twitter.com' || hostname.endsWith('.twitter.com') || hostname === 't.co') {
+				return 'twitter';
+			}
+			if (hostname === 'facebook.com' || hostname.endsWith('.facebook.com') || hostname === 'fb.com' || hostname.endsWith('.fb.com')) {
+				return 'facebook';
+			}
+			if (hostname === 'instagram.com' || hostname.endsWith('.instagram.com')) {
+				return 'instagram';
+			}
+			if (hostname === 'linkedin.com' || hostname.endsWith('.linkedin.com')) {
+				return 'linkedin';
+			}
+			if (hostname === 'tiktok.com' || hostname.endsWith('.tiktok.com')) {
+				return 'tiktok';
+			}
+			if (hostname === 'discord.com' || hostname.endsWith('.discord.com') || hostname === 'discord.gg') {
+				return 'discord';
+			}
+			if (hostname === 'reddit.com' || hostname.endsWith('.reddit.com')) {
+				return 'reddit';
+			}
+			if (hostname.includes('telegram')) {
+				return 'telegram';
+			}
+		} catch {
+			// Invalid URL, fall through to user agent check
+		}
+	}
+
+	// Fallback to user agent check
+	if (uaLower.includes('twitter')) {
 		return 'twitter';
-	}
-	if (refLower.includes('facebook.com') || refLower.includes('fb.com')) {
-		return 'facebook';
-	}
-	if (refLower.includes('instagram.com')) {
-		return 'instagram';
-	}
-	if (refLower.includes('linkedin.com')) {
-		return 'linkedin';
-	}
-	if (refLower.includes('tiktok.com')) {
-		return 'tiktok';
-	}
-	if (refLower.includes('discord.com') || refLower.includes('discord.gg')) {
-		return 'discord';
-	}
-	if (refLower.includes('reddit.com')) {
-		return 'reddit';
-	}
-	if (refLower.includes('telegram')) {
-		return 'telegram';
 	}
 
 	return 'other';
