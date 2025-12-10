@@ -37,11 +37,6 @@
 		}
 	}
 
-	let postId = '';
-	let analytics: DashboardStats | null = null;
-	let isLoading = false;
-	let error = '';
-
 	async function loadAnalytics() {
 		if (!postId.trim()) {
 			error = 'Please enter a post ID';

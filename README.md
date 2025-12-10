@@ -1,50 +1,39 @@
-# 🎭 Hidenly - AI Ghostpost Application
+# 👻 GhostPost - Hide Secrets in Plain Sight
 
-Hide your secrets within your messages using invisible Unicode characters. Now with AI-powered content generation, browser extension, and universal reveal button!
-
-## 🌟 Features
-
-### 👻 Universal Reveal Button (NEW!)
-
-The **fastest way** to detect and reveal hidden Ghostpost messages on any website!
-
-- **One-Click Installation**: Install a lightweight userscript (5KB) that works everywhere
-- **Automatic Detection**: Floating 👻 button appears on every website and scans for hidden messages
-- **Visual Counter**: Red badge shows how many hidden messages are on the current page
-- **Instant Reveal**: Click to decode all hidden content with one click
-- **Works Everywhere**: Twitter, Reddit, Discord, Instagram, Facebook, and any website
-- **Zero Setup**: No browser extension needed - just install the userscript
-- **Privacy-First**: All processing happens locally in your browser
-- **Auto-Updates**: Stays current automatically
-
-[Install Reveal Button →](/install) | [Try Demo →](/demo)
-
-### 📱 Mobile Share Decoder (NEW!)
-
-Quick access to decode hidden messages on mobile devices:
-
-- **One-Tap Decoding**: Paste and reveal with mobile-optimized interface
-- **iOS & Android**: Works on all mobile browsers
-- **Share Sheet Ready**: Easy copy/paste workflow for mobile messengers
-- **Add to Home Screen**: Install as a web app for instant access
-- **URL Parameters**: Supports pre-filled text from share intents
-
-# [Use Mobile Decoder →](/share)
-
-Hide your secrets within your messages using invisible Unicode characters. Now with AI-powered content generation, analytics tracking, and a browser extension!
+Hide your secrets within your messages using invisible Unicode characters. Share publicly, reveal selectively.
 
 ## 🌟 Features
 
-### Analytics Dashboard 🆕
+### 🎯 Unified Compose Experience
+
+Create GhostPosts with our streamlined, intuitive interface:
+
+- **AI or Manual Mode**: Toggle between AI-powered content generation and manual composition
+- **Step-by-Step Flow**: Clear, guided process from message creation to encoding
+- **Multi-Platform Support**: Optimized content for Twitter, LinkedIn, Facebook, and TikTok
+- **Instant Encoding**: Hide text or images within your messages
+- **Account Integration**: Automatically save posts when signed in
+
+### 🔐 Authentication & Account Management
+
+GhostPost includes optional account features for power users:
+
+- **Optional Sign-In**: Use basic features without an account, sign in for advanced features
+- **My Posts Dashboard**: View all your GhostPosts in one place
+- **Analytics Tracking**: See who decodes your messages and when
+- **Secure Storage**: Your posts and secrets are securely stored with Supabase
+- **Easy Sign-Up**: Quick email/password authentication
+
+### 📊 Analytics Dashboard
+
+Track the reach and impact of your GhostPosts (requires account):
 
 - **Per-Post Analytics**: Track decode events for every secret message you create
 - **Real-time Insights**: See total decodes, unique users, and decode timeline
-- **Platform Breakdown**: Understand which platforms your audience uses (Twitter, Instagram, LinkedIn, etc.)
+- **Platform Breakdown**: Understand which platforms your audience uses
 - **Geographic Data**: View country-level distribution of your audience
 - **Referral Tracking**: See where your decoders are coming from
-- **Public Analytics**: Allow anyone to check aggregate stats for viral discovery
 - **Privacy-Focused**: Anonymous tracking with no PII collection
-  > > > > > > > main
 
 ### Browser Extension
 
@@ -114,7 +103,9 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
 
    ```bash
    cp .env.example .env
-   # Edit .env and add your OPENAI_API_KEY
+   # Required: Supabase credentials (already pre-configured in .env.example)
+   # Optional: Add your OPENAI_API_KEY for AI features
+   # Optional: Add REDIS_URL for analytics in production
    ```
 
 4. **Start development server**
@@ -141,49 +132,37 @@ ghostpost/
 ├── src/
 │   ├── routes/
 │   │   ├── api/
-│   │   │   ├── ai-compose/    # AI content generation endpoint
-│   │   │   └── post/          # Platform posting stub endpoint
-│   │   ├── compose/           # AI Ghostpost composer page
-│   │   ├── decode/            # Secret message decoder page (enhanced with URL params)
-│   │   ├── install/           # Userscript installation page 🆕
-│   │   ├── share/             # Mobile share decoder page 🆕
-│   │   ├── demo/              # Demo page for overlay button 🆕
-│   │   └── +page.svelte       # Home page with classic tool
-│   └── lib/
-│       ├── ghostpost.ts       # WASM integration module
-│       └── cards/             # Classic hide/unhide components
-├── static/
-│   └── ghostpost-reveal.user.js  # Universal overlay button userscript 🆕
-├── browser-extension/         # Browser extension
-│   ├── manifest.json         # Extension configuration
-│   ├── scripts/              # Content & background scripts
-│   ├── sidebar/              # Sidebar UI
-│   ├── styles/               # Extension styles
-=======
 │   │   │   ├── ai-compose/         # AI content generation endpoint
 │   │   │   ├── post/               # Platform posting stub endpoint
-│   │   │   └── analytics/          # Analytics API endpoints 🆕
-│   │   │       ├── track/          # Track decode events
-│   │   │       ├── post/           # Get post analytics
-│   │   │       └── public/         # Public aggregate stats
-│   │   ├── compose/                # AI Ghostpost composer page
-│   │   ├── decode/                 # Secret message decoder page
-│   │   ├── dashboard/              # Analytics dashboard 🆕
-│   │   ├── analytics/              # Public analytics page 🆕
-│   │   └── +page.svelte            # Home page with classic tool
+│   │   │   └── analytics/          # Analytics API endpoints
+│   │   ├── compose/                # Unified GhostPost composer (auth required)
+│   │   ├── decode/                 # Secret message decoder (auth required)
+│   │   ├── dashboard/              # My Posts & Analytics (auth required)
+│   │   ├── analytics/              # Public analytics page
+│   │   ├── install/                # Userscript installation page
+│   │   ├── share/                  # Mobile share decoder page
+│   │   ├── demo/                   # Demo page for overlay button
+│   │   └── +page.svelte            # Landing page with interactive demo
 │   └── lib/
-│       ├── ghostpost.ts            # WASM integration module with analytics
-│       ├── analytics.ts            # Analytics service layer 🆕
-│       ├── mock-kv.ts              # Mock KV for local dev 🆕
+│       ├── components/             # Reusable UI components
+│       │   ├── AuthGuard.svelte   # Authentication guard for protected pages
+│       │   └── AuthModal.svelte   # Login/signup modal
+│       ├── stores/                 # Svelte stores
+│       │   └── auth.ts            # Authentication state management
+│       ├── ghostpost.ts           # WASM integration module with analytics
+│       ├── supabase.ts            # Supabase client configuration
+│       ├── analytics.ts           # Analytics service layer
+│       ├── mock-kv.ts             # Mock KV for local dev
 │       ├── types/
-│       │   └── analytics.ts        # Analytics TypeScript types 🆕
-│       └── cards/                  # Classic hide/unhide components
-├── browser-extension/              # Browser extension
-│   ├── manifest.json               # Extension configuration
-│   ├── scripts/                    # Content & background scripts
-│   ├── sidebar/                    # Sidebar UI
-│   ├── styles/                     # Extension styles
->>>>>>> main
+│       │   └── analytics.ts       # Analytics TypeScript types
+│       └── cards/                 # Classic hide/unhide components
+├── static/
+│   └── ghostpost-reveal.user.js  # Universal overlay button userscript
+├── browser-extension/             # Browser extension
+│   ├── manifest.json              # Extension configuration
+│   ├── scripts/                   # Content & background scripts
+│   ├── sidebar/                   # Sidebar UI
+│   ├── styles/                    # Extension styles
 │   └── wasm/                 # WASM decoder module
 ├── wasm/                      # Rust WASM source code
 │   ├── src/
@@ -236,42 +215,34 @@ Quick decoding on mobile devices:
 
 [Installation Instructions →](./browser-extension/README.md)
 
-### Creating a Secret Post
+### Creating Your First GhostPost
 
-1. **Go to `/compose` page**
-2. **Select platform** (Twitter, LinkedIn, Facebook, or TikTok)
-3. **Enter your prompt** - Describe what you want to post
-4. **Generate content** - AI creates platform-optimized content (requires OpenAI API key)
-5. **Add secret message** - Enter the message you want to hide
-6. **Encode** - Create the encoded message with embedded analytics ID
-7. **Copy post ID** - Note the UUID shown for tracking your post's analytics
-8. **Copy & paste** - Copy the encoded message and manually post it on your chosen platform
+1. **Sign in** - Create an account or sign in (required for full features)
+2. **Go to `/compose` page** - Access the unified composer
+3. **Choose your mode**:
+   - **AI Mode**: Enable AI toggle, select platform, describe your post
+   - **Manual Mode**: Write your own message
+4. **Add your secret** - Enter hidden text or upload an image
+5. **Encode** - Your post is automatically encoded and saved to your account
+6. **Copy & Share** - Copy the encoded message and post anywhere
 
-### Decoding a Secret Message
+### Decoding a GhostPost
 
-1. **Go to `/decode` page**
-2. **Paste encoded message** - Paste any message that may contain a secret
-3. **Click Decode** - Reveal the hidden content
-4. **View the secret** - See the decoded message or image
-5. **Analytics tracked** - Decode events are automatically tracked (if analytics enabled)
+1. **Sign in** - Authentication required for decode features
+2. **Go to `/decode` page**
+3. **Paste the message** - Paste any text that might contain a GhostPost
+4. **Click Decode** - Reveal the hidden secret
+5. **View result** - See the hidden text or image
 
-### Viewing Analytics
+### Viewing Your Posts
 
-1. **Go to `/dashboard` page**
-2. **Enter post ID** - Paste the UUID from when you created the post
-3. **View insights** - See:
+1. **Go to `/dashboard` page** (requires sign-in)
+2. **View your posts** - See all your GhostPosts in one place
+3. **Check analytics** - Click "View Analytics" on any post to see:
    - Total decodes and unique users
-   - Platform breakdown (where people decoded from)
-   - Geographic distribution (country-level data)
-   - Referral sources
-   - Time series of decodes over time
-
-### Public Analytics
-
-1. **Go to `/analytics` page**
-2. **View global stats** - See aggregate Ghostpost statistics worldwide
-3. **Check any message** - Paste any encoded message to see its public stats
-4. **Share insights** - Use for viral discovery and proving engagement
+   - Platform breakdown
+   - Geographic distribution
+   - Decode timeline
 
 ## 🔧 Development
 
