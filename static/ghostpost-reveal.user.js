@@ -429,8 +429,14 @@
 
 			// Decode base64 to get the secret message
 			// Use atob for base64 decoding, then properly decode UTF-8
+			let decodedBytes;
 			try {
-				const decodedBytes = atob(base64String);
+				decodedBytes = atob(base64String);
+			} catch (e) {
+				throw new Error('Invalid base64 encoding');
+			}
+			
+			try {
 				// Convert byte string to proper UTF-8
 				const decoded = decodeURIComponent(Array.from(decodedBytes, c => 
 					'%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
@@ -445,7 +451,6 @@
 				return decoded;
 			} catch (e) {
 				// If UTF-8 decoding fails, return the raw decoded bytes
-				const decodedBytes = atob(base64String);
 				const postIdIndex = decodedBytes.indexOf(POST_ID_DELIMITER);
 				if (postIdIndex !== -1) {
 					return decodedBytes.substring(0, postIdIndex);
@@ -483,6 +488,12 @@
 				
 				// Show the decoded content
 				if (isImage) {
+					// Validate data URL format to prevent XSS
+					const dataUrlPattern = /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/;
+					if (!dataUrlPattern.test(decodedMessage)) {
+						throw new Error('Invalid image format');
+					}
+					
 					itemElement.innerHTML = `
 						<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
 							<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
@@ -513,6 +524,29 @@
 						const copyBtn = itemElement.querySelector('.copy-secret-btn');
 						if (copyBtn) {
 							copyBtn.onclick = function() {
+								// Check if clipboard API is available
+								if (!navigator.clipboard || !navigator.clipboard.writeText) {
+									// Fallback for browsers without clipboard API
+									const textArea = document.createElement('textarea');
+									textArea.value = decodedMessage;
+									textArea.style.position = 'fixed';
+									textArea.style.left = '-999999px';
+									document.body.appendChild(textArea);
+									textArea.select();
+									try {
+										document.execCommand('copy');
+										this.innerHTML = '<span>✅</span><span>Copied!</span>';
+										setTimeout(() => {
+											this.innerHTML = '<span>📋</span><span>Copy Secret</span>';
+										}, 2000);
+									} catch (err) {
+										console.error('Copy failed:', err);
+										showNotification('Failed to copy to clipboard', 'error');
+									}
+									document.body.removeChild(textArea);
+									return;
+								}
+								
 								navigator.clipboard.writeText(decodedMessage).then(() => {
 									this.innerHTML = '<span>✅</span><span>Copied!</span>';
 									setTimeout(() => {
