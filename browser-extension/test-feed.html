@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Social Media Feed Test - Hidenly Extension</title>
+		<style>
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+				max-width: 600px;
+				margin: 0 auto;
+				padding: 20px;
+				background: #f0f2f5;
+			}
+
+			.header {
+				background: white;
+				padding: 20px;
+				border-radius: 8px;
+				margin-bottom: 20px;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+			}
+
+			h1 {
+				margin: 0 0 10px 0;
+				color: #1c1e21;
+			}
+
+			.instructions {
+				color: #65676b;
+				font-size: 14px;
+			}
+
+			.controls {
+				background: white;
+				padding: 15px;
+				border-radius: 8px;
+				margin-bottom: 20px;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+			}
+
+			button {
+				background: #1877f2;
+				color: white;
+				border: none;
+				padding: 10px 20px;
+				border-radius: 6px;
+				cursor: pointer;
+				font-size: 15px;
+				font-weight: 600;
+				margin-right: 10px;
+			}
+
+			button:hover {
+				background: #166fe5;
+			}
+
+			.feed {
+				display: flex;
+				flex-direction: column;
+				gap: 15px;
+			}
+
+			/* Simulate Twitter/X feed structure */
+			[role='feed'] article[data-testid='tweet'] {
+				background: white;
+				border-radius: 8px;
+				padding: 15px;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+			}
+
+			.post-header {
+				display: flex;
+				align-items: center;
+				margin-bottom: 10px;
+			}
+
+			.avatar {
+				width: 40px;
+				height: 40px;
+				border-radius: 50%;
+				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+				margin-right: 10px;
+			}
+
+			.author {
+				font-weight: 600;
+				color: #1c1e21;
+			}
+
+			.post-content {
+				color: #1c1e21;
+				line-height: 1.5;
+				margin-bottom: 10px;
+			}
+
+			.post-meta {
+				color: #65676b;
+				font-size: 13px;
+			}
+
+			.badge {
+				display: inline-block;
+				background: #e7f3ff;
+				color: #1877f2;
+				padding: 4px 8px;
+				border-radius: 4px;
+				font-size: 12px;
+				font-weight: 600;
+				margin-left: 10px;
+			}
+
+			.loading {
+				text-align: center;
+				padding: 20px;
+				color: #65676b;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="header">
+			<h1>🎭 Social Media Feed Test</h1>
+			<p class="instructions">
+				This page simulates a social media feed to test the Hidenly extension's continuous scanning
+				feature. Make sure the extension is installed and active. The badge should update as new
+				posts with hidden content are added.
+			</p>
+		</div>
+
+		<div class="controls">
+			<button onclick="addNormalPost()">Add Normal Post</button>
+			<button onclick="addHiddenPost()">Add Post with Hidden Message</button>
+			<button onclick="addImagePost()">Add Post with Hidden Image</button>
+			<button onclick="simulateScroll()">Simulate Feed Scroll (5 posts)</button>
+		</div>
+
+		<!-- Twitter/X style feed -->
+		<div role="feed" class="feed" id="feed">
+			<article data-testid="tweet">
+				<div class="post-header">
+					<div class="avatar"></div>
+					<div>
+						<div class="author">Test User 1</div>
+					</div>
+				</div>
+				<div class="post-content">
+					This is a normal post without any hidden content. The extension should not detect anything
+					here.
+				</div>
+				<div class="post-meta">Just now</div>
+			</article>
+		</div>
+
+		<script>
+			let postCounter = 2;
+
+			// Sample hidden text (contains invisible Unicode characters used by Hidenly)
+			// This is a mock encoded string - in reality, this would be created by the Hidenly encoder
+			const mockEncodedText =
+				'Hello World\u200B\u200C\u200D\u200E\u200F\u202C\u202D\u2060\u200B\u200C\u200D\u200E\u200F\u202C\u202D\u2060\u200B\u200C\u200D\u200E\u200F\u202C\u202D\u2060\u200B\u200C\u200D\u200E\u200F\u202C\u202D\u2060';
+
+			function addNormalPost() {
+				const feed = document.getElementById('feed');
+				const article = document.createElement('article');
+				article.setAttribute('data-testid', 'tweet');
+				article.innerHTML = `
+        <div class="post-header">
+          <div class="avatar"></div>
+          <div>
+            <div class="author">Test User ${postCounter}</div>
+          </div>
+        </div>
+        <div class="post-content">
+          Just a regular post #${postCounter} with no hidden content. Nothing to see here!
+        </div>
+        <div class="post-meta">Just now</div>
+      `;
+				feed.appendChild(article);
+				postCounter++;
+				console.log('Added normal post');
+			}
+
+			function addHiddenPost() {
+				const feed = document.getElementById('feed');
+				const article = document.createElement('article');
+				article.setAttribute('data-testid', 'tweet');
+				article.innerHTML = `
+        <div class="post-header">
+          <div class="avatar"></div>
+          <div>
+            <div class="author">Test User ${postCounter} <span class="badge">🔒 Hidden Content</span></div>
+          </div>
+        </div>
+        <div class="post-content">
+          This post looks normal but contains a hidden message: ${mockEncodedText}
+        </div>
+        <div class="post-meta">Just now</div>
+      `;
+				feed.appendChild(article);
+				postCounter++;
+				console.log('Added post with hidden content - badge should update!');
+			}
+
+			function addImagePost() {
+				const feed = document.getElementById('feed');
+				const article = document.createElement('article');
+				article.setAttribute('data-testid', 'tweet');
+				// Create longer encoded text to simulate image encoding
+				const longEncoded = mockEncodedText.repeat(10);
+				article.innerHTML = `
+        <div class="post-header">
+          <div class="avatar"></div>
+          <div>
+            <div class="author">Test User ${postCounter} <span class="badge">🖼️ Hidden Image</span></div>
+          </div>
+        </div>
+        <div class="post-content">
+          Check out this cool post! ${longEncoded}
+        </div>
+        <div class="post-meta">Just now</div>
+      `;
+				feed.appendChild(article);
+				postCounter++;
+				console.log('Added post with hidden image - badge should update!');
+			}
+
+			function simulateScroll() {
+				console.log('Simulating feed scroll - adding multiple posts...');
+
+				// Add posts gradually to simulate scrolling
+				let addedCount = 0;
+				const interval = setInterval(() => {
+					if (addedCount < 5) {
+						if (Math.random() > 0.6) {
+							addHiddenPost();
+						} else {
+							addNormalPost();
+						}
+						addedCount++;
+					} else {
+						clearInterval(interval);
+						console.log('Scroll simulation complete!');
+					}
+				}, 500);
+			}
+
+			// Add an initial post with hidden content after 2 seconds
+			setTimeout(() => {
+				console.log('Adding initial test post with hidden content...');
+				addHiddenPost();
+			}, 2000);
+		</script>
+	</body>
+</html>

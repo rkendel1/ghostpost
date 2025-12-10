@@ -10,6 +10,8 @@ A browser extension that automatically detects and reveals hidden messages encod
 - 🔓 **Manual Decoder**: Decode any text that may contain hidden content
 - ⚡ **Fast Processing**: Uses WebAssembly for optimal performance
 - 🔒 **Privacy-Focused**: All processing happens locally in your browser
+- 🔄 **Continuous Monitoring**: Actively monitors for new content, especially optimized for social media feeds
+- 🎯 **Feed-Optimized**: Enhanced scanning for Twitter/X, Facebook, LinkedIn, Instagram, Reddit, and TikTok
 
 ## Installation
 
@@ -40,6 +42,22 @@ Firefox support coming soon! The extension uses Manifest V3 which is still being
 
 3. Click the extension icon to open the sidebar
 4. View detected messages in the "Detection" tab
+5. **Important**: The extension only detects hidden content - it does not automatically decode or reveal it
+
+### Decoding Hidden Content
+
+⚠️ **Privacy & Control**: Hidden content may contain sensitive information not intended for you. The extension requires your explicit confirmation before decoding.
+
+1. In the Detection tab, click the "🔓 Decode" button next to any detected message
+2. Review the privacy warning that appears
+3. Click "OK" to proceed with decoding (or "Cancel" to skip)
+4. The decoded content will appear in the Decoder tab
+
+**Why the confirmation?** Hidden messages may contain:
+
+- Private or sensitive information
+- Images or text you may not want to see
+- Content not intended for you
 
 ### Manual Decoding
 
@@ -50,7 +68,7 @@ Firefox support coming soon! The extension uses Manifest V3 which is still being
 
 ### Sidebar Tabs
 
-- **Detection**: View all hidden messages found on the current page
+- **Detection**: View all hidden messages found on the current page (detection only - not decoded)
 - **Decoder**: Manually decode any text
 - **About**: Learn about Hidenly and how it works
 
@@ -63,12 +81,36 @@ Hidenly uses invisible Unicode characters (zero-width characters and combining m
 3. **Decodes** the content using the same WASM module as the web app
 4. **Displays** the decoded message or image
 
+### Continuous Scanning for Social Media Feeds
+
+The extension includes enhanced monitoring specifically optimized for social media platforms:
+
+- **Real-time Detection**: Uses MutationObserver to detect new content as it loads
+- **Adaptive Scanning**: Faster response times (500ms) for social media sites vs regular sites (1000ms)
+- **Feed-Specific Selectors**: Recognizes common feed structures on Twitter/X, Facebook, LinkedIn, Instagram, Reddit, and TikTok
+- **Incremental Updates**: Scans new nodes individually for better performance
+- **Background Monitoring**: Periodic rescans (every 10 seconds) on social media to catch any missed updates
+- **Smart Prioritization**: Feed content gets priority scanning with reduced debounce delays
+
+This means the extension continuously monitors social media feeds as you scroll, automatically detecting hidden messages in new posts without requiring manual rescans.
+
+### False Positive Reduction
+
+The extension uses advanced heuristics to minimize false positives:
+
+- **Clustering Analysis**: Checks if invisible characters are clustered together (indicating encoding) vs scattered (indicating legitimate formatting)
+- **Ratio Thresholds**: Analyzes the ratio of invisible characters to total text length
+- **Minimum Counts**: Requires a minimum number of invisible characters before flagging content
+- **RTL Text Support**: Distinguishes between legitimate right-to-left text markers and encoded content
+
+This ensures the extension accurately detects Hidenly-encoded messages while avoiding false alarms from legitimate uses of invisible Unicode characters.
+
 ## Technical Details
 
 - **Manifest Version**: V3 (latest standard)
 - **Architecture**: Content Script + Background Service Worker + Sidebar
 - **Decoding**: WebAssembly (Rust) for performance
-- **Permissions**: 
+- **Permissions**:
   - `activeTab`: Access current page content
   - `sidePanel`: Display sidebar interface
   - `storage`: Remember user preferences
@@ -103,6 +145,9 @@ browser-extension/
 - **Local Processing**: All decoding happens locally in your browser
 - **No External Requests**: The extension works completely offline
 - **Open Source**: Full source code is available for review
+- **User Control**: Requires explicit user confirmation before decoding any hidden content
+- **Detection Only**: The extension detects hidden content but does not automatically decode or reveal it
+- **Privacy Warnings**: Clear warnings before decoding content that may be sensitive or not intended for you
 
 ## Compatibility
 

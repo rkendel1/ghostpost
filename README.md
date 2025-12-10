@@ -7,6 +7,7 @@ Hide your secrets within your messages using invisible Unicode characters. Now w
 ### Browser Extension 🆕
 
 - **Automatic Detection**: Scans web pages for hidden content in real-time
+- **Continuous Monitoring**: Enhanced scanning for social media feeds (Twitter/X, Facebook, LinkedIn, etc.)
 - **Badge Notifications**: Shows count of hidden messages on the current page
 - **Sidebar Interface**: Clean, tabbed UI for viewing and decoding messages
 - **Manual Decoder**: Decode any text that may contain hidden content
