@@ -29,7 +29,7 @@
  * - Three-step workflow: Notify → Identify → Reveal, all in one modal
  * - Client-side only: All decoding happens locally, no authentication needed
  * - Copy to clipboard: Easy sharing of revealed secrets
- * 
+ *
  * Performance Optimizations:
  * - Debouncing: 2 second delay after page changes before scanning
  * - Scan timeouts: 100ms maximum for any single scan operation
@@ -59,7 +59,9 @@
 		// Check if this is an old version by looking for the data-version attribute
 		const existingVersion = existingButton.dataset.version;
 		if (existingVersion && existingVersion !== SCRIPT_VERSION) {
-			console.warn(`[Ghostpost] Detected old version ${existingVersion}. Current version is ${SCRIPT_VERSION}. Please update your userscript.`);
+			console.warn(
+				`[Ghostpost] Detected old version ${existingVersion}. Current version is ${SCRIPT_VERSION}. Please update your userscript.`
+			);
 			existingButton.remove(); // Remove old button
 		} else if (existingButton) {
 			// Same version already running, don't load again
@@ -336,12 +338,12 @@
 	function getElementDescription(element) {
 		// Try to find a meaningful context
 		const tagName = element.tagName.toLowerCase();
-		
+
 		// Get visible text preview (first 50 chars)
 		const textContent = element.textContent.trim();
 		let visibleText = textContent.substring(0, 50);
 		if (textContent.length > 50) visibleText += '...';
-		
+
 		// Get location context
 		let location = tagName;
 		if (element.id) location = `#${element.id}`;
@@ -349,14 +351,14 @@
 			const classes = element.className.split(' ').slice(0, 2).join('.');
 			if (classes) location = `.${classes}`;
 		}
-		
+
 		return { location, visibleText };
 	}
 
 	// Function to highlight element on the page
 	function highlightElement(element) {
 		if (highlightedElements.has(element)) return;
-		
+
 		element.style.outline = '3px solid #ef4444';
 		element.style.outlineOffset = '2px';
 		element.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
@@ -374,7 +376,7 @@
 
 	// Function to remove all highlights
 	function removeAllHighlights() {
-		highlightedElements.forEach(element => {
+		highlightedElements.forEach((element) => {
 			element.style.outline = '';
 			element.style.outlineOffset = '';
 			element.style.backgroundColor = '';
@@ -389,22 +391,70 @@
 
 	// Base64 character map for decoding
 	const BASE64_CHAR_MAP = {
-		'\u2060\u2060': 'A', '\u2060\u200B': 'B', '\u2060\u200C': 'C', '\u2060\u200D': 'D',
-		'\u2060\u200E': 'E', '\u2060\u200F': 'F', '\u2060\u202D': 'G', '\u2060\u202C': 'H',
-		'\u200B\u2060': 'I', '\u200B\u200B': 'J', '\u200B\u200C': 'K', '\u200B\u200D': 'L',
-		'\u200B\u200E': 'M', '\u200B\u200F': 'N', '\u200B\u202D': 'O', '\u200B\u202C': 'P',
-		'\u200C\u2060': 'Q', '\u200C\u200B': 'R', '\u200C\u200C': 'S', '\u200C\u200D': 'T',
-		'\u200C\u200E': 'U', '\u200C\u200F': 'V', '\u200C\u202D': 'W', '\u200C\u202C': 'X',
-		'\u200D\u2060': 'Y', '\u200D\u200B': 'Z', '\u200D\u200C': 'a', '\u200D\u200D': 'b',
-		'\u200D\u200E': 'c', '\u200D\u200F': 'd', '\u200D\u202D': 'e', '\u200D\u202C': 'f',
-		'\u200E\u2060': 'g', '\u200E\u200B': 'h', '\u200E\u200C': 'i', '\u200E\u200D': 'j',
-		'\u200E\u200E': 'k', '\u200E\u200F': 'l', '\u200E\u202D': 'm', '\u200E\u202C': 'n',
-		'\u200F\u2060': 'o', '\u200F\u200B': 'p', '\u200F\u200C': 'q', '\u200F\u200D': 'r',
-		'\u200F\u200E': 's', '\u200F\u200F': 't', '\u200F\u202D': 'u', '\u200F\u202C': 'v',
-		'\u202D\u2060': 'w', '\u202D\u200B': 'x', '\u202D\u200C': 'y', '\u202D\u200D': 'z',
-		'\u202D\u200E': '0', '\u202D\u200F': '1', '\u202D\u202D': '2', '\u202D\u202C': '3',
-		'\u202C\u2060': '4', '\u202C\u200B': '5', '\u202C\u200C': '6', '\u202C\u200D': '7',
-		'\u202C\u200E': '8', '\u202C\u200F': '9', '\u202C\u202D': '+', '\u202C\u202C': '/'
+		'\u2060\u2060': 'A',
+		'\u2060\u200B': 'B',
+		'\u2060\u200C': 'C',
+		'\u2060\u200D': 'D',
+		'\u2060\u200E': 'E',
+		'\u2060\u200F': 'F',
+		'\u2060\u202D': 'G',
+		'\u2060\u202C': 'H',
+		'\u200B\u2060': 'I',
+		'\u200B\u200B': 'J',
+		'\u200B\u200C': 'K',
+		'\u200B\u200D': 'L',
+		'\u200B\u200E': 'M',
+		'\u200B\u200F': 'N',
+		'\u200B\u202D': 'O',
+		'\u200B\u202C': 'P',
+		'\u200C\u2060': 'Q',
+		'\u200C\u200B': 'R',
+		'\u200C\u200C': 'S',
+		'\u200C\u200D': 'T',
+		'\u200C\u200E': 'U',
+		'\u200C\u200F': 'V',
+		'\u200C\u202D': 'W',
+		'\u200C\u202C': 'X',
+		'\u200D\u2060': 'Y',
+		'\u200D\u200B': 'Z',
+		'\u200D\u200C': 'a',
+		'\u200D\u200D': 'b',
+		'\u200D\u200E': 'c',
+		'\u200D\u200F': 'd',
+		'\u200D\u202D': 'e',
+		'\u200D\u202C': 'f',
+		'\u200E\u2060': 'g',
+		'\u200E\u200B': 'h',
+		'\u200E\u200C': 'i',
+		'\u200E\u200D': 'j',
+		'\u200E\u200E': 'k',
+		'\u200E\u200F': 'l',
+		'\u200E\u202D': 'm',
+		'\u200E\u202C': 'n',
+		'\u200F\u2060': 'o',
+		'\u200F\u200B': 'p',
+		'\u200F\u200C': 'q',
+		'\u200F\u200D': 'r',
+		'\u200F\u200E': 's',
+		'\u200F\u200F': 't',
+		'\u200F\u202D': 'u',
+		'\u200F\u202C': 'v',
+		'\u202D\u2060': 'w',
+		'\u202D\u200B': 'x',
+		'\u202D\u200C': 'y',
+		'\u202D\u200D': 'z',
+		'\u202D\u200E': '0',
+		'\u202D\u200F': '1',
+		'\u202D\u202D': '2',
+		'\u202D\u202C': '3',
+		'\u202C\u2060': '4',
+		'\u202C\u200B': '5',
+		'\u202C\u200C': '6',
+		'\u202C\u200D': '7',
+		'\u202C\u200E': '8',
+		'\u202C\u200F': '9',
+		'\u202C\u202D': '+',
+		'\u202C\u202C': '/'
 	};
 
 	// Delimiter used in encoding
@@ -421,7 +471,7 @@
 			if (parts.length < 2) {
 				throw new Error('No hidden content found');
 			}
-			
+
 			const unwrapped = parts[1];
 			if (!unwrapped || unwrapped.length === 0) {
 				throw new Error('Empty hidden content');
@@ -451,19 +501,22 @@
 			} catch (e) {
 				throw new Error('Invalid base64 encoding');
 			}
-			
+
 			try {
 				// Convert byte string to proper UTF-8
-				const decoded = decodeURIComponent(Array.from(decodedBytes, c => 
-					'%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-				).join(''));
-				
+				const decoded = decodeURIComponent(
+					Array.from(
+						decodedBytes,
+						(c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+					).join('')
+				);
+
 				// Check for post ID and strip it
 				const postIdIndex = decoded.indexOf(POST_ID_DELIMITER);
 				if (postIdIndex !== -1) {
 					return decoded.substring(0, postIdIndex);
 				}
-				
+
 				return decoded;
 			} catch (e) {
 				// If UTF-8 decoding fails, return the raw decoded bytes
@@ -483,7 +536,7 @@
 	function revealSingleMessage(encodedText, element, itemElement, revealBtn) {
 		// Hide the reveal button
 		revealBtn.style.display = 'none';
-		
+
 		// Show loading state
 		itemElement.innerHTML = `
 			<div style="padding: 15px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #3b82f6; margin-top: 10px;">
@@ -493,15 +546,15 @@
 				</div>
 			</div>
 		`;
-		
+
 		// Decode the message
 		setTimeout(() => {
 			try {
 				const decodedMessage = decodeHiddenMessage(encodedText);
-				
+
 				// Check if it's an image
 				const isImage = decodedMessage.startsWith('data:image/');
-				
+
 				// Show the decoded content
 				if (isImage) {
 					// Validate data URL format to prevent XSS
@@ -509,7 +562,7 @@
 					if (!dataUrlPattern.test(decodedMessage)) {
 						throw new Error('Invalid image format');
 					}
-					
+
 					itemElement.innerHTML = `
 						<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
 							<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
@@ -534,12 +587,12 @@
 							</button>
 						</div>
 					`;
-					
+
 					// Add copy functionality
 					setTimeout(() => {
 						const copyBtn = itemElement.querySelector('.copy-secret-btn');
 						if (copyBtn) {
-							copyBtn.onclick = function() {
+							copyBtn.onclick = function () {
 								// Check if clipboard API is available
 								if (!navigator.clipboard || !navigator.clipboard.writeText) {
 									// Fallback for browsers without clipboard API
@@ -562,27 +615,29 @@
 									document.body.removeChild(textArea);
 									return;
 								}
-								
-								navigator.clipboard.writeText(decodedMessage).then(() => {
-									this.innerHTML = '<span>✅</span><span>Copied!</span>';
-									setTimeout(() => {
-										this.innerHTML = '<span>📋</span><span>Copy Secret</span>';
-									}, 2000);
-								}).catch(err => {
-									console.error('Copy failed:', err);
-									showNotification('Failed to copy to clipboard', 'error');
-								});
+
+								navigator.clipboard
+									.writeText(decodedMessage)
+									.then(() => {
+										this.innerHTML = '<span>✅</span><span>Copied!</span>';
+										setTimeout(() => {
+											this.innerHTML = '<span>📋</span><span>Copy Secret</span>';
+										}, 2000);
+									})
+									.catch((err) => {
+										console.error('Copy failed:', err);
+										showNotification('Failed to copy to clipboard', 'error');
+									});
 							};
 						}
 					}, 0);
 				}
-				
+
 				// Flash the element on page to indicate which one was revealed
 				highlightElement(element);
 				setTimeout(() => {
 					element.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
 				}, 300);
-				
 			} catch (err) {
 				// Show error
 				itemElement.innerHTML = `
@@ -595,12 +650,12 @@
 						<button class="retry-reveal-btn" style="margin-top: 10px; padding: 6px 12px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Try Again</button>
 					</div>
 				`;
-				
+
 				// Add retry functionality
 				setTimeout(() => {
 					const retryBtn = itemElement.querySelector('.retry-reveal-btn');
 					if (retryBtn) {
-						retryBtn.onclick = function() {
+						retryBtn.onclick = function () {
 							itemElement.innerHTML = '';
 							revealBtn.style.display = 'inline-flex';
 						};
@@ -626,7 +681,7 @@
 		}
 
 		// Highlight all elements with hidden messages
-		hiddenMessages.forEach(node => {
+		hiddenMessages.forEach((node) => {
 			const element = node.parentElement;
 			if (element) highlightElement(element);
 		});
@@ -636,9 +691,15 @@
 		const buttonRect = ghostButton.getBoundingClientRect();
 		const modalWidth = 400;
 		const modalMaxHeight = Math.min(500, window.innerHeight - 120);
-		
+
 		// Position modal above the button, centered horizontally with it
-		const modalLeft = Math.max(10, Math.min(window.innerWidth - modalWidth - 10, buttonRect.left + buttonRect.width / 2 - modalWidth / 2));
+		const modalLeft = Math.max(
+			10,
+			Math.min(
+				window.innerWidth - modalWidth - 10,
+				buttonRect.left + buttonRect.width / 2 - modalWidth / 2
+			)
+		);
 		const modalBottom = window.innerHeight - buttonRect.top + 10; // 10px gap above button
 
 		// Create modal
@@ -711,7 +772,7 @@
 			if (!element) return;
 
 			const { location, visibleText } = getElementDescription(element);
-			
+
 			const item = document.createElement('div');
 			item.style.cssText = `
 				margin-bottom: 12px;
@@ -814,29 +875,29 @@
 		backdrop.onclick = closeModal;
 
 		// Reveal button handlers
-		modal.querySelectorAll('.reveal-btn').forEach(btn => {
-			btn.onclick = function() {
+		modal.querySelectorAll('.reveal-btn').forEach((btn) => {
+			btn.onclick = function () {
 				const index = parseInt(this.dataset.index, 10);
 				const node = hiddenMessages[index];
 				const element = node.parentElement;
 				const encodedText = element.textContent;
 				const contentDiv = this.parentElement.nextElementSibling;
-				
+
 				// Reveal the message
 				revealSingleMessage(encodedText, element, contentDiv, this);
 			};
 		});
 
 		// Locate button handlers
-		modal.querySelectorAll('.locate-btn').forEach(btn => {
-			btn.onclick = function() {
+		modal.querySelectorAll('.locate-btn').forEach((btn) => {
+			btn.onclick = function () {
 				const index = parseInt(this.dataset.index, 10);
 				const node = hiddenMessages[index];
 				const element = node.parentElement;
-				
+
 				// Scroll to element
 				scrollToElement(element);
-				
+
 				// Flash highlight
 				element.style.outline = '5px solid #ef4444';
 				element.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
