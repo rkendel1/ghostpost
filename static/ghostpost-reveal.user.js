@@ -645,7 +645,7 @@
 			// We must use pako.inflateRaw() not pako.inflate()
 			let finalBytes;
 			// Use pako to decompress RAW DEFLATE data
-			if (typeof pako !== 'undefined' && typeof pako.inflateRaw === 'function') {
+			if (typeof pako?.inflateRaw === 'function') {
 				try {
 					finalBytes = pako.inflateRaw(decodedBytes);
 					if (DEBUG_MODE) {
