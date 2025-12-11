@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.0.3
+// @version      2.1.0
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -21,6 +21,14 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.1.0 (2025-12-11):
+ * - ARCHITECTURE: Compartmentalized site-specific detection logic
+ * - Added SITE_ADAPTERS system for site-specific text extraction strategies
+ * - Core detection logic is now site-agnostic and isolated
+ * - Site-specific requirements handled via adapter pattern
+ * - Easy to add new site-specific handlers without touching core code
+ * - Improved maintainability and testability
+ *
  * v2.0.3 (2025-12-11):
  * - FIXED: X.com/Twitter decode failures - "No hidden content found" error
  * - Changed detectHiddenMessages() to use node.data instead of node.textContent
@@ -65,7 +73,7 @@
 
 	// Configuration
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.0.3';
+	const SCRIPT_VERSION = '2.1.0';
 
 	// Check if button already exists (might be from an old version)
 	const existingButton = document.getElementById(BUTTON_ID);
@@ -231,12 +239,70 @@
 		return matches.length > 30 || ratio > 0.1;
 	}
 
-	// Function to detect hidden messages with performance optimization
-	// Returns array of objects: { node, encodedText }
+	/**
+	 * Site-specific text extraction strategies
+	 * Each site can define how to best extract text from nodes
+	 * 
+	 * TO ADD A NEW SITE:
+	 * Simply add a new entry with the domain as key and an adapter object:
+	 * 'example.com': {
+	 *   extractText: (node) => { custom logic here },
+	 *   description: 'Brief explanation of the strategy'
+	 * }
+	 */
+	const SITE_ADAPTERS = {
+		// X.com/Twitter needs special handling to preserve invisible Unicode
+		'x.com': {
+			extractText: (node) => node.data || node.nodeValue || node.textContent || '',
+			description: 'Uses node.data to preserve invisible Unicode characters'
+		},
+		'twitter.com': {
+			extractText: (node) => node.data || node.nodeValue || node.textContent || '',
+			description: 'Uses node.data to preserve invisible Unicode characters'
+		},
+		// Default strategy for all other sites
+		'default': {
+			extractText: (node) => node.data || node.nodeValue || node.textContent || '',
+			description: 'Standard text extraction with Unicode preservation'
+		}
+	};
+
+	/**
+	 * Get the appropriate site adapter based on current hostname
+	 */
+	function getSiteAdapter() {
+		const hostname = window.location.hostname.toLowerCase();
+		
+		// Check for exact match
+		if (SITE_ADAPTERS[hostname]) {
+			console.log(`[Ghostpost] Using site-specific adapter for ${hostname}`);
+			return SITE_ADAPTERS[hostname];
+		}
+		
+		// Check for domain match (e.g., mobile.twitter.com matches twitter.com)
+		for (const domain in SITE_ADAPTERS) {
+			if (domain !== 'default' && hostname.endsWith('.' + domain)) {
+				console.log(`[Ghostpost] Using site-specific adapter for ${domain}`);
+				return SITE_ADAPTERS[domain];
+			}
+		}
+		
+		// Fall back to default
+		console.log('[Ghostpost] Using default adapter');
+		return SITE_ADAPTERS['default'];
+	}
+
+	/**
+	 * Core detection function - site-agnostic
+	 * Returns array of objects: { node, encodedText }
+	 */
 	function detectHiddenMessages() {
 		const results = [];
 		const startTime = Date.now();
 		let nodesChecked = 0;
+
+		// Get site-specific adapter
+		const adapter = getSiteAdapter();
 
 		const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
 
@@ -264,9 +330,8 @@
 
 			nodesChecked++;
 
-			// Use node.data (or nodeValue) instead of textContent for text nodes
-			// This preserves invisible Unicode characters better on X.com/Twitter
-			const nodeText = node.data || node.nodeValue || node.textContent || '';
+			// Use site-specific text extraction
+			const nodeText = adapter.extractText(node);
 			if (nodeText && isLikelyHidenlyMessage(nodeText)) {
 				// Store both the node and the encoded text at detection time
 				results.push({ node, encodedText: nodeText });
