@@ -12,7 +12,7 @@
 // @exclude      *://*.bank.*/*
 // @exclude      *://*.paypal.*/*
 // @grant        none
-// @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js#sha512-ao+909PCNAe2ioXJCM/z62rT8g1nCdUhtyWz1jL7UlcN2ysLjNAz3OTWwSTd67QqYyj9VCZe9/8Zxqhxh3C0aA==
 // @updateURL    https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // @downloadURL  https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // ==/UserScript==
@@ -100,12 +100,14 @@
 	 */
 	async function ensurePako() {
 		if (typeof pako !== 'undefined') {
-			return Promise.resolve();
+			return;
 		}
 
 		return new Promise((resolve, reject) => {
 			const script = document.createElement('script');
 			script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
+			script.integrity = 'sha512-ao+909PCNAe2ioXJCM/z62rT8g1nCdUhtyWz1jL7UlcN2ysLjNAz3OTWwSTd67QqYyj9VCZe9/8Zxqhxh3C0aA==';
+			script.crossOrigin = 'anonymous';
 			script.onload = () => resolve();
 			script.onerror = () => reject(new Error('Failed to load pako.js'));
 			document.head.appendChild(script);
@@ -653,14 +655,7 @@
 			// If decompression fails, it's likely a legacy uncompressed message
 			let finalBytes;
 			try {
-				// Check if pako is available
-				if (typeof pako !== 'undefined') {
-					finalBytes = pako.inflate(byteArray);
-				} else {
-					// Fallback if pako not loaded (shouldn't happen with ensurePako)
-					console.warn('[Ghostpost] pako not loaded, attempting uncompressed decode');
-					finalBytes = byteArray;
-				}
+				finalBytes = pako.inflate(byteArray);
 			} catch (e) {
 				// Decompression failed - likely legacy uncompressed message
 				if (DEBUG_MODE) {
