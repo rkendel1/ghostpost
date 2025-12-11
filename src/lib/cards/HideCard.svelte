@@ -2,6 +2,7 @@
 	import { FileButton, clipboard } from '@skeletonlabs/skeleton';
 	import { onMount } from 'svelte';
 	import { initWasm, encodeMessage as encodeMsg, encodeImage as encodeImg } from '$lib/ghostpost';
+	import type { EncodingWithStats } from '$lib/types/encoding';
 
 	onMount(async () => await initWasm());
 
@@ -12,7 +13,7 @@
 	export let hiddenType: string = 'text';
 
 	let image = '';
-	let encodedImage: Promise<{ text: string; stats: { visibleLength: number; hiddenLength: number; totalLength: number } }> = Promise.resolve({ text: '', stats: { visibleLength: 0, hiddenLength: 0, totalLength: 0 } });
+	let encodedImage: Promise<EncodingWithStats> = Promise.resolve({ text: '', stats: { visibleLength: 0, hiddenLength: 0, totalLength: 0 } });
 	let imageError = '';
 
 	let textStats = { visibleLength: 0, hiddenLength: 0, totalLength: 0 };
@@ -47,7 +48,7 @@
 		}
 	}
 
-	async function encodeImageFile(msg: string, imageFile: File): Promise<{ text: string; stats: { visibleLength: number; hiddenLength: number; totalLength: number } }> {
+	async function encodeImageFile(msg: string, imageFile: File): Promise<EncodingWithStats> {
 		const result = await encodeImg(msg, imageFile, false);
 		return {
 			text: result.encoded,
@@ -59,7 +60,7 @@
 		};
 	}
 
-	async function encodeTextMessage(msg: string, secret: string): Promise<{ text: string; stats: { visibleLength: number; hiddenLength: number; totalLength: number } }> {
+	async function encodeTextMessage(msg: string, secret: string): Promise<EncodingWithStats> {
 		if (!msg || !secret) return { text: '', stats: { visibleLength: 0, hiddenLength: 0, totalLength: 0 } };
 		const result = await encodeMsg(msg, secret, false);
 		return {

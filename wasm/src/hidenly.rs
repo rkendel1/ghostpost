@@ -138,7 +138,14 @@ fn unwrap(input: &str) -> String {
 }
 
 pub fn encode(input: &str, secret: &str) -> String {
-    let compressed = compress_data(secret.as_bytes()).unwrap_or_else(|_| secret.as_bytes().to_vec());
+    // Compress the secret data using DEFLATE compression
+    // If compression fails (rare), fall back to uncompressed encoding
+    let compressed = compress_data(secret.as_bytes()).unwrap_or_else(|_e| {
+        // Log compression failure in debug builds
+        #[cfg(debug_assertions)]
+        eprintln!("Warning: Compression failed ({}), using uncompressed data", _e);
+        secret.as_bytes().to_vec()
+    });
     let preprocessed = encode_base64(&compressed);
     let encoded = base64_to_encoded(preprocessed.as_str());
     wrap(input, &encoded)
@@ -161,8 +168,15 @@ pub fn decode(input: &str) -> Result<String, String> {
     
     let decoded_bytes = decode_base64(processed.as_str())?;
     
-    // Try decompressing first, if it fails, assume it's uncompressed data (for backward compatibility)
-    let final_bytes = decompress_data(&decoded_bytes).unwrap_or(decoded_bytes);
+    // Try decompressing first. This supports both:
+    // 1. New messages with compression
+    // 2. Legacy messages without compression (decompression will fail, we use original bytes)
+    // Note: Corrupted data will be caught by the UTF-8 validation below
+    let final_bytes = decompress_data(&decoded_bytes).unwrap_or_else(|_| {
+        // Decompression failed - this is expected for legacy uncompressed messages
+        // If this is actually corrupted data, the UTF-8 check below will catch it
+        decoded_bytes
+    });
     
     String::from_utf8(final_bytes)
         .map_err(|e| format!("Invalid UTF-8 in decoded content: {}", e))

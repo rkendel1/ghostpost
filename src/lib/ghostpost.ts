@@ -32,6 +32,7 @@
 
 import init, { encode, decode } from 'wasm';
 import { v4 as uuidv4 } from 'uuid';
+import type { EncodingResult } from './types/encoding';
 
 let wasmInitialized = false;
 
@@ -67,13 +68,7 @@ export async function encodeMessage(
 	visibleMessage: string,
 	secretMessage: string,
 	enableAnalytics = true
-): Promise<{ 
-	encoded: string; 
-	postId?: string;
-	visibleLength: number;
-	hiddenLength: number;
-	totalLength: number;
-}> {
+): Promise<EncodingResult> {
 	await initWasm();
 
 	let finalSecret = secretMessage;
@@ -260,13 +255,7 @@ export async function encodeImage(
 	visibleMessage: string,
 	imageFile: File,
 	enableAnalytics = true
-): Promise<{ 
-	encoded: string; 
-	postId?: string;
-	visibleLength: number;
-	hiddenLength: number;
-	totalLength: number;
-}> {
+): Promise<EncodingResult> {
 	await initWasm();
 
 	// Resize image if needed to prevent crashes on mobile devices
