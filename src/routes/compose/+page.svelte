@@ -158,6 +158,7 @@
 								headers: {
 									'Content-Type': 'application/json'
 								},
+								credentials: 'include',
 								body: JSON.stringify({
 									post_id: currentPostId,
 									max_reveals: maxReveals,
