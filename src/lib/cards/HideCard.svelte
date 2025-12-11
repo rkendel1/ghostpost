@@ -12,8 +12,10 @@
 	export let hiddenType: string = 'text';
 
 	let image = '';
-	let encodedImage: Promise<string> = Promise.resolve('');
+	let encodedImage: Promise<{ text: string; stats: { visibleLength: number; hiddenLength: number; totalLength: number } }> = Promise.resolve({ text: '', stats: { visibleLength: 0, hiddenLength: 0, totalLength: 0 } });
 	let imageError = '';
+
+	let textStats = { visibleLength: 0, hiddenLength: 0, totalLength: 0 };
 
 	async function imageToBase64(imageFile: File): Promise<string> {
 		const arrayBuffer: ArrayBuffer = await imageFile.arrayBuffer();
@@ -45,15 +47,29 @@
 		}
 	}
 
-	async function encodeImageFile(msg: string, imageFile: File): Promise<string> {
+	async function encodeImageFile(msg: string, imageFile: File): Promise<{ text: string; stats: { visibleLength: number; hiddenLength: number; totalLength: number } }> {
 		const result = await encodeImg(msg, imageFile, false);
-		return result.encoded;
+		return {
+			text: result.encoded,
+			stats: {
+				visibleLength: result.visibleLength,
+				hiddenLength: result.hiddenLength,
+				totalLength: result.totalLength
+			}
+		};
 	}
 
-	async function encodeTextMessage(msg: string, secret: string): Promise<string> {
-		if (!msg || !secret) return '';
+	async function encodeTextMessage(msg: string, secret: string): Promise<{ text: string; stats: { visibleLength: number; hiddenLength: number; totalLength: number } }> {
+		if (!msg || !secret) return { text: '', stats: { visibleLength: 0, hiddenLength: 0, totalLength: 0 } };
 		const result = await encodeMsg(msg, secret, false);
-		return result.encoded;
+		return {
+			text: result.encoded,
+			stats: {
+				visibleLength: result.visibleLength,
+				hiddenLength: result.hiddenLength,
+				totalLength: result.totalLength
+			}
+		};
 	}
 
 	function handleInput(e: Event) {
@@ -91,8 +107,14 @@
 	<span>Result</span>
 	{#await encodedImage}
 		<textarea class="textarea" value="Processing image..." />
-	{:then text}
-		<textarea class="textarea" disabled={true} data-clipboard="encodedImage" value={text} />
+	{:then result}
+		<textarea class="textarea" disabled={true} data-clipboard="encodedImage" value={result.text} />
+		<div class="text-sm opacity-75 mt-2 mb-2">
+			<p><strong>Character Count:</strong></p>
+			<p>Visible message: {result.stats.visibleLength} characters</p>
+			<p>Hidden characters: {result.stats.hiddenLength} characters</p>
+			<p>Total length: {result.stats.totalLength} characters</p>
+		</div>
 		<button class="btn btn-sm mr-4 variant-filled" use:clipboard={{ input: 'encodedImage' }}
 			>Copy</button
 		>
@@ -116,8 +138,14 @@
 	{#await encodedText}
 		<textarea class="textarea" value="Generating..." />
 		<button class="btn btn-sm mr-4 variant-filled" disabled={true}>Copy</button>
-	{:then text}
-		<textarea class="textarea" data-clipboard="encodedText" value={text} />
+	{:then result}
+		<textarea class="textarea" data-clipboard="encodedText" value={result.text} />
+		<div class="text-sm opacity-75 mt-2 mb-2">
+			<p><strong>Character Count:</strong></p>
+			<p>Visible message: {result.stats.visibleLength} characters</p>
+			<p>Hidden characters: {result.stats.hiddenLength} characters</p>
+			<p>Total length: {result.stats.totalLength} characters</p>
+		</div>
 		<button class="btn btn-sm mr-4 variant-filled" use:clipboard={{ input: 'encodedText' }}
 			>Copy</button
 		>
