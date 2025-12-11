@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.1.2
+// @version      2.1.3
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -12,6 +12,7 @@
 // @exclude      *://*.bank.*/*
 // @exclude      *://*.paypal.*/*
 // @grant        none
+// @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js
 // @updateURL    https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // @downloadURL  https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // ==/UserScript==
@@ -21,6 +22,12 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.1.3 (2025-12-11):
+ * - CRITICAL FIX: Added decompression support for encoded messages
+ * - Now properly decodes compressed secrets using pako.js DEFLATE
+ * - Fixes garbled text issue when revealing secrets
+ * - Backward compatible with legacy uncompressed messages
+ *
  * v2.1.2 (2025-12-11):
  * - MOBILE FIX: Made overlay modal responsive for better mobile viewing
  * - Modal width now adapts to screen size (screen width - 40px, max 400px)
@@ -84,7 +91,7 @@
 
 	// Configuration
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.1.2';
+	const SCRIPT_VERSION = '2.1.3';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Check if button already exists (might be from an old version)
@@ -576,6 +583,7 @@
 
 	/**
 	 * Decode a hidden message from encoded text (client-side implementation)
+	 * Now supports DEFLATE decompression for compressed messages
 	 */
 	function decodeHiddenMessage(encodedText) {
 		try {
@@ -606,8 +614,7 @@
 				throw new Error('Invalid encoded content');
 			}
 
-			// Decode base64 to get the secret message
-			// Use atob for base64 decoding, then properly decode UTF-8
+			// Decode base64 to get the compressed/uncompressed bytes
 			let decodedBytes;
 			try {
 				decodedBytes = atob(base64String);
@@ -615,30 +622,53 @@
 				throw new Error('Invalid base64 encoding');
 			}
 
+			// Convert base64 decoded string to Uint8Array
+			const byteArray = new Uint8Array(decodedBytes.length);
+			for (let i = 0; i < decodedBytes.length; i++) {
+				byteArray[i] = decodedBytes.charCodeAt(i);
+			}
+
+			// Try decompressing first (for new compressed messages)
+			// If decompression fails, it's likely a legacy uncompressed message
+			let finalBytes;
 			try {
-				// Convert byte string to proper UTF-8
-				const decoded = decodeURIComponent(
+				// Check if pako is available
+				if (typeof pako !== 'undefined') {
+					finalBytes = pako.inflate(byteArray);
+				} else {
+					// Fallback if pako not loaded (shouldn't happen with @require)
+					console.warn('[Ghostpost] pako not loaded, attempting uncompressed decode');
+					finalBytes = byteArray;
+				}
+			} catch (e) {
+				// Decompression failed - likely legacy uncompressed message
+				if (DEBUG_MODE) {
+					console.log('[Ghostpost] Decompression failed, trying uncompressed:', e);
+				}
+				finalBytes = byteArray;
+			}
+
+			// Decode UTF-8
+			let decoded;
+			try {
+				decoded = new TextDecoder('utf-8').decode(finalBytes);
+			} catch (e) {
+				// Fallback to manual UTF-8 decode
+				decoded = decodeURIComponent(
 					Array.from(
-						decodedBytes,
-						(c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+						finalBytes,
+						(byte) => '%' + ('00' + byte.toString(16)).slice(-2)
 					).join('')
 				);
-
-				// Check for post ID and strip it
-				const postIdIndex = decoded.indexOf(POST_ID_DELIMITER);
-				if (postIdIndex !== -1) {
-					return decoded.substring(0, postIdIndex);
-				}
-
-				return decoded;
-			} catch (e) {
-				// If UTF-8 decoding fails, return the raw decoded bytes
-				const postIdIndex = decodedBytes.indexOf(POST_ID_DELIMITER);
-				if (postIdIndex !== -1) {
-					return decodedBytes.substring(0, postIdIndex);
-				}
-				return decodedBytes;
 			}
+
+			// Check for post ID and strip it
+			const postIdIndex = decoded.indexOf(POST_ID_DELIMITER);
+			if (postIdIndex !== -1) {
+				return decoded.substring(0, postIdIndex);
+			}
+
+			return decoded;
 		} catch (err) {
 			console.error('Decode error:', err);
 			throw new Error('Failed to decode: ' + err.message);
