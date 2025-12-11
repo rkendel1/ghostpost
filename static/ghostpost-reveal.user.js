@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.0.2
+// @version      2.1.1
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -19,7 +19,30 @@
 /**
  * Ghostpost Reveal Userscript
  *
- * NEW in v2.0.2:
+ * CHANGELOG:
+ * ==========
+ * v2.1.1 (2025-12-11):
+ * - CODE QUALITY: Extracted common text extraction logic to reduce duplication
+ * - Added DEBUG_MODE flag to control console logging in production
+ * - Improved maintainability of site adapter system
+ * - Cleaner code structure per review feedback
+ *
+ * v2.1.0 (2025-12-11):
+ * - ARCHITECTURE: Compartmentalized site-specific detection logic
+ * - Added SITE_ADAPTERS system for site-specific text extraction strategies
+ * - Core detection logic is now site-agnostic and isolated
+ * - Site-specific requirements handled via adapter pattern
+ * - Easy to add new site-specific handlers without touching core code
+ * - Improved maintainability and testability
+ *
+ * v2.0.3 (2025-12-11):
+ * - FIXED: X.com/Twitter decode failures - "No hidden content found" error
+ * - Changed detectHiddenMessages() to use node.data instead of node.textContent
+ * - Store encoded text at detection time to prevent Unicode character loss
+ * - Detection now returns {node, encodedText} objects for reliable decoding
+ * - Better preservation of invisible Unicode characters on dynamic DOM platforms
+ *
+ * v2.0.2:
  * - Fixed X.com/Twitter decode issue: Now uses text node content directly instead of element.textContent
  * - This preserves invisible Unicode characters that may be lost when accessing parent element content
  * - Fixes "No hidden content found" error on X.com and similar platforms
@@ -56,7 +79,8 @@
 
 	// Configuration
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.0.2';
+	const SCRIPT_VERSION = '2.1.1';
+	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Check if button already exists (might be from an old version)
 	const existingButton = document.getElementById(BUTTON_ID);
@@ -222,11 +246,87 @@
 		return matches.length > 30 || ratio > 0.1;
 	}
 
-	// Function to detect hidden messages with performance optimization
+	/**
+	 * Default text extraction strategy that preserves invisible Unicode characters
+	 * This works well for most sites including X.com/Twitter
+	 */
+	const defaultTextExtraction = (node) => node.data || node.nodeValue || node.textContent || '';
+
+	/**
+	 * Twitter/X.com adapter - shared between x.com and twitter.com
+	 */
+	const twitterAdapter = {
+		extractText: defaultTextExtraction,
+		description: 'Uses node.data to preserve invisible Unicode characters'
+	};
+
+	/**
+	 * Site-specific text extraction strategies
+	 * Each site can define how to best extract text from nodes
+	 * 
+	 * TO ADD A NEW SITE:
+	 * Simply add a new entry with the domain as key and an adapter object:
+	 * 'example.com': {
+	 *   extractText: (node) => { custom logic here },
+	 *   description: 'Brief explanation of the strategy'
+	 * }
+	 */
+	const SITE_ADAPTERS = {
+		// X.com/Twitter - uses shared adapter
+		'x.com': twitterAdapter,
+		'twitter.com': twitterAdapter,
+		// Default strategy for all other sites
+		'default': {
+			extractText: defaultTextExtraction,
+			description: 'Standard text extraction with Unicode preservation'
+		}
+	};
+
+	/**
+	 * Get the appropriate site adapter based on current hostname
+	 */
+	function getSiteAdapter() {
+		const hostname = window.location.hostname.toLowerCase();
+		
+		// Check for exact match (e.g., 'x.com', 'twitter.com')
+		if (SITE_ADAPTERS[hostname]) {
+			if (DEBUG_MODE) {
+				console.log(`[Ghostpost] Using site-specific adapter for ${hostname}`);
+			}
+			return SITE_ADAPTERS[hostname];
+		}
+		
+		// Check for subdomain match (e.g., 'mobile.twitter.com' matches 'twitter.com')
+		// Note: hostname.endsWith('.' + domain) ensures proper subdomain matching
+		// For example: 'mobile.twitter.com'.endsWith('.twitter.com') = true
+		//              but 'badtwitter.com'.endsWith('.twitter.com') = false
+		for (const domain in SITE_ADAPTERS) {
+			if (domain !== 'default' && hostname.endsWith('.' + domain)) {
+				if (DEBUG_MODE) {
+					console.log(`[Ghostpost] Using site-specific adapter for ${domain}`);
+				}
+				return SITE_ADAPTERS[domain];
+			}
+		}
+		
+		// Fall back to default
+		if (DEBUG_MODE) {
+			console.log('[Ghostpost] Using default adapter');
+		}
+		return SITE_ADAPTERS['default'];
+	}
+
+	/**
+	 * Core detection function - site-agnostic
+	 * Returns array of objects: { node, encodedText }
+	 */
 	function detectHiddenMessages() {
-		const textNodes = [];
+		const results = [];
 		const startTime = Date.now();
 		let nodesChecked = 0;
+
+		// Get site-specific adapter
+		const adapter = getSiteAdapter();
 
 		const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
 
@@ -254,12 +354,15 @@
 
 			nodesChecked++;
 
-			if (node.textContent && isLikelyHidenlyMessage(node.textContent)) {
-				textNodes.push(node);
+			// Use site-specific text extraction
+			const nodeText = adapter.extractText(node);
+			if (nodeText && isLikelyHidenlyMessage(nodeText)) {
+				// Store both the node and the encoded text at detection time
+				results.push({ node, encodedText: nodeText });
 			}
 		}
 
-		return textNodes;
+		return results;
 	}
 
 	// Detect if on a social media site for micro-pulsing
@@ -686,7 +789,7 @@
 		}
 
 		// Highlight all elements with hidden messages
-		hiddenMessages.forEach((node) => {
+		hiddenMessages.forEach(({ node }) => {
 			const element = node.parentElement;
 			if (element) highlightElement(element);
 		});
@@ -772,7 +875,7 @@
 		`;
 
 		// Add message items
-		hiddenMessages.forEach((node, index) => {
+		hiddenMessages.forEach(({ node, encodedText }, index) => {
 			const element = node.parentElement;
 			if (!element) return;
 
@@ -883,14 +986,12 @@
 		modal.querySelectorAll('.reveal-btn').forEach((btn) => {
 			btn.onclick = function () {
 				const index = parseInt(this.dataset.index, 10);
-				const node = hiddenMessages[index];
+				const { node, encodedText } = hiddenMessages[index];
 				const element = node.parentElement;
-				// Use the text node's content directly to preserve invisible characters
-				// This is critical for X.com/Twitter where element.textContent may be normalized
-				const encodedText = node.textContent;
 				const contentDiv = this.parentElement.nextElementSibling;
 
-				// Reveal the message
+				// Reveal the message using stored encodedText
+				// This is critical for X.com/Twitter where re-reading may lose invisible characters
 				revealSingleMessage(encodedText, node, element, contentDiv, this);
 			};
 		});
@@ -899,7 +1000,7 @@
 		modal.querySelectorAll('.locate-btn').forEach((btn) => {
 			btn.onclick = function () {
 				const index = parseInt(this.dataset.index, 10);
-				const node = hiddenMessages[index];
+				const { node } = hiddenMessages[index];
 				const element = node.parentElement;
 
 				// Scroll to element
