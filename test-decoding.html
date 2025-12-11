@@ -200,10 +200,12 @@
                     decodedBytes[i] = binaryString.charCodeAt(i);
                 }
 
-                // Step 4: Decompress with pako
+                // Step 4: Decompress with pako (using inflateRaw for raw DEFLATE)
                 let finalBytes;
                 try {
-                    finalBytes = pako.inflate(decodedBytes);
+                    // Rust's DeflateEncoder produces RAW DEFLATE (no zlib headers)
+                    // Must use inflateRaw() not inflate()
+                    finalBytes = pako.inflateRaw(decodedBytes);
                 } catch (decompressError) {
                     // Fallback to uncompressed
                     console.log('Decompression failed, using uncompressed:', decompressError);
