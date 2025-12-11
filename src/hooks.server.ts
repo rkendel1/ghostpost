@@ -13,10 +13,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 					return event.cookies.get(name);
 				},
 				set(name, value, options) {
-					event.cookies.set(name, value, options);
+					event.cookies.set(name, value, { ...options, path: '/' });
 				},
 				remove(name, options) {
-					event.cookies.delete(name, options);
+					event.cookies.delete(name, { ...options, path: '/' });
 				}
 			}
 		}
@@ -57,3 +57,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	return resolve(event);
 };
+
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
+
+interface Locals {
+	supabase: SupabaseClient;
+	session: Session | null;
+}
+
+export type { Locals };

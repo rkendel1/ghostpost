@@ -43,6 +43,25 @@ function createAuthStore() {
 				email,
 				password
 			});
+
+			if (!error && data.session) {
+				try {
+					await fetch('/api/auth/set-session', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						credentials: 'include',
+						body: JSON.stringify({
+							access_token: data.session.access_token,
+							refresh_token: data.session.refresh_token
+						})
+					});
+				} catch (syncError) {
+					console.error('Failed to sync session to server:', syncError);
+				}
+			}
+
 			return { data, error };
 		},
 		signUp: async (email: string, password: string) => {
@@ -50,6 +69,25 @@ function createAuthStore() {
 				email,
 				password
 			});
+
+			if (!error && data.session) {
+				try {
+					await fetch('/api/auth/set-session', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						credentials: 'include',
+						body: JSON.stringify({
+							access_token: data.session.access_token,
+							refresh_token: data.session.refresh_token
+						})
+					});
+				} catch (syncError) {
+					console.error('Failed to sync session to server:', syncError);
+				}
+			}
+
 			return { data, error };
 		},
 		signOut: async () => {
