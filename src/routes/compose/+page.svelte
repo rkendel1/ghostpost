@@ -20,6 +20,10 @@
 	let secretImage: File | null = null;
 	let imagePreview = '';
 
+	// Limited reveals feature
+	let maxReveals: number | null = null;
+	let enableLimitedReveals = false;
+
 	// Output
 	let encodedMessage = '';
 	let currentPostId = '';
@@ -145,6 +149,30 @@
 						secret_message: secretType === 'text' ? secretMessage : 'image',
 						secret_type: secretType
 					});
+
+					// Initialize limited reveals if enabled
+					if (enableLimitedReveals && maxReveals && maxReveals > 0) {
+						try {
+							const response = await fetch('/api/limited-reveals/init', {
+								method: 'POST',
+								headers: {
+									'Content-Type': 'application/json'
+								},
+								body: JSON.stringify({
+									post_id: currentPostId,
+									max_reveals: maxReveals,
+									user_id: user.id
+								})
+							});
+
+							const data = await response.json();
+							if (!data.success) {
+								console.error('Failed to initialize limited reveals:', data.error);
+							}
+						} catch (limitError) {
+							console.error('Failed to initialize limited reveals:', limitError);
+						}
+					}
 				} catch (dbError) {
 					console.error('Failed to save to database:', dbError);
 					error =
@@ -175,6 +203,8 @@
 		currentPostId = '';
 		characterStats = { visibleLength: 0, hiddenLength: 0, totalLength: 0 };
 		error = '';
+		enableLimitedReveals = false;
+		maxReveals = null;
 	}
 </script>
 
@@ -329,6 +359,56 @@
 							{/if}
 						</label>
 					{/if}
+
+					<!-- Limited Reveals Feature -->
+					<div class="card p-4 variant-ghost-tertiary space-y-3">
+						<div class="flex items-center justify-between">
+							<div>
+								<h3 class="font-bold text-sm">🔥 Limited Edition Secret (FOMO Mode)</h3>
+								<p class="text-xs opacity-75 mt-1">
+									Set a reveal cap to create extreme scarcity — like NFT drops but for secrets!
+								</p>
+							</div>
+							<label class="flex items-center gap-2">
+								<input
+									type="checkbox"
+									class="checkbox"
+									bind:checked={enableLimitedReveals}
+								/>
+								<span class="text-xs">Enable</span>
+							</label>
+						</div>
+
+						{#if enableLimitedReveals}
+							<label class="label">
+								<span class="text-sm">Max Reveals (e.g., 100 = only 100 people can ever see this)</span>
+								<input
+									type="number"
+									class="input"
+									min="1"
+									max="10000"
+									bind:value={maxReveals}
+									placeholder="Enter number (e.g., 100)"
+								/>
+								{#if maxReveals && maxReveals > 0}
+									<p class="text-xs opacity-75 mt-1">
+										⚠️ Once {maxReveals} {maxReveals === 1 ? 'person reveals' : 'people reveal'} this secret,
+										it will be permanently unreadable for everyone else!
+									</p>
+								{/if}
+							</label>
+
+							<div class="card p-3 variant-ghost-warning">
+								<p class="text-xs">
+									<strong>💎 What happens:</strong><br/>
+									• Real-time counter shows "You are reveal #X of {maxReveals || 'Y'}"<br/>
+									• Pulsing red warning when &lt;20% remaining<br/>
+									• Confetti celebration for last few reveals<br/>
+									• Message becomes "SOLD OUT FOREVER" when limit reached
+								</p>
+							</div>
+						{/if}
+					</div>
 
 					<button
 						class="btn variant-filled-primary w-full"
