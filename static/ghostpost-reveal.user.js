@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.1.1
+// @version      2.2.0
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -12,6 +12,7 @@
 // @exclude      *://*.bank.*/*
 // @exclude      *://*.paypal.*/*
 // @grant        none
+// @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js
 // @updateURL    https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // @downloadURL  https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // ==/UserScript==
@@ -21,6 +22,14 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.2.0 (2025-12-11):
+ * - CRITICAL FIX: Added DEFLATE decompression support to match WASM encoder
+ * - Fixed garbled decoded messages (was showing "$ÛÿDeal..." instead of actual text)
+ * - Hardened encoding constants with Object.freeze() to prevent tampering
+ * - Added pako library v2.1.0 via @require for DEFLATE decompression
+ * - Maintains backward compatibility with uncompressed legacy messages
+ * - Improved error handling for decoding failures
+ *
  * v2.1.1 (2025-12-11):
  * - CODE QUALITY: Extracted common text extraction logic to reduce duplication
  * - Added DEBUG_MODE flag to control console logging in production
@@ -77,9 +86,9 @@
 (function () {
 	'use strict';
 
-	// Configuration
+	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.1.1';
+	const SCRIPT_VERSION = '2.2.0';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Check if button already exists (might be from an old version)
@@ -497,85 +506,95 @@
 		element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 	}
 
-	// Base64 character map for decoding
-	const BASE64_CHAR_MAP = {
-		'\u2060\u2060': 'A',
-		'\u2060\u200B': 'B',
-		'\u2060\u200C': 'C',
-		'\u2060\u200D': 'D',
-		'\u2060\u200E': 'E',
-		'\u2060\u200F': 'F',
-		'\u2060\u202D': 'G',
-		'\u2060\u202C': 'H',
-		'\u200B\u2060': 'I',
-		'\u200B\u200B': 'J',
-		'\u200B\u200C': 'K',
-		'\u200B\u200D': 'L',
-		'\u200B\u200E': 'M',
-		'\u200B\u200F': 'N',
-		'\u200B\u202D': 'O',
-		'\u200B\u202C': 'P',
-		'\u200C\u2060': 'Q',
-		'\u200C\u200B': 'R',
-		'\u200C\u200C': 'S',
-		'\u200C\u200D': 'T',
-		'\u200C\u200E': 'U',
-		'\u200C\u200F': 'V',
-		'\u200C\u202D': 'W',
-		'\u200C\u202C': 'X',
-		'\u200D\u2060': 'Y',
-		'\u200D\u200B': 'Z',
-		'\u200D\u200C': 'a',
-		'\u200D\u200D': 'b',
-		'\u200D\u200E': 'c',
-		'\u200D\u200F': 'd',
-		'\u200D\u202D': 'e',
-		'\u200D\u202C': 'f',
-		'\u200E\u2060': 'g',
-		'\u200E\u200B': 'h',
-		'\u200E\u200C': 'i',
-		'\u200E\u200D': 'j',
-		'\u200E\u200E': 'k',
-		'\u200E\u200F': 'l',
-		'\u200E\u202D': 'm',
-		'\u200E\u202C': 'n',
-		'\u200F\u2060': 'o',
-		'\u200F\u200B': 'p',
-		'\u200F\u200C': 'q',
-		'\u200F\u200D': 'r',
-		'\u200F\u200E': 's',
-		'\u200F\u200F': 't',
-		'\u200F\u202D': 'u',
-		'\u200F\u202C': 'v',
-		'\u202D\u2060': 'w',
-		'\u202D\u200B': 'x',
-		'\u202D\u200C': 'y',
-		'\u202D\u200D': 'z',
-		'\u202D\u200E': '0',
-		'\u202D\u200F': '1',
-		'\u202D\u202D': '2',
-		'\u202D\u202C': '3',
-		'\u202C\u2060': '4',
-		'\u202C\u200B': '5',
-		'\u202C\u200C': '6',
-		'\u202C\u200D': '7',
-		'\u202C\u200E': '8',
-		'\u202C\u200F': '9',
-		'\u202C\u202D': '+',
-		'\u202C\u202C': '/'
-	};
-
-	// Delimiter used in encoding
-	const POST_ID_DELIMITER = '||ghostid:';
-	const POST_ID_END = '||';
+	// ============================================================================
+	// ENCODING CONSTANTS (Hardened and Isolated)
+	// These constants define the critical mappings for steganographic decoding
+	// Frozen with Object.freeze() to prevent tampering and ensure integrity
+	// ============================================================================
+	const ENCODING_CONSTANTS = Object.freeze({
+		// Base64 character to invisible Unicode pair mapping
+		// Maps pairs of invisible Unicode characters to base64 characters
+		BASE64_CHAR_MAP: Object.freeze({
+			'\u2060\u2060': 'A',
+			'\u2060\u200B': 'B',
+			'\u2060\u200C': 'C',
+			'\u2060\u200D': 'D',
+			'\u2060\u200E': 'E',
+			'\u2060\u200F': 'F',
+			'\u2060\u202D': 'G',
+			'\u2060\u202C': 'H',
+			'\u200B\u2060': 'I',
+			'\u200B\u200B': 'J',
+			'\u200B\u200C': 'K',
+			'\u200B\u200D': 'L',
+			'\u200B\u200E': 'M',
+			'\u200B\u200F': 'N',
+			'\u200B\u202D': 'O',
+			'\u200B\u202C': 'P',
+			'\u200C\u2060': 'Q',
+			'\u200C\u200B': 'R',
+			'\u200C\u200C': 'S',
+			'\u200C\u200D': 'T',
+			'\u200C\u200E': 'U',
+			'\u200C\u200F': 'V',
+			'\u200C\u202D': 'W',
+			'\u200C\u202C': 'X',
+			'\u200D\u2060': 'Y',
+			'\u200D\u200B': 'Z',
+			'\u200D\u200C': 'a',
+			'\u200D\u200D': 'b',
+			'\u200D\u200E': 'c',
+			'\u200D\u200F': 'd',
+			'\u200D\u202D': 'e',
+			'\u200D\u202C': 'f',
+			'\u200E\u2060': 'g',
+			'\u200E\u200B': 'h',
+			'\u200E\u200C': 'i',
+			'\u200E\u200D': 'j',
+			'\u200E\u200E': 'k',
+			'\u200E\u200F': 'l',
+			'\u200E\u202D': 'm',
+			'\u200E\u202C': 'n',
+			'\u200F\u2060': 'o',
+			'\u200F\u200B': 'p',
+			'\u200F\u200C': 'q',
+			'\u200F\u200D': 'r',
+			'\u200F\u200E': 's',
+			'\u200F\u200F': 't',
+			'\u200F\u202D': 'u',
+			'\u200F\u202C': 'v',
+			'\u202D\u2060': 'w',
+			'\u202D\u200B': 'x',
+			'\u202D\u200C': 'y',
+			'\u202D\u200D': 'z',
+			'\u202D\u200E': '0',
+			'\u202D\u200F': '1',
+			'\u202D\u202D': '2',
+			'\u202D\u202C': '3',
+			'\u202C\u2060': '4',
+			'\u202C\u200B': '5',
+			'\u202C\u200C': '6',
+			'\u202C\u200D': '7',
+			'\u202C\u200E': '8',
+			'\u202C\u200F': '9',
+			'\u202C\u202D': '+',
+			'\u202C\u202C': '/'
+		}),
+		
+		// Delimiters used in encoding format
+		POST_ID_DELIMITER: '||ghostid:',
+		POST_ID_END: '||',
+		CONTENT_DELIMITER: '\uFEFF' // Zero Width No-Break Space - wraps hidden content
+	});
 
 	/**
 	 * Decode a hidden message from encoded text (client-side implementation)
+	 * Now supports DEFLATE compression to match WASM encoder
 	 */
 	function decodeHiddenMessage(encodedText) {
 		try {
-			// Extract content between delimiters (FEFF characters)
-			const parts = encodedText.split('\uFEFF');
+			// Step 1: Extract content between delimiters (FEFF characters)
+			const parts = encodedText.split(ENCODING_CONSTANTS.CONTENT_DELIMITER);
 			if (parts.length < 2) {
 				throw new Error('No hidden content found');
 			}
@@ -585,12 +604,12 @@
 				throw new Error('Empty hidden content');
 			}
 
-			// Convert pairs of invisible chars back to base64
+			// Step 2: Convert pairs of invisible chars back to base64
 			let base64String = '';
 			for (let i = 0; i < unwrapped.length; i += 2) {
 				if (i + 1 < unwrapped.length) {
 					const pair = unwrapped[i] + unwrapped[i + 1];
-					const base64Char = BASE64_CHAR_MAP[pair];
+					const base64Char = ENCODING_CONSTANTS.BASE64_CHAR_MAP[pair];
 					if (base64Char) {
 						base64String += base64Char;
 					}
@@ -601,38 +620,101 @@
 				throw new Error('Invalid encoded content');
 			}
 
-			// Decode base64 to get the secret message
-			// Use atob for base64 decoding, then properly decode UTF-8
+			// Step 3: Decode base64 to get compressed bytes
 			let decodedBytes;
 			try {
-				decodedBytes = atob(base64String);
+				const binaryString = atob(base64String);
+				// Convert binary string to Uint8Array for decompression
+				decodedBytes = new Uint8Array(binaryString.length);
+				for (let i = 0; i < binaryString.length; i++) {
+					decodedBytes[i] = binaryString.charCodeAt(i);
+				}
 			} catch (e) {
 				throw new Error('Invalid base64 encoding');
 			}
 
+			// Step 4: Try to decompress the data using pako
+			let finalBytes;
 			try {
-				// Convert byte string to proper UTF-8
-				const decoded = decodeURIComponent(
-					Array.from(
-						decodedBytes,
-						(c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-					).join('')
-				);
+				// Use pako to decompress DEFLATE data
+				if (typeof pako !== 'undefined' && pako.inflate) {
+					try {
+						finalBytes = pako.inflate(decodedBytes);
+					} catch (decompressError) {
+						// Decompression failed - might be legacy uncompressed message
+						// Fall back to using original bytes
+						if (DEBUG_MODE) {
+							console.log('[Ghostpost] Decompression failed, trying uncompressed:', decompressError);
+						}
+						finalBytes = decodedBytes;
+					}
+				} else {
+					// Pako not available - try to use built-in DecompressionStream
+					if (typeof DecompressionStream !== 'undefined') {
+						// Modern browsers support DecompressionStream
+						const ds = new DecompressionStream('deflate');
+						const writer = ds.writable.getWriter();
+						writer.write(decodedBytes);
+						writer.close();
+						
+						// This is async, so we need to handle it differently
+						// For now, fall back to uncompressed
+						console.warn('[Ghostpost] DecompressionStream not yet implemented synchronously');
+						finalBytes = decodedBytes;
+					} else {
+						// No decompression available - use original bytes
+						console.warn('[Ghostpost] No decompression library available');
+						finalBytes = decodedBytes;
+					}
+				}
+			} catch (e) {
+				// If decompression fails, try uncompressed
+				finalBytes = decodedBytes;
+			}
+
+			// Step 5: Convert bytes to UTF-8 string
+			try {
+				// Use TextDecoder for proper UTF-8 decoding
+				const decoder = new TextDecoder('utf-8');
+				const decoded = decoder.decode(finalBytes);
 
 				// Check for post ID and strip it
-				const postIdIndex = decoded.indexOf(POST_ID_DELIMITER);
+				const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
 				if (postIdIndex !== -1) {
 					return decoded.substring(0, postIdIndex);
 				}
 
 				return decoded;
 			} catch (e) {
-				// If UTF-8 decoding fails, return the raw decoded bytes
-				const postIdIndex = decodedBytes.indexOf(POST_ID_DELIMITER);
-				if (postIdIndex !== -1) {
-					return decodedBytes.substring(0, postIdIndex);
+				// Fallback: Try decodeURIComponent method
+				try {
+					const decoded = decodeURIComponent(
+						Array.from(
+							finalBytes,
+							(c) => '%' + ('00' + c.toString(16)).slice(-2)
+						).join('')
+					);
+
+					// Check for post ID and strip it
+					const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
+					if (postIdIndex !== -1) {
+						return decoded.substring(0, postIdIndex);
+					}
+
+					return decoded;
+				} catch (e2) {
+					// Last resort: Convert bytes directly to string
+					let decoded = '';
+					for (let i = 0; i < finalBytes.length; i++) {
+						decoded += String.fromCharCode(finalBytes[i]);
+					}
+					
+					const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
+					if (postIdIndex !== -1) {
+						return decoded.substring(0, postIdIndex);
+					}
+					return decoded;
 				}
-				return decodedBytes;
 			}
 		} catch (err) {
 			console.error('Decode error:', err);
