@@ -34,9 +34,9 @@ export interface RevealStatus {
 
 export interface RevealResult {
 	success: boolean;
-	reveal_number?: number;
-	total_reveals?: number;
-	remaining?: number;
+	reveal_number?: number | null;
+	total_reveals?: number | null;
+	remaining?: number | null;
 	message?: string;
 	secret_content?: string;
 }

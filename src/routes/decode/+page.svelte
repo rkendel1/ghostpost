@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { clipboard } from '@skeletonlabs/skeleton';
 	import { decodeMessage, initWasm } from '$lib/ghostpost';
 	import AuthGuard from '$lib/components/AuthGuard.svelte';
 	import confetti from 'canvas-confetti';
-	import type { RevealStatus, RevealResult } from '$lib/types/limited-reveals';
+	import type { RevealStatus, RevealResult, LimitedSecret } from '$lib/types/limited-reveals';
+	import { subscribeLimitedSecret } from '$lib/realtime-limited-reveals';
 
 	let encodedInput = '';
 	let decodedSecret = '';
@@ -17,6 +18,8 @@
 	let revealStatus: RevealStatus | null = null;
 	let revealResult: RevealResult | null = null;
 	let isCheckingStatus = false;
+	let currentPostId: string | null = null;
+	let realtimeUnsubscribe: (() => void) | null = null;
 
 	// Constants for text size thresholds
 	const MAX_AUTO_DECODE_SIZE = 2000; // ~2KB limit for auto-decode
@@ -43,6 +46,53 @@
 			// For larger texts, we let the user click the decode button manually
 		}
 	});
+
+	onDestroy(() => {
+		// Cleanup realtime subscription
+		if (realtimeUnsubscribe) {
+			realtimeUnsubscribe();
+		}
+	});
+
+	// Setup realtime subscription for a post
+	function setupRealtimeUpdates(postId: string) {
+		// Cleanup existing subscription
+		if (realtimeUnsubscribe) {
+			realtimeUnsubscribe();
+		}
+
+		// Subscribe to limited secret updates
+		realtimeUnsubscribe = subscribeLimitedSecret(postId, (updatedSecret: LimitedSecret) => {
+			// Update status with new data
+			if (revealStatus && revealStatus.post_id === postId) {
+				const remaining = updatedSecret.max_reveals
+					? updatedSecret.max_reveals - updatedSecret.current_reveals
+					: null;
+				
+				const percentage = updatedSecret.max_reveals
+					? (updatedSecret.current_reveals / updatedSecret.max_reveals) * 100
+					: null;
+
+				revealStatus = {
+					...revealStatus,
+					current_reveals: updatedSecret.current_reveals,
+					is_expired: updatedSecret.is_expired,
+					remaining_reveals: remaining,
+					percentage_revealed: percentage,
+					can_reveal: !updatedSecret.is_expired && 
+						(!updatedSecret.max_reveals || updatedSecret.current_reveals < updatedSecret.max_reveals)
+				};
+
+				// Update reveal result if present
+				if (revealResult) {
+					revealResult = {
+						...revealResult,
+						remaining: remaining
+					};
+				}
+			}
+		});
+	}
 
 	// Extract segments of text that contain invisible Unicode characters
 	function extractEncodedSegments(text: string): string[] {
@@ -131,6 +181,10 @@
 							}
 
 							revealResult = revealData;
+
+							// Setup realtime updates for this post
+							currentPostId = result.postId;
+							setupRealtimeUpdates(result.postId);
 
 							// Show confetti for last 10 reveals
 							if (revealResult.remaining !== null && revealResult.remaining <= 10 && revealResult.remaining >= 0) {

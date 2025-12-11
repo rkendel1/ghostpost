@@ -1,9 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import type { DashboardStats } from '$lib/types/analytics';
 	import AuthGuard from '$lib/components/AuthGuard.svelte';
 	import { authStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
+	import { subscribeLimitedSecret, subscribeRevealEvents } from '$lib/realtime-limited-reveals';
+	import type { LimitedSecret } from '$lib/types/limited-reveals';
 
 	let postId = '';
 	let analytics: DashboardStats | null = null;
@@ -15,6 +17,8 @@
 	// Limited reveals analytics
 	let limitedRevealsAnalytics: any = null;
 	let loadingLimitedReveals = false;
+	let realtimeUnsubscribe: (() => void) | null = null;
+	let realtimeEventsUnsubscribe: (() => void) | null = null;
 
 	$: user = $authStore.user;
 
@@ -23,6 +27,70 @@
 			await loadUserPosts();
 		}
 	});
+
+	onDestroy(() => {
+		// Cleanup realtime subscriptions
+		if (realtimeUnsubscribe) {
+			realtimeUnsubscribe();
+		}
+		if (realtimeEventsUnsubscribe) {
+			realtimeEventsUnsubscribe();
+		}
+	});
+
+	// Setup realtime updates for limited reveals
+	function setupRealtimeUpdates(post_id: string) {
+		// Cleanup existing subscriptions
+		if (realtimeUnsubscribe) {
+			realtimeUnsubscribe();
+		}
+		if (realtimeEventsUnsubscribe) {
+			realtimeEventsUnsubscribe();
+		}
+
+		// Subscribe to limited secret updates
+		realtimeUnsubscribe = subscribeLimitedSecret(post_id, (updatedSecret: LimitedSecret) => {
+			if (limitedRevealsAnalytics && limitedRevealsAnalytics.post_id === post_id) {
+				const remaining = updatedSecret.max_reveals
+					? updatedSecret.max_reveals - updatedSecret.current_reveals
+					: null;
+				
+				const percentage = updatedSecret.max_reveals
+					? (updatedSecret.current_reveals / updatedSecret.max_reveals) * 100
+					: null;
+
+				limitedRevealsAnalytics = {
+					...limitedRevealsAnalytics,
+					current_reveals: updatedSecret.current_reveals,
+					is_expired: updatedSecret.is_expired,
+					remaining_reveals: remaining,
+					percentage_revealed: percentage
+				};
+			}
+		});
+
+		// Subscribe to new reveal events
+		realtimeEventsUnsubscribe = subscribeRevealEvents(post_id, (revealNumber: number) => {
+			if (limitedRevealsAnalytics && limitedRevealsAnalytics.post_id === post_id) {
+				// Add to timeline if not already present
+				const existingEvent = limitedRevealsAnalytics.reveal_timeline?.find(
+					(e: any) => e.reveal_number === revealNumber
+				);
+				
+				if (!existingEvent) {
+					const newEvent = {
+						reveal_number: revealNumber,
+						timestamp: new Date().toISOString()
+					};
+					
+					limitedRevealsAnalytics = {
+						...limitedRevealsAnalytics,
+						reveal_timeline: [...(limitedRevealsAnalytics.reveal_timeline || []), newEvent]
+					};
+				}
+			}
+		});
+	}
 
 	async function loadUserPosts() {
 		if (!user) return;
@@ -83,6 +151,9 @@
 			
 			if (data.success) {
 				limitedRevealsAnalytics = data.analytics;
+				
+				// Setup realtime updates for this post
+				setupRealtimeUpdates(post_id);
 			}
 		} catch (err) {
 			console.log('No limited reveals data for this post (might be unlimited)');
