@@ -253,6 +253,14 @@
 	const defaultTextExtraction = (node) => node.data || node.nodeValue || node.textContent || '';
 
 	/**
+	 * Twitter/X.com adapter - shared between x.com and twitter.com
+	 */
+	const twitterAdapter = {
+		extractText: defaultTextExtraction,
+		description: 'Uses node.data to preserve invisible Unicode characters'
+	};
+
+	/**
 	 * Site-specific text extraction strategies
 	 * Each site can define how to best extract text from nodes
 	 * 
@@ -264,15 +272,9 @@
 	 * }
 	 */
 	const SITE_ADAPTERS = {
-		// X.com/Twitter - uses default strategy which preserves invisible Unicode
-		'x.com': {
-			extractText: defaultTextExtraction,
-			description: 'Uses node.data to preserve invisible Unicode characters'
-		},
-		'twitter.com': {
-			extractText: defaultTextExtraction,
-			description: 'Uses node.data to preserve invisible Unicode characters'
-		},
+		// X.com/Twitter - uses shared adapter
+		'x.com': twitterAdapter,
+		'twitter.com': twitterAdapter,
 		// Default strategy for all other sites
 		'default': {
 			extractText: defaultTextExtraction,
@@ -286,7 +288,7 @@
 	function getSiteAdapter() {
 		const hostname = window.location.hostname.toLowerCase();
 		
-		// Check for exact match
+		// Check for exact match (e.g., 'x.com', 'twitter.com')
 		if (SITE_ADAPTERS[hostname]) {
 			if (DEBUG_MODE) {
 				console.log(`[Ghostpost] Using site-specific adapter for ${hostname}`);
@@ -294,7 +296,10 @@
 			return SITE_ADAPTERS[hostname];
 		}
 		
-		// Check for domain match (e.g., mobile.twitter.com matches twitter.com)
+		// Check for subdomain match (e.g., 'mobile.twitter.com' matches 'twitter.com')
+		// Note: hostname.endsWith('.' + domain) ensures proper subdomain matching
+		// For example: 'mobile.twitter.com'.endsWith('.twitter.com') = true
+		//              but 'badtwitter.com'.endsWith('.twitter.com') = false
 		for (const domain in SITE_ADAPTERS) {
 			if (domain !== 'default' && hostname.endsWith('.' + domain)) {
 				if (DEBUG_MODE) {
