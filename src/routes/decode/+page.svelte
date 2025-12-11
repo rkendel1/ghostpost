@@ -3,7 +3,7 @@
 	import { page } from '$app/stores';
 	import { clipboard } from '@skeletonlabs/skeleton';
 	import { decodeMessage, initWasm } from '$lib/ghostpost';
-	import AuthGuard from '$lib/components/AuthGuard.svelte';
+	// import AuthGuard from '$lib/components/AuthGuard.svelte'; // Removed to allow public access
 	import confetti from 'canvas-confetti';
 	import type { RevealStatus, RevealResult, LimitedSecret } from '$lib/types/limited-reveals';
 	import { subscribeLimitedSecret } from '$lib/realtime-limited-reveals';
@@ -306,13 +306,13 @@
 	<title>Decode Hidden Messages</title>
 </svelte:head>
 
-<AuthGuard>
-	<div class="container mx-auto p-8 max-w-4xl space-y-6">
-		<div class="flex justify-between items-center">
-			<h1 class="h1">🔍 Decode Hidden Messages</h1>
-			<a href="/compose" class="btn variant-ghost-surface">
-				<span>✍️</span>
-				<span>Compose New</span>
+<!-- AuthGuard removed to allow public access to decode -->
+<div class="container mx-auto p-8 max-w-4xl space-y-6">
+	<div class="flex justify-between items-center">
+		<h1 class="h1">🔍 Decode Hidden Messages</h1>
+		<a href="/compose" class="btn variant-ghost-surface">
+			<span>✍️</span>
+			<span>Compose New</span>
 			</a>
 		</div>
 
@@ -491,4 +491,4 @@
 			</p>
 		</div>
 	</div>
-</AuthGuard>
+<!-- AuthGuard removed -->
