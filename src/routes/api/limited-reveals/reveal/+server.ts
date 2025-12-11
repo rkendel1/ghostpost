@@ -3,7 +3,7 @@
  * POST /api/limited-reveals/reveal
  * 
  * Increment reveal counter and check if limit reached
- * This should be called atomically when someone decodes a message
+ * Uses atomic database function to prevent race conditions
  */
 
 import { json } from '@sveltejs/kit';
@@ -19,15 +19,39 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ success: false, error: 'Missing post_id' }, { status: 400 });
 		}
 
-		// Get limited secret record
-		const { data: limitedSecret, error: fetchError } = await supabase
-			.from('limited_secrets')
-			.select('*')
-			.eq('post_id', post_id)
-			.single();
+		// Call atomic database function to increment reveal count
+		// This handles all race conditions at the database level
+		const { data, error } = await supabase.rpc('increment_reveal_count', {
+			p_post_id: post_id,
+			p_user_fingerprint: user_fingerprint || null
+		});
 
-		// If no record exists, this is an unlimited post - allow reveal
-		if (fetchError || !limitedSecret) {
+		if (error) {
+			console.error('Error calling increment_reveal_count:', error);
+			return json({
+				success: false,
+				message: 'Failed to record reveal'
+			} as RevealResult, { status: 500 });
+		}
+
+		// Handle response from database function
+		const result = data as any;
+
+		if (!result.success) {
+			if (result.error === 'expired') {
+				return json({
+					success: false,
+					message: 'This secret has expired — all reveals are gone forever'
+				} as RevealResult, { status: 403 });
+			}
+			return json({
+				success: false,
+				message: 'Failed to record reveal'
+			} as RevealResult, { status: 500 });
+		}
+
+		// For unlimited reveals
+		if (result.is_unlimited) {
 			return json({
 				success: true,
 				reveal_number: null,
@@ -37,68 +61,21 @@ export const POST: RequestHandler = async ({ request }) => {
 			} as RevealResult);
 		}
 
-		// Check if already expired
-		if (limitedSecret.is_expired) {
-			return json({
-				success: false,
-				message: 'This secret has expired — all reveals are gone forever'
-			} as RevealResult, { status: 403 });
-		}
+		// Build success message
+		const revealNumber = result.reveal_number;
+		const totalReveals = result.total_reveals;
+		const remaining = result.remaining;
 
-		// Check if limit already reached
-		if (limitedSecret.max_reveals && limitedSecret.current_reveals >= limitedSecret.max_reveals) {
-			// Mark as expired
-			await supabase
-				.from('limited_secrets')
-				.update({ is_expired: true, updated_at: new Date().toISOString() })
-				.eq('post_id', post_id);
-
-			return json({
-				success: false,
-				message: 'This secret has expired — all reveals are gone forever'
-			} as RevealResult, { status: 403 });
-		}
-
-		// Increment reveal counter atomically
-		const newRevealCount = limitedSecret.current_reveals + 1;
-		const isNowExpired = limitedSecret.max_reveals && newRevealCount >= limitedSecret.max_reveals;
-
-		const { error: updateError } = await supabase
-			.from('limited_secrets')
-			.update({
-				current_reveals: newRevealCount,
-				is_expired: isNowExpired,
-				updated_at: new Date().toISOString()
-			})
-			.eq('post_id', post_id)
-			.eq('current_reveals', limitedSecret.current_reveals); // Optimistic locking
-
-		if (updateError) {
-			console.error('Error updating reveal count:', updateError);
-			return json({
-				success: false,
-				message: 'Failed to record reveal'
-			} as RevealResult, { status: 500 });
-		}
-
-		// Record reveal event
-		await supabase.from('reveal_events').insert({
-			post_id,
-			reveal_number: newRevealCount,
-			timestamp: new Date().toISOString(),
-			user_fingerprint
-		});
-
-		const remaining = limitedSecret.max_reveals ? limitedSecret.max_reveals - newRevealCount : null;
+		const message = totalReveals 
+			? `You are reveal #${revealNumber} of ${totalReveals}${remaining ? ` — only ${remaining} left!` : ' — SOLD OUT!'}`
+			: 'Reveal recorded successfully';
 
 		return json({
 			success: true,
-			reveal_number: newRevealCount,
-			total_reveals: limitedSecret.max_reveals,
+			reveal_number: revealNumber,
+			total_reveals: totalReveals,
 			remaining,
-			message: limitedSecret.max_reveals 
-				? `You are reveal #${newRevealCount} of ${limitedSecret.max_reveals}${remaining ? ` — only ${remaining} left!` : ' — SOLD OUT!'}`
-				: 'Reveal recorded successfully'
+			message
 		} as RevealResult);
 	} catch (error) {
 		console.error('Error recording reveal:', error);

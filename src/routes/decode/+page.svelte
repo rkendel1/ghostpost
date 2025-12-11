@@ -226,19 +226,51 @@
 	}
 
 	function generateFingerprint(): string {
-		// Simple fingerprint based on browser characteristics
+		// Create a more robust fingerprint with multiple entropy sources
+		const components = [
+			navigator.userAgent,
+			navigator.language,
+			navigator.languages?.join(',') || '',
+			screen.width.toString(),
+			screen.height.toString(),
+			screen.colorDepth.toString(),
+			new Date().getTimezoneOffset().toString(),
+			navigator.hardwareConcurrency?.toString() || '',
+			navigator.deviceMemory?.toString() || ''
+		];
+
+		// Canvas fingerprinting for additional entropy
 		const canvas = document.createElement('canvas');
 		const ctx = canvas.getContext('2d');
-		const txt = 'ghostpost';
+		const txt = 'ghostpost-fingerprint-2024';
 		if (ctx) {
 			ctx.textBaseline = 'top';
 			ctx.font = '14px Arial';
+			ctx.fillStyle = '#f60';
+			ctx.fillRect(0, 0, 100, 50);
+			ctx.fillStyle = '#069';
 			ctx.fillText(txt, 2, 2);
 		}
-		const b64 = canvas.toDataURL().replace('data:image/png;base64,', '');
-		const fingerprint = `${navigator.userAgent}_${b64.slice(0, 20)}`;
+		const canvasData = canvas.toDataURL().slice(-50); // Last 50 chars for entropy
+		components.push(canvasData);
+
+		// WebGL fingerprinting
+		try {
+			const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+			if (gl && gl instanceof WebGLRenderingContext) {
+				const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+				if (debugInfo) {
+					components.push(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '');
+					components.push(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '');
+				}
+			}
+		} catch (e) {
+			// WebGL not available, skip
+		}
+
+		const fingerprint = components.join('|');
 		
-		// Simple hash
+		// Create a simple hash
 		let hash = 0;
 		for (let i = 0; i < fingerprint.length; i++) {
 			const char = fingerprint.charCodeAt(i);
