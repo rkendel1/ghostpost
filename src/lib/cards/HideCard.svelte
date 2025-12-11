@@ -16,8 +16,6 @@
 	let encodedImage: Promise<EncodingWithStats> = Promise.resolve({ text: '', stats: { visibleLength: 0, hiddenLength: 0, totalLength: 0 } });
 	let imageError = '';
 
-	let textStats = { visibleLength: 0, hiddenLength: 0, totalLength: 0 };
-
 	async function imageToBase64(imageFile: File): Promise<string> {
 		const arrayBuffer: ArrayBuffer = await imageFile.arrayBuffer();
 		const uint8Array = new Uint8Array(arrayBuffer);
