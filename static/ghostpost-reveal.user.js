@@ -23,7 +23,7 @@
  * ==========
  * v2.1.2 (2025-12-11):
  * - MOBILE FIX: Made overlay modal responsive for better mobile viewing
- * - Modal width now adapts to screen size (90% width on mobile, max 400px)
+ * - Modal width now adapts to screen size (screen width - 40px, max 400px)
  * - Ensures 20px margin on each side for better mobile web experience
  *
  * v2.1.1 (2025-12-11):
@@ -803,7 +803,7 @@
 		const ghostButton = document.getElementById(BUTTON_ID);
 		const buttonRect = ghostButton.getBoundingClientRect();
 		// Make modal responsive: narrower on mobile, wider on desktop
-		// Use 90% of screen width on mobile (max 400px), with 20px margin on each side
+		// Use screen width minus 40px (20px margin on each side), with 400px maximum
 		const modalWidth = Math.min(400, window.innerWidth - 40);
 		const modalMaxHeight = Math.min(500, window.innerHeight - 120);
 
