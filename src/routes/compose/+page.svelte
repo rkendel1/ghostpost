@@ -23,6 +23,7 @@
 	// Output
 	let encodedMessage = '';
 	let currentPostId = '';
+	let characterStats = { visibleLength: 0, hiddenLength: 0, totalLength: 0 };
 
 	// State
 	let isGenerating = false;
@@ -126,6 +127,11 @@
 			}
 			encodedMessage = result.encoded;
 			currentPostId = result.postId || '';
+			characterStats = {
+				visibleLength: result.visibleLength,
+				hiddenLength: result.hiddenLength,
+				totalLength: result.totalLength
+			};
 
 			// Save to user's account if logged in
 			if (user) {
@@ -167,6 +173,7 @@
 		imagePreview = '';
 		encodedMessage = '';
 		currentPostId = '';
+		characterStats = { visibleLength: 0, hiddenLength: 0, totalLength: 0 };
 		error = '';
 	}
 </script>
@@ -379,6 +386,24 @@
 								value={encodedMessage}
 							></textarea>
 						</label>
+
+						<div class="card p-4 variant-ghost-surface">
+							<h3 class="h3 mb-2 text-sm">📊 Character Count</h3>
+							<div class="text-sm space-y-1">
+								<p>Visible message: <strong>{characterStats.visibleLength}</strong> characters</p>
+								<p>Hidden characters: <strong>{characterStats.hiddenLength}</strong> characters</p>
+								<p>Total length: <strong>{characterStats.totalLength}</strong> characters</p>
+							</div>
+							{#if characterStats.totalLength > 40000}
+								<div class="mt-2 text-warning-500 text-sm font-bold">
+									⚠️ Warning: Message exceeds 40,000 characters and may not be accepted on some platforms
+								</div>
+							{:else if characterStats.totalLength > 10000}
+								<div class="mt-2 text-secondary-500 text-sm">
+									ℹ️ Note: Some platforms have character limits. Twitter/X allows ~280 characters.
+								</div>
+							{/if}
+						</div>
 
 						<div class="flex gap-2 flex-wrap">
 							<button

@@ -32,6 +32,7 @@
 
 import init, { encode, decode } from 'wasm';
 import { v4 as uuidv4 } from 'uuid';
+import type { EncodingResult } from './types/encoding';
 
 let wasmInitialized = false;
 
@@ -61,13 +62,13 @@ export async function initWasm(): Promise<void> {
  * @param visibleMessage - The message that will be shown publicly
  * @param secretMessage - The hidden message to encode
  * @param enableAnalytics - Whether to include a tracking ID (default: true)
- * @returns Object with encoded message and postId (if analytics enabled)
+ * @returns Object with encoded message, character counts, and postId (if analytics enabled)
  */
 export async function encodeMessage(
 	visibleMessage: string,
 	secretMessage: string,
 	enableAnalytics = true
-): Promise<{ encoded: string; postId?: string }> {
+): Promise<EncodingResult> {
 	await initWasm();
 
 	let finalSecret = secretMessage;
@@ -80,7 +81,13 @@ export async function encodeMessage(
 	}
 
 	const encoded = encode(visibleMessage, finalSecret);
-	return { encoded, postId };
+	
+	// Calculate character counts
+	const visibleLength = visibleMessage.length;
+	const totalLength = encoded.length;
+	const hiddenLength = totalLength - visibleLength;
+	
+	return { encoded, postId, visibleLength, hiddenLength, totalLength };
 }
 
 /**
@@ -242,13 +249,13 @@ async function resizeImageIfNeeded(
  * @param visibleMessage - The message that will be shown publicly
  * @param imageFile - The image file to encode
  * @param enableAnalytics - Whether to include a tracking ID (default: true)
- * @returns Object with encoded message and postId (if analytics enabled)
+ * @returns Object with encoded message, character counts, and postId (if analytics enabled)
  */
 export async function encodeImage(
 	visibleMessage: string,
 	imageFile: File,
 	enableAnalytics = true
-): Promise<{ encoded: string; postId?: string }> {
+): Promise<EncodingResult> {
 	await initWasm();
 
 	// Resize image if needed to prevent crashes on mobile devices
@@ -273,7 +280,13 @@ export async function encodeImage(
 	}
 
 	const encoded = encode(visibleMessage, imageWithMeta);
-	return { encoded, postId };
+	
+	// Calculate character counts
+	const visibleLength = visibleMessage.length;
+	const totalLength = encoded.length;
+	const hiddenLength = totalLength - visibleLength;
+	
+	return { encoded, postId, visibleLength, hiddenLength, totalLength };
 }
 
 /**

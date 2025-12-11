@@ -1,5 +1,8 @@
 use base64::{engine::general_purpose, Engine as _};
 use bimap::BiMap;
+use flate2::write::{DeflateEncoder, DeflateDecoder};
+use flate2::Compression;
+use std::io::Write;
 
 lazy_static::lazy_static! {
     static ref BASE64_CHAR_MAP: BiMap<char, &'static str> = {
@@ -82,6 +85,22 @@ fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
         .map_err(|e| format!("Failed to decode base64: {}", e))
 }
 
+fn compress_data(input: &[u8]) -> Result<Vec<u8>, String> {
+    let mut encoder = DeflateEncoder::new(Vec::new(), Compression::best());
+    encoder.write_all(input)
+        .map_err(|e| format!("Failed to write data for compression: {}", e))?;
+    encoder.finish()
+        .map_err(|e| format!("Failed to compress data: {}", e))
+}
+
+fn decompress_data(input: &[u8]) -> Result<Vec<u8>, String> {
+    let mut decoder = DeflateDecoder::new(Vec::new());
+    decoder.write_all(input)
+        .map_err(|e| format!("Failed to write data for decompression: {}", e))?;
+    decoder.finish()
+        .map_err(|e| format!("Failed to decompress data: {}", e))
+}
+
 fn base64_to_encoded(input: &str) -> String {
     let mut string_result = String::new();
     for ch in input.chars() {
@@ -119,7 +138,15 @@ fn unwrap(input: &str) -> String {
 }
 
 pub fn encode(input: &str, secret: &str) -> String {
-    let preprocessed = encode_base64(secret.as_bytes());
+    // Compress the secret data using DEFLATE compression
+    // If compression fails (rare), fall back to uncompressed encoding
+    let compressed = compress_data(secret.as_bytes()).unwrap_or_else(|_e| {
+        // Log compression failure in debug builds
+        #[cfg(debug_assertions)]
+        eprintln!("Warning: Compression failed ({}), using uncompressed data", _e);
+        secret.as_bytes().to_vec()
+    });
+    let preprocessed = encode_base64(&compressed);
     let encoded = base64_to_encoded(preprocessed.as_str());
     wrap(input, &encoded)
 }
@@ -141,7 +168,17 @@ pub fn decode(input: &str) -> Result<String, String> {
     
     let decoded_bytes = decode_base64(processed.as_str())?;
     
-    String::from_utf8(decoded_bytes)
+    // Try decompressing first. This supports both:
+    // 1. New messages with compression
+    // 2. Legacy messages without compression (decompression will fail, we use original bytes)
+    // Note: Corrupted data will be caught by the UTF-8 validation below
+    let final_bytes = decompress_data(&decoded_bytes).unwrap_or_else(|_| {
+        // Decompression failed - this is expected for legacy uncompressed messages
+        // If this is actually corrupted data, the UTF-8 check below will catch it
+        decoded_bytes
+    });
+    
+    String::from_utf8(final_bytes)
         .map_err(|e| format!("Invalid UTF-8 in decoded content: {}", e))
 }
 
