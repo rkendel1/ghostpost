@@ -63,6 +63,19 @@
 </svelte:head>
 
 <div class="container mx-auto p-8 max-w-4xl space-y-8">
+	<!-- iPhone/Mobile Notice -->
+	<div class="card p-6 variant-ghost-primary space-y-4">
+		<div class="flex items-center gap-3">
+			<span class="text-3xl">📱</span>
+			<div>
+				<h3 class="h3 text-sm">On iPhone or iPad?</h3>
+				<p class="text-xs opacity-80 mt-1">
+					We have a special installation guide for iOS users. <a href="/install/iphone" class="anchor">Switch to iPhone guide →</a>
+				</p>
+			</div>
+		</div>
+	</div>
+
 	<!-- Hero Section -->
 	<div class="card p-10 space-y-4 text-center variant-gradient-primary-secondary">
 		<div class="text-7xl mb-4">👻</div>

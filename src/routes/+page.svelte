@@ -12,12 +12,18 @@
 	let showEncoded = false;
 	let showDecoded = false;
 	let errorMessage = '';
+	let installUrl = $state('/install');
 
 	onMount(async () => {
 		await initWasm();
 
 		// Load the reveal button script to demonstrate overlay detection
 		loadRevealScript();
+
+		// Detect iOS and set appropriate install URL
+		const ua = navigator.userAgent.toLowerCase();
+		const isIOS = /iphone|ipad|ipod/.test(ua);
+		installUrl = isIOS ? '/install/iphone' : '/install-easy';
 	});
 
 	function loadRevealScript() {
@@ -170,7 +176,7 @@
 							<span>✨</span>
 							<span>Create GhostPost</span>
 						</a>
-						<a href="/install" class="btn variant-ghost-surface btn-lg">
+						<a href={installUrl} class="btn variant-ghost-surface btn-lg">
 							<span>⚡</span>
 							<span>Install Reveal Button</span>
 						</a>
