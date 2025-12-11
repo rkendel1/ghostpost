@@ -1,6 +1,9 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	
 	let installed = $state(false);
 	let browserType = $state<'chrome' | 'firefox' | 'safari' | 'other'>('other');
+	let showWizardPromo = $state(true);
 
 	// Detect browser
 	function detectBrowser() {
@@ -21,7 +24,7 @@
 		installed = true;
 	}
 
-	$effect(() => {
+	onMount(() => {
 		detectBrowser();
 	});
 </script>
@@ -35,6 +38,30 @@
 </svelte:head>
 
 <div class="container mx-auto p-8 max-w-4xl space-y-6">
+	<!-- New Installation Wizard Promo -->
+	{#if showWizardPromo}
+		<div class="card p-6 variant-ghost-success space-y-4">
+			<div class="flex justify-between items-start">
+				<div class="flex-1">
+					<h2 class="h3 mb-2">🆕 New: Enhanced Installation Wizard!</h2>
+					<p class="text-sm mb-4">
+						Get step-by-step guidance with our new installation wizard. Choose between browser extension (no userscript manager needed!) or traditional userscript installation.
+					</p>
+					<a href="/install-wizard" class="btn variant-filled-success">
+						<span>🚀</span>
+						<span>Try Installation Wizard</span>
+					</a>
+				</div>
+				<button 
+					class="btn-icon btn-icon-sm variant-ghost-surface" 
+					on:click={() => showWizardPromo = false}
+				>
+					×
+				</button>
+			</div>
+		</div>
+	{/if}
+
 	<!-- Hero Section -->
 	<div class="card p-8 space-y-4 text-center variant-ghost-primary">
 		<h1 class="h1">

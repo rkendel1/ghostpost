@@ -1,9 +1,10 @@
 {
 	"manifest_version": 3,
-	"name": "Hidenly - Hidden Content Detector",
-	"version": "1.0.0",
-	"description": "Detect and reveal hidden messages encoded with invisible Unicode characters",
+	"name": "Ghostpost Reveal - Hidden Message Detector",
+	"version": "1.1.0",
+	"description": "Automatically detect and reveal hidden Ghostpost messages on any webpage with one click",
 	"permissions": ["activeTab", "sidePanel", "storage"],
+	"optional_permissions": ["incognito"],
 	"host_permissions": ["<all_urls>"],
 	"background": {
 		"service_worker": "scripts/background.js"
