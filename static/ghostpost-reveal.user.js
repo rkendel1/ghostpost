@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.1.0
+// @version      2.1.1
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -21,6 +21,12 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.1.1 (2025-12-11):
+ * - CODE QUALITY: Extracted common text extraction logic to reduce duplication
+ * - Added DEBUG_MODE flag to control console logging in production
+ * - Improved maintainability of site adapter system
+ * - Cleaner code structure per review feedback
+ *
  * v2.1.0 (2025-12-11):
  * - ARCHITECTURE: Compartmentalized site-specific detection logic
  * - Added SITE_ADAPTERS system for site-specific text extraction strategies
@@ -73,7 +79,8 @@
 
 	// Configuration
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.1.0';
+	const SCRIPT_VERSION = '2.1.1';
+	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Check if button already exists (might be from an old version)
 	const existingButton = document.getElementById(BUTTON_ID);
@@ -240,6 +247,12 @@
 	}
 
 	/**
+	 * Default text extraction strategy that preserves invisible Unicode characters
+	 * This works well for most sites including X.com/Twitter
+	 */
+	const defaultTextExtraction = (node) => node.data || node.nodeValue || node.textContent || '';
+
+	/**
 	 * Site-specific text extraction strategies
 	 * Each site can define how to best extract text from nodes
 	 * 
@@ -251,18 +264,18 @@
 	 * }
 	 */
 	const SITE_ADAPTERS = {
-		// X.com/Twitter needs special handling to preserve invisible Unicode
+		// X.com/Twitter - uses default strategy which preserves invisible Unicode
 		'x.com': {
-			extractText: (node) => node.data || node.nodeValue || node.textContent || '',
+			extractText: defaultTextExtraction,
 			description: 'Uses node.data to preserve invisible Unicode characters'
 		},
 		'twitter.com': {
-			extractText: (node) => node.data || node.nodeValue || node.textContent || '',
+			extractText: defaultTextExtraction,
 			description: 'Uses node.data to preserve invisible Unicode characters'
 		},
 		// Default strategy for all other sites
 		'default': {
-			extractText: (node) => node.data || node.nodeValue || node.textContent || '',
+			extractText: defaultTextExtraction,
 			description: 'Standard text extraction with Unicode preservation'
 		}
 	};
@@ -275,20 +288,26 @@
 		
 		// Check for exact match
 		if (SITE_ADAPTERS[hostname]) {
-			console.log(`[Ghostpost] Using site-specific adapter for ${hostname}`);
+			if (DEBUG_MODE) {
+				console.log(`[Ghostpost] Using site-specific adapter for ${hostname}`);
+			}
 			return SITE_ADAPTERS[hostname];
 		}
 		
 		// Check for domain match (e.g., mobile.twitter.com matches twitter.com)
 		for (const domain in SITE_ADAPTERS) {
 			if (domain !== 'default' && hostname.endsWith('.' + domain)) {
-				console.log(`[Ghostpost] Using site-specific adapter for ${domain}`);
+				if (DEBUG_MODE) {
+					console.log(`[Ghostpost] Using site-specific adapter for ${domain}`);
+				}
 				return SITE_ADAPTERS[domain];
 			}
 		}
 		
 		// Fall back to default
-		console.log('[Ghostpost] Using default adapter');
+		if (DEBUG_MODE) {
+			console.log('[Ghostpost] Using default adapter');
+		}
 		return SITE_ADAPTERS['default'];
 	}
 
