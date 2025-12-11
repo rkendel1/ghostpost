@@ -296,6 +296,10 @@
 					{:else}
 						<label class="label">
 							<span>Secret Image</span>
+							<p class="text-sm opacity-75 mb-2">
+								⚠️ For best results, use images under 100KB. Large images will be automatically
+								resized and compressed to prevent crashes on mobile devices.
+							</p>
 							<input type="file" accept="image/*" class="file-input" on:change={handleSecretFile} />
 							{#if imagePreview}
 								<div class="mt-2">
@@ -304,6 +308,16 @@
 										alt="Preview"
 										class="max-w-xs max-h-48 object-contain rounded"
 									/>
+									{#if secretImage}
+										<p class="text-xs opacity-75 mt-1">
+											Size: {(secretImage.size / 1024).toFixed(1)} KB
+											{#if secretImage.size > 100 * 1024}
+												<span class="text-warning-500"
+													>(will be compressed to ~100KB for encoding)</span
+												>
+											{/if}
+										</p>
+									{/if}
 								</div>
 							{/if}
 						</label>

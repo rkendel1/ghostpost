@@ -1,41 +1,80 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { initWasm, encodeMessage } from '$lib/ghostpost';
 
 	let installed = false;
 
-	// Sample messages with hidden content (you would generate these with the encoder)
-	const demoMessages = [
+	// Sample messages that will be encoded at runtime for proper WASM encoding
+	const demoMessageTemplates = [
 		{
 			title: 'Social Media Post',
 			visible:
 				'Just had an amazing day exploring the city! 🌆 #blessed #citylife #adventures #exploring',
-			// This would have hidden message encoded in it
-			encoded:
-				'Just had an amazing day exploring the city! 🌆 #blessed #citylife #adventures #exploring‌‍‌‌‍‌‍‌‍‌‌‍‌‌‍‌‌‍‌‍‌‍‌‌‍‌‍‌‌‍‌‍‍‌‍‌‌‍‌‌‍‌‌‍‌‍‌‍‌‌‍‌‍‌‌‍‌‌‍‌‌‍‌‍‌‍‌‌‍‌‌‌‌‍‌‌‍‌‍‌‍‌‌‍‌‍‌‌‍‌‌‍‌‍‌‍‌‌‍‌‍‌‌‍‌‍‍',
 			secret: 'Meeting at 8pm at the usual spot'
 		},
 		{
 			title: 'Business Message',
 			visible: 'The quarterly report looks promising. Looking forward to the board meeting.',
-			encoded:
-				'The quarterly report looks promising. Looking forward to the board meeting.‌‍‌‌‍‌‍‌‌‍‌‌‍‌‌‍‌‍‌‍‌‌‍‌‌‍‌‍‌‍‍‌‍‌‌‍‌‌‍‌‌‍‌‍‌‍‌‌‍‌‍‌‌‍‌‍‍‌‍‌‌‍‌‌‍‌‌‍‌‍‌‍‌‌‍‌‌‌‌‍‌‌‍‌‍‍',
 			secret: 'Deal postponed - standby for updates'
 		},
 		{
 			title: 'Casual Chat',
-			visible: "Hey! Hope you're having a great day! Let's catch up soon 😊",
-			encoded:
-				"Hey! Hope you're having a great day! Let's catch up soon 😊‌‍‌‌‍‌‍‌‌‍‌‌‍‌‍‌‍‌‌‍‌‌‍‌‌‍‌‍‌‍‌‌‍‌‍‌‌‍‌‌‍‌‍‍‌‍‌‌‍‌‌‍‌‌‍‌‍‌‍‌‌‍‌‍‌‌‍‌‍‍‌‍‌‌‍‌‌‍‌‌‍‌‍‌‍‌‌‍‌‌‌‌‍‌‍",
+			visible: 'Hey! Hope you are having a great day! Let us catch up soon',
 			secret: 'Code: Alpha-7-Bravo'
 		}
 	];
 
-	onMount(() => {
+	// Constants
+	const WASM_INIT_DELAY_MS = 100;
+	const USERSCRIPT_CHECK_DELAY_MS = 1000;
+
+	let demoMessages: Array<{
+		title: string;
+		visible: string;
+		encoded: string;
+		secret: string;
+	}> = [];
+
+	onMount(async () => {
+		// Initialize WASM
+		try {
+			await initWasm();
+
+			// Give WASM a moment to fully initialize
+			await new Promise((resolve) => setTimeout(resolve, WASM_INIT_DELAY_MS));
+
+			// Generate properly encoded messages at runtime
+			demoMessages = await Promise.all(
+				demoMessageTemplates.map(async (template) => {
+					try {
+						const result = await encodeMessage(template.visible, template.secret, false);
+						return {
+							title: template.title,
+							visible: template.visible,
+							encoded: result.encoded,
+							secret: template.secret
+						};
+					} catch (err) {
+						console.error('Failed to encode demo message:', err);
+						// Return a fallback with unencoded message
+						return {
+							title: template.title,
+							visible: template.visible,
+							encoded: template.visible, // Fallback to visible message
+							secret: template.secret
+						};
+					}
+				})
+			);
+		} catch (err) {
+			console.error('Failed to initialize WASM:', err);
+		}
+
 		// Check if userscript might be installed by looking for the button
 		setTimeout(() => {
 			const button = document.getElementById('ghostpost-reveal-button');
 			installed = !!button;
-		}, 1000);
+		}, USERSCRIPT_CHECK_DELAY_MS);
 	});
 </script>
 
@@ -103,6 +142,12 @@
 			These messages look normal but contain hidden content. The overlay button will detect them
 			automatically!
 		</p>
+
+		{#if demoMessages.length === 0}
+			<div class="card p-6">
+				<p class="text-center opacity-75">Loading demo messages...</p>
+			</div>
+		{/if}
 
 		{#each demoMessages as message}
 			<div class="card p-6 space-y-3">
