@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.2.0
+// @version      2.2.1
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -22,6 +22,13 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.2.1 (2025-12-11):
+ * - CRITICAL FIX: Use pako.inflateRaw() instead of pako.inflate() for decompression
+ * - Fixed garbled decoded messages showing "s��!�Rp�}..." instead of actual text
+ * - Rust's DeflateEncoder produces RAW DEFLATE format (no zlib headers)
+ * - pako.inflate() expects zlib format, but pako.inflateRaw() handles raw DEFLATE
+ * - This completes the decompression fix started in v2.2.0
+ *
  * v2.2.0 (2025-12-11):
  * - CRITICAL FIX: Added DEFLATE decompression support to match WASM encoder
  * - Fixed garbled decoded messages (was showing "$ÛÿDeal..." instead of actual text)
@@ -88,7 +95,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.2.0';
+	const SCRIPT_VERSION = '2.2.1';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Check if button already exists (might be from an old version)
@@ -634,12 +641,17 @@
 			}
 
 			// Step 4: Try to decompress the data using pako
+			// Note: Rust's DeflateEncoder produces RAW DEFLATE format (no zlib headers)
+			// We must use pako.inflateRaw() not pako.inflate()
 			let finalBytes;
 			try {
-				// Use pako to decompress DEFLATE data
-				if (typeof pako !== 'undefined' && pako.inflate) {
+				// Use pako to decompress RAW DEFLATE data
+				if (typeof pako !== 'undefined' && pako.inflateRaw) {
 					try {
-						finalBytes = pako.inflate(decodedBytes);
+						finalBytes = pako.inflateRaw(decodedBytes);
+						if (DEBUG_MODE) {
+							console.log('[Ghostpost] Successfully decompressed with pako.inflateRaw');
+						}
 					} catch (decompressError) {
 						// Decompression failed - might be legacy uncompressed message
 						// Fall back to using original bytes
@@ -655,6 +667,9 @@
 				}
 			} catch (e) {
 				// If decompression fails, try uncompressed
+				if (DEBUG_MODE) {
+					console.log('[Ghostpost] Exception during decompression, using uncompressed:', e);
+				}
 				finalBytes = decodedBytes;
 			}
 
