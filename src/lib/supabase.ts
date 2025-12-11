@@ -44,6 +44,64 @@ export type Database = {
 					updated_at?: string;
 				};
 			};
+			limited_secrets: {
+				Row: {
+					id: string;
+					post_id: string;
+					user_id: string;
+					max_reveals: number | null;
+					current_reveals: number;
+					is_expired: boolean;
+					created_at: string;
+					updated_at: string;
+				};
+				Insert: {
+					id?: string;
+					post_id: string;
+					user_id: string;
+					max_reveals?: number | null;
+					current_reveals?: number;
+					is_expired?: boolean;
+					created_at?: string;
+					updated_at?: string;
+				};
+				Update: {
+					id?: string;
+					post_id?: string;
+					user_id?: string;
+					max_reveals?: number | null;
+					current_reveals?: number;
+					is_expired?: boolean;
+					created_at?: string;
+					updated_at?: string;
+				};
+			};
+			reveal_events: {
+				Row: {
+					id: string;
+					post_id: string;
+					reveal_number: number;
+					timestamp: string;
+					user_fingerprint: string | null;
+					created_at: string;
+				};
+				Insert: {
+					id?: string;
+					post_id: string;
+					reveal_number: number;
+					timestamp?: string;
+					user_fingerprint?: string | null;
+					created_at?: string;
+				};
+				Update: {
+					id?: string;
+					post_id?: string;
+					reveal_number?: number;
+					timestamp?: string;
+					user_fingerprint?: string | null;
+					created_at?: string;
+				};
+			};
 		};
 	};
 };

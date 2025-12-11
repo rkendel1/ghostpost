@@ -1,15 +1,25 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { clipboard } from '@skeletonlabs/skeleton';
 	import { decodeMessage, initWasm } from '$lib/ghostpost';
 	import AuthGuard from '$lib/components/AuthGuard.svelte';
+	import confetti from 'canvas-confetti';
+	import type { RevealStatus, RevealResult, LimitedSecret } from '$lib/types/limited-reveals';
+	import { subscribeLimitedSecret } from '$lib/realtime-limited-reveals';
 
 	let encodedInput = '';
 	let decodedSecret = '';
 	let isDecoding = false;
 	let error = '';
 	let showResult = false;
+
+	// Limited reveals state
+	let revealStatus: RevealStatus | null = null;
+	let revealResult: RevealResult | null = null;
+	let isCheckingStatus = false;
+	let currentPostId: string | null = null;
+	let realtimeUnsubscribe: (() => void) | null = null;
 
 	// Constants for text size thresholds
 	const MAX_AUTO_DECODE_SIZE = 2000; // ~2KB limit for auto-decode
@@ -37,6 +47,53 @@
 		}
 	});
 
+	onDestroy(() => {
+		// Cleanup realtime subscription
+		if (realtimeUnsubscribe) {
+			realtimeUnsubscribe();
+		}
+	});
+
+	// Setup realtime subscription for a post
+	function setupRealtimeUpdates(postId: string) {
+		// Cleanup existing subscription
+		if (realtimeUnsubscribe) {
+			realtimeUnsubscribe();
+		}
+
+		// Subscribe to limited secret updates
+		realtimeUnsubscribe = subscribeLimitedSecret(postId, (updatedSecret: LimitedSecret) => {
+			// Update status with new data
+			if (revealStatus && revealStatus.post_id === postId) {
+				const remaining = updatedSecret.max_reveals
+					? updatedSecret.max_reveals - updatedSecret.current_reveals
+					: null;
+				
+				const percentage = updatedSecret.max_reveals
+					? (updatedSecret.current_reveals / updatedSecret.max_reveals) * 100
+					: null;
+
+				revealStatus = {
+					...revealStatus,
+					current_reveals: updatedSecret.current_reveals,
+					is_expired: updatedSecret.is_expired,
+					remaining_reveals: remaining,
+					percentage_revealed: percentage,
+					can_reveal: !updatedSecret.is_expired && 
+						(!updatedSecret.max_reveals || updatedSecret.current_reveals < updatedSecret.max_reveals)
+				};
+
+				// Update reveal result if present
+				if (revealResult) {
+					revealResult = {
+						...revealResult,
+						remaining: remaining
+					};
+				}
+			}
+		});
+	}
+
 	// Extract segments of text that contain invisible Unicode characters
 	function extractEncodedSegments(text: string): string[] {
 		const segments: string[] = [];
@@ -62,6 +119,7 @@
 		isDecoding = true;
 		error = '';
 		showResult = false;
+		revealResult = null;
 
 		try {
 			// For large texts, extract only segments with invisible characters
@@ -80,12 +138,65 @@
 			if (!result.message || result.message.trim() === '') {
 				error = 'No hidden message found in the text';
 			} else {
-				decodedSecret = result.message;
-				showResult = true;
-				error = '';
-
-				// Track analytics if postId is present
+				// Check limited reveals status if postId is present
 				if (result.postId) {
+					isCheckingStatus = true;
+					try {
+						// Check reveal status first
+						const statusResponse = await fetch(`/api/limited-reveals/status?post_id=${result.postId}`);
+						const statusData = await statusResponse.json();
+						
+						if (statusData.success && statusData.status) {
+							revealStatus = statusData.status;
+
+							// If expired, don't show the secret
+							if (revealStatus.is_expired || !revealStatus.can_reveal) {
+								error = 'This secret has expired — all reveals are gone forever 💔';
+								showResult = false;
+								isDecoding = false;
+								isCheckingStatus = false;
+								return;
+							}
+
+							// Record the reveal
+							const revealResponse = await fetch('/api/limited-reveals/reveal', {
+								method: 'POST',
+								headers: {
+									'Content-Type': 'application/json'
+								},
+								body: JSON.stringify({
+									post_id: result.postId,
+									user_fingerprint: generateFingerprint()
+								})
+							});
+
+							const revealData = await revealResponse.json();
+							
+							if (!revealData.success) {
+								error = revealData.message || 'Failed to reveal secret';
+								showResult = false;
+								isDecoding = false;
+								isCheckingStatus = false;
+								return;
+							}
+
+							revealResult = revealData;
+
+							// Setup realtime updates for this post
+							currentPostId = result.postId;
+							setupRealtimeUpdates(result.postId);
+
+							// Show confetti for last 10 reveals
+							if (revealResult.remaining !== null && revealResult.remaining <= 10 && revealResult.remaining >= 0) {
+								triggerConfetti();
+							}
+						}
+					} catch (err) {
+						console.warn('Limited reveals check failed, showing message anyway:', err);
+					}
+					isCheckingStatus = false;
+
+					// Track analytics if postId is present
 					try {
 						await fetch('/api/analytics/track', {
 							method: 'POST',
@@ -101,6 +212,10 @@
 						console.warn('Analytics tracking failed:', err);
 					}
 				}
+
+				decodedSecret = result.message;
+				showResult = true;
+				error = '';
 			}
 		} catch (err) {
 			error = 'Failed to decode message. Make sure it contains a hidden secret.';
@@ -110,11 +225,76 @@
 		}
 	}
 
+	function generateFingerprint(): string {
+		// Create a more robust fingerprint with multiple entropy sources
+		const components = [
+			navigator.userAgent,
+			navigator.language,
+			navigator.languages?.join(',') || '',
+			screen.width.toString(),
+			screen.height.toString(),
+			screen.colorDepth.toString(),
+			new Date().getTimezoneOffset().toString(),
+			navigator.hardwareConcurrency?.toString() || '',
+			navigator.deviceMemory?.toString() || ''
+		];
+
+		// Canvas fingerprinting for additional entropy
+		const canvas = document.createElement('canvas');
+		const ctx = canvas.getContext('2d');
+		const txt = 'ghostpost-fingerprint-2024';
+		if (ctx) {
+			ctx.textBaseline = 'top';
+			ctx.font = '14px Arial';
+			ctx.fillStyle = '#f60';
+			ctx.fillRect(0, 0, 100, 50);
+			ctx.fillStyle = '#069';
+			ctx.fillText(txt, 2, 2);
+		}
+		const canvasData = canvas.toDataURL().slice(-50); // Last 50 chars for entropy
+		components.push(canvasData);
+
+		// WebGL fingerprinting
+		try {
+			const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+			if (gl && gl instanceof WebGLRenderingContext) {
+				const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+				if (debugInfo) {
+					components.push(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '');
+					components.push(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '');
+				}
+			}
+		} catch (e) {
+			// WebGL not available, skip
+		}
+
+		const fingerprint = components.join('|');
+		
+		// Create a simple hash
+		let hash = 0;
+		for (let i = 0; i < fingerprint.length; i++) {
+			const char = fingerprint.charCodeAt(i);
+			hash = ((hash << 5) - hash) + char;
+			hash = hash & hash;
+		}
+		return Math.abs(hash).toString(36);
+	}
+
+	function triggerConfetti() {
+		confetti({
+			particleCount: 100,
+			spread: 70,
+			origin: { y: 0.6 }
+		});
+	}
+
 	function handleClear() {
 		encodedInput = '';
 		decodedSecret = '';
 		showResult = false;
 		error = '';
+		revealStatus = null;
+		revealResult = null;
 	}
 
 	function isImageData(text: string): boolean {
@@ -174,6 +354,78 @@
 			<div class="card p-6 space-y-4 variant-ghost-success">
 				<h2 class="h2">✨ Hidden Secret Revealed!</h2>
 
+				<!-- Limited Reveals Status -->
+				{#if revealResult && revealResult.reveal_number !== null}
+					<div class="card p-4 space-y-2" class:variant-ghost-warning={revealResult.remaining !== null && revealResult.remaining <= 20 && revealResult.remaining > 0} class:variant-ghost-error={revealResult.remaining === 0} class:variant-ghost-primary={!revealResult.remaining || revealResult.remaining > 20}>
+						<div class="flex items-center justify-between">
+							<div class="flex-1">
+								<p class="font-bold text-lg" class:text-error-500={revealResult.remaining !== null && revealResult.remaining <= 5}>
+									{#if revealResult.remaining === 0}
+										🔥 SOLD OUT FOREVER! 🔥
+									{:else if revealResult.remaining !== null && revealResult.remaining <= 5}
+										⚠️ ONLY {revealResult.remaining} LEFT! ⚠️
+									{:else}
+										🎉 Limited Edition Reveal!
+									{/if}
+								</p>
+								<p class="text-sm mt-1">
+									{revealResult.message}
+								</p>
+							</div>
+							{#if revealResult.remaining !== null && revealResult.total_reveals}
+								<div class="text-right ml-4">
+									<div class="text-2xl font-bold" class:text-error-500={revealResult.remaining <= 5} class:animate-pulse={revealResult.remaining <= 20}>
+										{revealResult.reveal_number}/{revealResult.total_reveals}
+									</div>
+									<div class="text-xs opacity-75">reveals</div>
+								</div>
+							{/if}
+						</div>
+
+						{#if revealResult.remaining !== null && revealResult.total_reveals}
+							<!-- Progress bar -->
+							<div class="w-full bg-surface-700 rounded-full h-4 overflow-hidden">
+								<div 
+									class="h-full transition-all duration-500"
+									class:bg-primary-500={revealResult.remaining > 20}
+									class:bg-warning-500={revealResult.remaining <= 20 && revealResult.remaining > 5}
+									class:bg-error-500={revealResult.remaining <= 5}
+									style="width: {(revealResult.reveal_number / revealResult.total_reveals) * 100}%"
+								></div>
+							</div>
+						{/if}
+
+						{#if revealResult.remaining !== null && revealResult.remaining <= 10 && revealResult.remaining > 0}
+							<p class="text-xs text-center opacity-75 animate-pulse">
+								⚡ Only {revealResult.remaining} {revealResult.remaining === 1 ? 'person' : 'people'} can reveal this secret before it's gone forever!
+							</p>
+						{:else if revealResult.remaining === 0}
+							<p class="text-xs text-center font-bold">
+								💎 You got the LAST reveal! This secret is now locked forever.
+							</p>
+						{/if}
+
+						<!-- Share text generator -->
+						{#if revealResult.reveal_number && revealResult.total_reveals}
+							<div class="card p-3 variant-ghost-surface">
+								<p class="text-xs font-bold mb-2">Share your achievement:</p>
+								<div class="flex gap-2">
+									<input 
+										type="text" 
+										class="input text-xs flex-1" 
+										readonly 
+										value="I just got reveal #{revealResult.reveal_number} of {revealResult.total_reveals}{revealResult.remaining ? ` — only ${revealResult.remaining} left forever!` : ' — SOLD OUT!'} 👻"
+										data-clipboard="share-text"
+									/>
+									<button class="btn btn-sm variant-filled-primary" use:clipboard={{ input: 'share-text' }}>
+										Copy
+									</button>
+								</div>
+							</div>
+						{/if}
+					</div>
+				{/if}
+
 				{#if isImageData(decodedSecret)}
 					<div class="space-y-2">
 						<p class="text-sm opacity-75">This message contains a hidden image:</p>
@@ -192,7 +444,7 @@
 					</label>
 
 					<button class="btn variant-filled" use:clipboard={{ input: 'decoded' }}>
-						�� Copy Secret
+						Copy Secret
 					</button>
 				{/if}
 			</div>

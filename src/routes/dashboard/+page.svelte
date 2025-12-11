@@ -1,9 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import type { DashboardStats } from '$lib/types/analytics';
 	import AuthGuard from '$lib/components/AuthGuard.svelte';
 	import { authStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
+	import { subscribeLimitedSecret, subscribeRevealEvents } from '$lib/realtime-limited-reveals';
+	import type { LimitedSecret } from '$lib/types/limited-reveals';
 
 	let postId = '';
 	let analytics: DashboardStats | null = null;
@@ -12,6 +14,12 @@
 	let userPosts: any[] = [];
 	let loadingPosts = true;
 
+	// Limited reveals analytics
+	let limitedRevealsAnalytics: any = null;
+	let loadingLimitedReveals = false;
+	let realtimeUnsubscribe: (() => void) | null = null;
+	let realtimeEventsUnsubscribe: (() => void) | null = null;
+
 	$: user = $authStore.user;
 
 	onMount(async () => {
@@ -19,6 +27,70 @@
 			await loadUserPosts();
 		}
 	});
+
+	onDestroy(() => {
+		// Cleanup realtime subscriptions
+		if (realtimeUnsubscribe) {
+			realtimeUnsubscribe();
+		}
+		if (realtimeEventsUnsubscribe) {
+			realtimeEventsUnsubscribe();
+		}
+	});
+
+	// Setup realtime updates for limited reveals
+	function setupRealtimeUpdates(post_id: string) {
+		// Cleanup existing subscriptions
+		if (realtimeUnsubscribe) {
+			realtimeUnsubscribe();
+		}
+		if (realtimeEventsUnsubscribe) {
+			realtimeEventsUnsubscribe();
+		}
+
+		// Subscribe to limited secret updates
+		realtimeUnsubscribe = subscribeLimitedSecret(post_id, (updatedSecret: LimitedSecret) => {
+			if (limitedRevealsAnalytics && limitedRevealsAnalytics.post_id === post_id) {
+				const remaining = updatedSecret.max_reveals
+					? updatedSecret.max_reveals - updatedSecret.current_reveals
+					: null;
+				
+				const percentage = updatedSecret.max_reveals
+					? (updatedSecret.current_reveals / updatedSecret.max_reveals) * 100
+					: null;
+
+				limitedRevealsAnalytics = {
+					...limitedRevealsAnalytics,
+					current_reveals: updatedSecret.current_reveals,
+					is_expired: updatedSecret.is_expired,
+					remaining_reveals: remaining,
+					percentage_revealed: percentage
+				};
+			}
+		});
+
+		// Subscribe to new reveal events
+		realtimeEventsUnsubscribe = subscribeRevealEvents(post_id, (revealNumber: number) => {
+			if (limitedRevealsAnalytics && limitedRevealsAnalytics.post_id === post_id) {
+				// Add to timeline if not already present
+				const existingEvent = limitedRevealsAnalytics.reveal_timeline?.find(
+					(e: any) => e.reveal_number === revealNumber
+				);
+				
+				if (!existingEvent) {
+					const newEvent = {
+						reveal_number: revealNumber,
+						timestamp: new Date().toISOString()
+					};
+					
+					limitedRevealsAnalytics = {
+						...limitedRevealsAnalytics,
+						reveal_timeline: [...(limitedRevealsAnalytics.reveal_timeline || []), newEvent]
+					};
+				}
+			}
+		});
+	}
 
 	async function loadUserPosts() {
 		if (!user) return;
@@ -48,6 +120,7 @@
 		isLoading = true;
 		error = '';
 		analytics = null;
+		limitedRevealsAnalytics = null;
 
 		try {
 			const response = await fetch(`/api/analytics/post?postId=${encodeURIComponent(postId)}`);
@@ -59,11 +132,33 @@
 			} else {
 				error = data.error || 'No analytics found for this post';
 			}
+
+			// Also load limited reveals analytics if available
+			await loadLimitedRevealsAnalytics(postId);
 		} catch (err) {
 			error = 'Failed to load analytics';
 			console.error(err);
 		} finally {
 			isLoading = false;
+		}
+	}
+
+	async function loadLimitedRevealsAnalytics(post_id: string) {
+		loadingLimitedReveals = true;
+		try {
+			const response = await fetch(`/api/limited-reveals/analytics?post_id=${encodeURIComponent(post_id)}`);
+			const data = await response.json();
+			
+			if (data.success) {
+				limitedRevealsAnalytics = data.analytics;
+				
+				// Setup realtime updates for this post
+				setupRealtimeUpdates(post_id);
+			}
+		} catch (err) {
+			console.log('No limited reveals data for this post (might be unlimited)');
+		} finally {
+			loadingLimitedReveals = false;
 		}
 	}
 
@@ -180,6 +275,95 @@
 
 		{#if analytics}
 			<div class="space-y-6">
+				<!-- Limited Reveals Analytics (if applicable) -->
+				{#if limitedRevealsAnalytics}
+					<div class="card p-6 space-y-4" class:variant-ghost-error={limitedRevealsAnalytics.is_expired} class:variant-ghost-warning={limitedRevealsAnalytics.percentage_revealed >= 80 && !limitedRevealsAnalytics.is_expired} class:variant-ghost-success={limitedRevealsAnalytics.percentage_revealed < 80}>
+						<div class="flex items-center justify-between">
+							<h2 class="h2">🔥 Limited Edition Status</h2>
+							{#if limitedRevealsAnalytics.is_expired}
+								<span class="badge variant-filled-error text-lg px-4 py-2">SOLD OUT FOREVER</span>
+							{:else}
+								<span class="badge variant-filled-primary text-lg px-4 py-2">ACTIVE</span>
+							{/if}
+						</div>
+
+						<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+							<div class="card p-4 variant-ghost-surface text-center">
+								<div class="text-3xl font-bold">{limitedRevealsAnalytics.current_reveals}</div>
+								<div class="text-xs opacity-75 mt-1">Current Reveals</div>
+							</div>
+							<div class="card p-4 variant-ghost-surface text-center">
+								<div class="text-3xl font-bold">{limitedRevealsAnalytics.max_reveals || '∞'}</div>
+								<div class="text-xs opacity-75 mt-1">Max Reveals</div>
+							</div>
+							<div class="card p-4 variant-ghost-surface text-center">
+								<div class="text-3xl font-bold" class:text-error-500={limitedRevealsAnalytics.remaining_reveals <= 5} class:animate-pulse={limitedRevealsAnalytics.remaining_reveals <= 20}>
+									{limitedRevealsAnalytics.remaining_reveals ?? '∞'}
+								</div>
+								<div class="text-xs opacity-75 mt-1">Remaining</div>
+							</div>
+							<div class="card p-4 variant-ghost-surface text-center">
+								<div class="text-3xl font-bold">{limitedRevealsAnalytics.percentage_revealed ? limitedRevealsAnalytics.percentage_revealed.toFixed(1) : '0'}%</div>
+								<div class="text-xs opacity-75 mt-1">Revealed</div>
+							</div>
+						</div>
+
+						<!-- Progress Ring/Bar -->
+						{#if limitedRevealsAnalytics.max_reveals}
+							<div class="space-y-2">
+								<div class="flex justify-between text-sm">
+									<span>Progress to Sold Out</span>
+									<span class:text-error-500={limitedRevealsAnalytics.percentage_revealed >= 80} class:font-bold={limitedRevealsAnalytics.percentage_revealed >= 80}>
+										{limitedRevealsAnalytics.percentage_revealed.toFixed(1)}%
+									</span>
+								</div>
+								<div class="w-full bg-surface-700 rounded-full h-6 overflow-hidden">
+									<div 
+										class="h-full transition-all duration-500 flex items-center justify-end pr-2"
+										class:bg-success-500={limitedRevealsAnalytics.percentage_revealed < 50}
+										class:bg-warning-500={limitedRevealsAnalytics.percentage_revealed >= 50 && limitedRevealsAnalytics.percentage_revealed < 80}
+										class:bg-error-500={limitedRevealsAnalytics.percentage_revealed >= 80}
+										class:animate-pulse={limitedRevealsAnalytics.percentage_revealed >= 80}
+										style="width: {limitedRevealsAnalytics.percentage_revealed}%"
+									>
+										{#if limitedRevealsAnalytics.percentage_revealed >= 10}
+											<span class="text-xs text-white font-bold">{limitedRevealsAnalytics.current_reveals}/{limitedRevealsAnalytics.max_reveals}</span>
+										{/if}
+									</div>
+								</div>
+							</div>
+						{/if}
+
+						{#if limitedRevealsAnalytics.is_expired}
+							<div class="card p-4 variant-ghost-error text-center">
+								<p class="font-bold text-lg">🔒 This secret is now permanently locked!</p>
+								<p class="text-sm opacity-75 mt-1">
+									All {limitedRevealsAnalytics.max_reveals} reveals have been claimed.
+								</p>
+							</div>
+						{:else if limitedRevealsAnalytics.remaining_reveals <= 10}
+							<div class="card p-4 variant-ghost-warning text-center animate-pulse">
+								<p class="font-bold">⚠️ EXTREMELY LIMITED! Only {limitedRevealsAnalytics.remaining_reveals} reveals left!</p>
+							</div>
+						{/if}
+
+						<!-- Reveal Timeline -->
+						{#if limitedRevealsAnalytics.reveal_timeline && limitedRevealsAnalytics.reveal_timeline.length > 0}
+							<div class="space-y-2">
+								<h3 class="font-bold">📈 Reveal Timeline</h3>
+								<div class="max-h-60 overflow-y-auto space-y-1">
+									{#each limitedRevealsAnalytics.reveal_timeline.slice(-20) as event}
+										<div class="flex items-center justify-between text-sm p-2 card variant-ghost-surface">
+											<span class="font-mono text-xs">Reveal #{event.reveal_number}</span>
+											<span class="text-xs opacity-75">{new Date(event.timestamp).toLocaleString()}</span>
+										</div>
+									{/each}
+								</div>
+							</div>
+						{/if}
+					</div>
+				{/if}
+
 				<!-- Summary Stats -->
 				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 					<div class="card p-6 variant-ghost-primary">
