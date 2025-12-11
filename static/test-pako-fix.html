@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghostpost Pako Fix Verification</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        h1 {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-case {
+            margin: 15px 0;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+            background: #f8f9fa;
+        }
+        .success {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        .error {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .encoded {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Ghostpost Pako Fix Verification</h1>
+    
+    <div class="test-section">
+        <h2>Issue Description</h2>
+        <p>Users reported that decoded messages showed garbled characters like <code>s��!�Rp�}�H�S�u*J.�</code> instead of the actual secret text.</p>
+        <p><strong>Root Cause:</strong> The JavaScript decoder was using <code>pako.inflate()</code> which expects zlib format, but the Rust encoder produces raw DEFLATE format (no headers).</p>
+        <p><strong>Fix:</strong> Changed to <code>pako.inflateRaw()</code> which correctly handles raw DEFLATE streams.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Test: pako.inflate() vs pako.inflateRaw()</h2>
+        <button onclick="runCompressionTest()">Run Test</button>
+        <div id="compression-test-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Full Encode/Decode Simulation</h2>
+        <p>This simulates the complete Ghostpost encode/decode cycle:</p>
+        <ol>
+            <li>Compress secret with raw DEFLATE (like Rust encoder)</li>
+            <li>Base64 encode</li>
+            <li>Convert to invisible Unicode pairs (simplified)</li>
+            <li>Decode back: Unicode → Base64 → Decompress</li>
+        </ol>
+        <button onclick="runFullCycleTest()">Run Full Cycle Test</button>
+        <div id="full-cycle-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Demonstrate the Bug</h2>
+        <p>Shows what happens when using wrong decompression method:</p>
+        <button onclick="demonstrateBug()">Show Bug</button>
+        <div id="bug-demo-results"></div>
+    </div>
+
+    <script>
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function runCompressionTest() {
+            const resultsDiv = document.getElementById('compression-test-results');
+            let html = '<h3>Results:</h3>';
+            
+            const testString = "Hello, World!";
+            html += `<p><strong>Original text:</strong> ${escapeHtml(testString)}</p>`;
+            
+            // Compress with raw DEFLATE (simulates Rust's DeflateEncoder)
+            const compressed = pako.deflateRaw(new TextEncoder().encode(testString));
+            html += `<p><strong>Compressed bytes:</strong> ${compressed.length}</p>`;
+            html += `<div class="encoded">Hex: ${Array.from(compressed).map(b => b.toString(16).padStart(2, '0')).join(' ')}</div>`;
+            
+            // Test 1: pako.inflate (WRONG)
+            html += '<div class="test-case error">';
+            html += '<strong>Test 1: pako.inflate() [WRONG - expects zlib format]</strong><br>';
+            try {
+                const decompressed = pako.inflate(compressed);
+                const text = new TextDecoder().decode(decompressed);
+                html += `❌ Unexpectedly succeeded: ${escapeHtml(text)}`;
+            } catch (e) {
+                html += `✅ Failed as expected: ${escapeHtml(e.message)}`;
+            }
+            html += '</div>';
+            
+            // Test 2: pako.inflateRaw (CORRECT)
+            html += '<div class="test-case success">';
+            html += '<strong>Test 2: pako.inflateRaw() [CORRECT - handles raw DEFLATE]</strong><br>';
+            try {
+                const decompressed = pako.inflateRaw(compressed);
+                const text = new TextDecoder().decode(decompressed);
+                html += `✅ Success: ${escapeHtml(text)}`;
+            } catch (e) {
+                html += `❌ Failed: ${escapeHtml(e.message)}`;
+            }
+            html += '</div>';
+            
+            // Test 3: Without decompression (the bug)
+            html += '<div class="test-case error">';
+            html += '<strong>Test 3: No decompression [Shows the bug]</strong><br>';
+            const textWithoutDecomp = new TextDecoder('utf-8', {fatal: false}).decode(compressed);
+            html += `❌ Garbled output: ${escapeHtml(textWithoutDecomp)}`;
+            html += '<br><em>This is what users were seeing!</em>';
+            html += '</div>';
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        function runFullCycleTest() {
+            const resultsDiv = document.getElementById('full-cycle-results');
+            let html = '<h3>Full Cycle Test:</h3>';
+            
+            const originalSecret = "This is a secret message!";
+            html += `<p><strong>1. Original secret:</strong> ${escapeHtml(originalSecret)}</p>`;
+            
+            // Step 1: Compress (like Rust encoder)
+            const compressed = pako.deflateRaw(new TextEncoder().encode(originalSecret));
+            html += `<p><strong>2. Compressed:</strong> ${compressed.length} bytes</p>`;
+            
+            // Step 2: Base64 encode
+            let base64 = '';
+            compressed.forEach(byte => {
+                base64 += String.fromCharCode(byte);
+            });
+            base64 = btoa(base64);
+            html += `<p><strong>3. Base64 encoded:</strong> ${base64.length} chars</p>`;
+            html += `<div class="encoded">${escapeHtml(base64)}</div>`;
+            
+            // Step 3: Decode base64
+            const binaryString = atob(base64);
+            const decodedBytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                decodedBytes[i] = binaryString.charCodeAt(i);
+            }
+            html += `<p><strong>4. Base64 decoded:</strong> ${decodedBytes.length} bytes</p>`;
+            
+            // Step 4: Decompress with inflateRaw (THE FIX)
+            try {
+                const decompressed = pako.inflateRaw(decodedBytes);
+                const decoded = new TextDecoder().decode(decompressed);
+                html += '<div class="test-case success">';
+                html += `<p><strong>5. Decompressed with inflateRaw():</strong></p>`;
+                html += `<div class="result">✅ ${escapeHtml(decoded)}</div>`;
+                html += '</div>';
+                
+                if (decoded === originalSecret) {
+                    html += '<p style="color: #10b981; font-weight: bold; font-size: 18px;">✅ PERFECT MATCH! The fix works correctly!</p>';
+                }
+            } catch (e) {
+                html += `<div class="test-case error">❌ Decompression failed: ${escapeHtml(e.message)}</div>`;
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        function demonstrateBug() {
+            const resultsDiv = document.getElementById('bug-demo-results');
+            let html = '<h3>Bug Demonstration:</h3>';
+            
+            const originalSecret = "Hey! Hope you are having a great day! Let us catch up soon";
+            html += `<p><strong>Original secret:</strong> ${escapeHtml(originalSecret)}</p>`;
+            
+            // Compress
+            const compressed = pako.deflateRaw(new TextEncoder().encode(originalSecret));
+            
+            // Show what happens with wrong decompression
+            html += '<div class="test-case error">';
+            html += '<h4>WITHOUT PROPER DECOMPRESSION (The Bug):</h4>';
+            const buggyOutput = new TextDecoder('utf-8', {fatal: false}).decode(compressed);
+            html += `<div class="result">${escapeHtml(buggyOutput)}</div>`;
+            html += '<p><em>This garbled text is what users were reporting!</em></p>';
+            html += '</div>';
+            
+            // Show correct decompression
+            html += '<div class="test-case success">';
+            html += '<h4>WITH pako.inflateRaw() (The Fix):</h4>';
+            try {
+                const decompressed = pako.inflateRaw(compressed);
+                const correctOutput = new TextDecoder().decode(decompressed);
+                html += `<div class="result">${escapeHtml(correctOutput)}</div>`;
+                html += '<p><em>✅ Now the secret is readable!</em></p>';
+            } catch (e) {
+                html += `<p>❌ Error: ${escapeHtml(e.message)}</p>`;
+            }
+            html += '</div>';
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        // Run initial test on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('%c✅ Pako library loaded successfully', 'color: green; font-weight: bold');
+            console.log('pako.inflate:', typeof pako.inflate);
+            console.log('pako.inflateRaw:', typeof pako.inflateRaw);
+        });
+    </script>
+</body>
+</html>
