@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { authStore } from '$lib/stores/auth';
 	import { modalStore } from '@skeletonlabs/skeleton';
+	import { goto } from '$app/navigation';
 
 	let email = '';
 	let password = '';
@@ -41,6 +42,8 @@
 					error = authError.message;
 				} else {
 					modalStore.close();
+					// Redirect to dashboard after successful sign-in
+					await goto('/dashboard');
 				}
 			}
 		} catch (err) {
