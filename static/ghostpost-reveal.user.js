@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.1.3
+// @version      2.1.4
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -12,7 +12,7 @@
 // @exclude      *://*.bank.*/*
 // @exclude      *://*.paypal.*/*
 // @grant        none
-// @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js#sha512-ao+909PCNAe2ioXJCM/z62rT8g1nCdUhtyWz1jL7UlcN2ysLjNAz3OTWwSTd67QqYyj9VCZe9/8Zxqhxh3C0aA==
+// @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js#sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg==
 // @updateURL    https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // @downloadURL  https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // ==/UserScript==
@@ -22,6 +22,11 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.1.4 (2025-12-11):
+ * - CRITICAL FIX: Corrected SHA-512 SRI hash for pako.js CDN loading
+ * - Fixed "SRI error" preventing script from loading pako decompression library
+ * - Ensures proper decoding of compressed secret messages
+ *
  * v2.1.3 (2025-12-11):
  * - CRITICAL FIX: Added decompression support for encoded messages
  * - Now properly decodes compressed secrets using pako.js DEFLATE
@@ -91,7 +96,7 @@
 
 	// Configuration
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.1.3';
+	const SCRIPT_VERSION = '2.1.4';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	/**
@@ -106,7 +111,7 @@
 		return new Promise((resolve, reject) => {
 			const script = document.createElement('script');
 			script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
-			script.integrity = 'sha512-ao+909PCNAe2ioXJCM/z62rT8g1nCdUhtyWz1jL7UlcN2ysLjNAz3OTWwSTd67QqYyj9VCZe9/8Zxqhxh3C0aA==';
+			script.integrity = 'sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg==';
 			script.crossOrigin = 'anonymous';
 			script.onload = () => resolve();
 			script.onerror = () => reject(new Error('Failed to load pako.js'));
