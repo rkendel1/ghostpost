@@ -19,7 +19,7 @@
 		},
 		{
 			title: 'Casual Chat',
-			visible: "Hey! Hope you're having a great day! Let's catch up soon 😊",
+			visible: 'Hey! Hope you are having a great day! Let us catch up soon',
 			secret: 'Code: Alpha-7-Bravo'
 		}
 	];
@@ -33,20 +33,38 @@
 
 	onMount(async () => {
 		// Initialize WASM
-		await initWasm();
+		try {
+			await initWasm();
 
-		// Generate properly encoded messages at runtime
-		demoMessages = await Promise.all(
-			demoMessageTemplates.map(async (template) => {
-				const result = await encodeMessage(template.visible, template.secret, false);
-				return {
-					title: template.title,
-					visible: template.visible,
-					encoded: result.encoded,
-					secret: template.secret
-				};
-			})
-		);
+			// Give WASM a moment to fully initialize
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// Generate properly encoded messages at runtime
+			demoMessages = await Promise.all(
+				demoMessageTemplates.map(async (template) => {
+					try {
+						const result = await encodeMessage(template.visible, template.secret, false);
+						return {
+							title: template.title,
+							visible: template.visible,
+							encoded: result.encoded,
+							secret: template.secret
+						};
+					} catch (err) {
+						console.error('Failed to encode demo message:', err);
+						// Return a fallback with unencoded message
+						return {
+							title: template.title,
+							visible: template.visible,
+							encoded: template.visible, // Fallback to visible message
+							secret: template.secret
+						};
+					}
+				})
+			);
+		} catch (err) {
+			console.error('Failed to initialize WASM:', err);
+		}
 
 		// Check if userscript might be installed by looking for the button
 		setTimeout(() => {
