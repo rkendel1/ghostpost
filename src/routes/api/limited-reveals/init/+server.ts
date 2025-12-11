@@ -7,7 +7,6 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
@@ -17,8 +16,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ success: false, error: 'Missing required fields' }, { status: 400 });
 		}
 
+		// Validate user authorization
+		if (!locals.session || user_id !== locals.session.user.id) {
+			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+		}
+
 		// Create limited secret record
-		const { data, error } = await supabase.from('limited_secrets').insert({
+		const { data, error } = await locals.supabase.from('limited_secrets').insert({
 			post_id,
 			user_id,
 			max_reveals: max_reveals || null, // null = unlimited
