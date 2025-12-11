@@ -179,21 +179,26 @@ ghostpost/
 
 This is the **fastest and easiest** way to use Ghostpost:
 
-1. **Visit the install page** at `/install`
-2. **Install a userscript manager** (Tampermonkey, Violentmonkey, or Greasemonkey)
-3. **Click "Install Reveal Button"** to add the userscript
-4. **Visit any webpage** - The 👻 button appears automatically!
-5. **Click the button** when it shows a counter to reveal hidden messages
+**Quick Start - 2 Simple Steps:**
 
-The floating 👻 button will:
+1. **Visit `/install`** - Our step-by-step installation wizard
+2. **Follow the guided process** - Install Tampermonkey → Install Userscript → Done!
 
-- Automatically scan every page for hidden Ghostpost messages
-- Show a red counter badge when secrets are detected
-- Pulse red to draw your attention
-- Open a modal showing all detected messages with their locations
-- Let you reveal secrets inline without leaving the page
+The installation wizard will:
+- Guide you through installing Tampermonkey (one-time, 30 seconds)
+- Install the Ghostpost Reveal userscript with one click
+- Verify installation and show you how to enable incognito mode (optional)
+- Test that everything works correctly
 
-[Installation Guide →](/install) | [Try Demo →](/demo)
+**What you get:**
+- A floating 👻 button on every website (bottom-right corner)
+- Automatic scanning for hidden Ghostpost messages
+- Red counter badge when secrets are detected  
+- One-click reveal of all hidden messages
+- Auto-updates (no maintenance needed!)
+- Works on all websites (Twitter, Reddit, Discord, etc.)
+
+[Easy Install Guide →](/install) | [Try Demo →](/demo)
 
 ### Using Mobile Share (For Mobile Users)
 
