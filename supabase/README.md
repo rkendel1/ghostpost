@@ -28,7 +28,7 @@ psql "postgresql://..." < supabase/migrations/20241211_fix_increment_reveal_secu
 ## Migration Files
 
 - **20241211_create_posts.sql** - Creates the posts table for storing GhostPosts
-- **20231211_limited_reveals.sql** - Creates limited_secrets and reveal_events tables, RLS policies, and the increment_reveal_count function
+- **20231211_limited_reveals.sql** - Creates limited_secrets and reveal_events tables, RLS policies, and the increment_reveal_count function (Note: filename has 2023 date but this is the actual filename)
 - **20241211_fix_increment_reveal_security.sql** - **CRITICAL FIX** - Updates increment_reveal_count to use SECURITY DEFINER so anonymous users can record reveals
 
 ## Required Migration
