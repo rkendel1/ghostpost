@@ -12,7 +12,7 @@
 // @exclude      *://*.bank.*/*
 // @exclude      *://*.paypal.*/*
 // @grant        none
-// @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js#sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb
+// @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js
 // @updateURL    https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // @downloadURL  https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // ==/UserScript==
@@ -649,23 +649,9 @@
 						finalBytes = decodedBytes;
 					}
 				} else {
-					// Pako not available - try to use built-in DecompressionStream
-					if (typeof DecompressionStream !== 'undefined') {
-						// Modern browsers support DecompressionStream
-						const ds = new DecompressionStream('deflate');
-						const writer = ds.writable.getWriter();
-						writer.write(decodedBytes);
-						writer.close();
-						
-						// This is async, so we need to handle it differently
-						// For now, fall back to uncompressed
-						console.warn('[Ghostpost] DecompressionStream not yet implemented synchronously');
-						finalBytes = decodedBytes;
-					} else {
-						// No decompression available - use original bytes
-						console.warn('[Ghostpost] No decompression library available');
-						finalBytes = decodedBytes;
-					}
+					// Pako not available - use uncompressed bytes
+					console.warn('[Ghostpost] Pako library not available, assuming uncompressed message');
+					finalBytes = decodedBytes;
 				}
 			} catch (e) {
 				// If decompression fails, try uncompressed
@@ -691,7 +677,7 @@
 					const decoded = decodeURIComponent(
 						Array.from(
 							finalBytes,
-							(c) => '%' + ('00' + c.toString(16)).slice(-2)
+							(byte) => '%' + ('00' + byte.toString(16)).slice(-2)
 						).join('')
 					);
 
