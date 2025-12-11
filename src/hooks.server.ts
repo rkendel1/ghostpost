@@ -33,16 +33,27 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.session = session;
 
 	// Public routes that don't require authentication
-	const publicRoutes = ['/', '/api'];
+	// These routes are accessible without login
+	const publicRoutes = [
+		'/',           // Home page
+		'/demo',       // Demo page
+		'/decode',     // Decode page (users can decode without auth)
+		'/share',      // Share/mobile page
+		'/install',    // Install redirect page
+		'/install-easy',    // Easy install page
+		'/install-wizard',  // Install wizard page
+		'/analytics'   // Analytics page (can view without auth, but needs postId in URL)
+	];
 
 	// Check if current path is public
 	const isPublicRoute = publicRoutes.some(
-		(route) => event.url.pathname === route || event.url.pathname.startsWith('/api/')
+		(route) => event.url.pathname === route || 
+		event.url.pathname.startsWith('/api/')
 	);
 
-	if (!isPublicRoute && !event.locals.session) {
-		throw redirect(303, '/login');
-	}
+	// Don't redirect to login for public routes
+	// For non-public routes, the page component will handle auth with AuthGuard modal
+	// No server-side redirect needed as we use client-side modal auth
 
 	return resolve(event);
 };

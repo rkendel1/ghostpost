@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.2.1
+// @version      2.3.2
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -22,6 +22,29 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.3.2 (2025-12-11):
+ * - CODE QUALITY: Addressed code review feedback
+ * - Added error handling to fingerprinting with fallback methods
+ * - Extracted LOW_COUNT_THRESHOLD constant (was magic number 5)
+ * - Created generateRevealStatsHtml() helper to eliminate code duplication
+ * - Improved maintainability and robustness for privacy-focused browsers
+ *
+ * v2.3.1 (2025-12-11):
+ * - ANALYTICS: Added user fingerprinting for reveal tracking
+ * - Generates anonymous browser fingerprint using canvas and browser properties
+ * - Sends user_fingerprint to reveal API for analytics in Supabase
+ * - Enables tracking unique reveals without identifying users
+ * - Fingerprint persists per browser session for analytics accuracy
+ *
+ * v2.3.0 (2025-12-11):
+ * - FEATURE: Added "fomo number" display - shows reveal count (#X of Y)
+ * - Shows limited reveal statistics inline in the overlay after decoding
+ * - Displays remaining reveals with urgency indicators (low count warnings)
+ * - Integrates with limited-reveals API to track and display reveal numbers
+ * - Modified decodeHiddenMessage() to return {message, postId} object
+ * - Enhanced reveal UI with color-coded status (blue/yellow/red based on remaining)
+ * - Works for both text and image reveals in the overlay
+ *
  * v2.2.1 (2025-12-11):
  * - CRITICAL FIX: Use pako.inflateRaw() instead of pako.inflate() for decompression
  * - Fixed garbled decoded messages showing "s��!�Rp�}..." instead of actual text
@@ -95,7 +118,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.2.1';
+	const SCRIPT_VERSION = '2.3.2';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Check if button already exists (might be from an old version)
@@ -671,13 +694,19 @@
 				const decoder = new TextDecoder('utf-8');
 				const decoded = decoder.decode(finalBytes);
 
-				// Check for post ID and strip it
+				// Check for post ID and extract it
 				const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
 				if (postIdIndex !== -1) {
-					return decoded.substring(0, postIdIndex);
+					const postIdStart = postIdIndex + ENCODING_CONSTANTS.POST_ID_DELIMITER.length;
+					const postIdEnd = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_END, postIdStart);
+					if (postIdEnd !== -1) {
+						const postId = decoded.substring(postIdStart, postIdEnd);
+						const message = decoded.substring(0, postIdIndex);
+						return { message, postId };
+					}
 				}
 
-				return decoded;
+				return { message: decoded, postId: null };
 			} catch (e) {
 				// Fallback: Try decodeURIComponent method
 				try {
@@ -688,13 +717,19 @@
 						).join('')
 					);
 
-					// Check for post ID and strip it
+					// Check for post ID and extract it
 					const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
 					if (postIdIndex !== -1) {
-						return decoded.substring(0, postIdIndex);
+						const postIdStart = postIdIndex + ENCODING_CONSTANTS.POST_ID_DELIMITER.length;
+						const postIdEnd = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_END, postIdStart);
+						if (postIdEnd !== -1) {
+							const postId = decoded.substring(postIdStart, postIdEnd);
+							const message = decoded.substring(0, postIdIndex);
+							return { message, postId };
+						}
 					}
 
-					return decoded;
+					return { message: decoded, postId: null };
 				} catch (e2) {
 					// Last resort: Convert bytes directly to string
 					let decoded = '';
@@ -704,15 +739,126 @@
 					
 					const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
 					if (postIdIndex !== -1) {
-						return decoded.substring(0, postIdIndex);
+						const postIdStart = postIdIndex + ENCODING_CONSTANTS.POST_ID_DELIMITER.length;
+						const postIdEnd = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_END, postIdStart);
+						if (postIdEnd !== -1) {
+							const postId = decoded.substring(postIdStart, postIdEnd);
+							const message = decoded.substring(0, postIdIndex);
+							return { message, postId };
+						}
 					}
-					return decoded;
+					return { message: decoded, postId: null };
 				}
 			}
 		} catch (err) {
 			console.error('Decode error:', err);
 			throw new Error('Failed to decode: ' + err.message);
 		}
+	}
+
+	// Generate a simple browser fingerprint for analytics
+	// This is used to track unique reveals without identifying users
+	function generateFingerprint() {
+		try {
+			const canvas = document.createElement('canvas');
+			const ctx = canvas.getContext('2d');
+			if (!ctx) {
+				// Canvas not supported, use fallback
+				return generateFallbackFingerprint();
+			}
+			ctx.textBaseline = 'top';
+			ctx.font = '14px Arial';
+			ctx.fillText('fingerprint', 2, 2);
+			const canvasData = canvas.toDataURL();
+			
+			// Create a simple hash from browser properties
+			const fingerprint = [
+				navigator.userAgent,
+				navigator.language,
+				screen.colorDepth,
+				screen.width + 'x' + screen.height,
+				new Date().getTimezoneOffset(),
+				canvasData.substring(0, 100) // Use part of canvas data
+			].join('|');
+			
+			return hashString(fingerprint);
+		} catch (err) {
+			// Canvas operations failed (privacy settings, etc), use fallback
+			if (DEBUG_MODE) {
+				console.log('[Ghostpost] Canvas fingerprinting failed, using fallback:', err);
+			}
+			return generateFallbackFingerprint();
+		}
+	}
+
+	// Fallback fingerprinting without canvas
+	function generateFallbackFingerprint() {
+		const fingerprint = [
+			navigator.userAgent,
+			navigator.language,
+			screen.colorDepth,
+			screen.width + 'x' + screen.height,
+			new Date().getTimezoneOffset(),
+			navigator.platform,
+			navigator.hardwareConcurrency || 'unknown'
+		].join('|');
+		
+		return hashString(fingerprint);
+	}
+
+	// Simple hash function
+	function hashString(str) {
+		let hash = 0;
+		for (let i = 0; i < str.length; i++) {
+			const char = str.charCodeAt(i);
+			hash = ((hash << 5) - hash) + char;
+			hash = hash & hash; // Convert to 32bit integer
+		}
+		
+		return 'fp_' + Math.abs(hash).toString(36);
+	}
+
+	// Constants for reveal display
+	const LOW_COUNT_THRESHOLD = 5;
+
+	// Helper function to generate reveal stats HTML
+	function generateRevealStatsHtml(revealData) {
+		if (!revealData) {
+			return '';
+		}
+
+		if (revealData.expired) {
+			return `
+				<div style="margin-top: 12px; padding: 10px; background: #fef2f2; border-radius: 6px; border: 1px solid #ef4444;">
+					<div style="font-size: 12px; font-weight: 600; color: #b91c1c;">
+						💔 ${revealData.message}
+					</div>
+				</div>
+			`;
+		}
+
+		if (revealData.reveal_number === null) {
+			return '';
+		}
+
+		const isLowCount = revealData.remaining !== null && revealData.remaining <= LOW_COUNT_THRESHOLD;
+		const isSoldOut = revealData.remaining === 0;
+		
+		return `
+			<div style="margin-top: 12px; padding: 10px; background: ${isSoldOut ? '#fef2f2' : isLowCount ? '#fef3c7' : '#eff6ff'}; border-radius: 6px; border: 1px solid ${isSoldOut ? '#ef4444' : isLowCount ? '#f59e0b' : '#3b82f6'};">
+				<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+					<span style="font-size: 12px; font-weight: 600; color: ${isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af'};">
+						${isSoldOut ? '🔥 SOLD OUT!' : isLowCount ? `⚠️ ONLY ${revealData.remaining} LEFT!` : '👻 Limited Reveal'}
+					</span>
+					<span style="font-size: 16px; font-weight: 700; color: ${isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af'};">
+						#${revealData.reveal_number}/${revealData.total_reveals}
+					</span>
+				</div>
+				<div style="font-size: 11px; color: ${isSoldOut ? '#991b1b' : isLowCount ? '#78350f' : '#1e3a8a'};">
+					${revealData.message}
+				</div>
+			</div>
+		`;
 	}
 
 	// Function to reveal a single message inline
@@ -731,9 +877,56 @@
 		`;
 
 		// Decode the message
-		setTimeout(() => {
+		setTimeout(async () => {
 			try {
-				const decodedMessage = decodeHiddenMessage(encodedText);
+				const result = decodeHiddenMessage(encodedText);
+				const decodedMessage = result.message;
+				const postId = result.postId;
+
+				// Track reveal if post_id is present
+				let revealData = null;
+				if (postId) {
+					try {
+						// First check status
+						const statusResponse = await fetch(`https://ghostpost-six.vercel.app/api/limited-reveals/status?post_id=${postId}`);
+						const statusData = await statusResponse.json();
+						
+						if (statusData.success && statusData.status) {
+							const status = statusData.status;
+							
+							// Check if can still reveal
+							if (status.is_expired || !status.can_reveal) {
+								// Show expired message but still reveal the secret
+								revealData = {
+									expired: true,
+									message: 'This secret has expired — all reveals are gone forever 💔'
+								};
+							} else {
+								// Record the reveal with user fingerprint for analytics
+								const userFingerprint = generateFingerprint();
+								const revealResponse = await fetch('https://ghostpost-six.vercel.app/api/limited-reveals/reveal', {
+									method: 'POST',
+									headers: {
+										'Content-Type': 'application/json'
+									},
+									body: JSON.stringify({
+										post_id: postId,
+										user_fingerprint: userFingerprint
+									})
+								});
+								
+								const revealResponseData = await revealResponse.json();
+								if (revealResponseData.success) {
+									revealData = revealResponseData;
+								}
+							}
+						}
+					} catch (apiError) {
+						if (DEBUG_MODE) {
+							console.log('[Ghostpost] Limited reveals API error (showing message anyway):', apiError);
+						}
+					}
+				}
 
 				// Check if it's an image
 				const isImage = decodedMessage.startsWith('data:image/');
@@ -746,6 +939,9 @@
 						throw new Error('Invalid image format');
 					}
 
+					// Build reveal stats HTML using helper function
+					const revealStatsHtml = generateRevealStatsHtml(revealData);
+
 					itemElement.innerHTML = `
 						<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
 							<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
@@ -753,10 +949,15 @@
 								<span style="font-weight: 600; color: #059669;">Hidden Image Revealed!</span>
 							</div>
 							<img src="${decodedMessage}" style="max-width: 100%; border-radius: 4px; margin-top: 8px;" alt="Decoded hidden image" />
+							${revealStatsHtml}
 						</div>
 					`;
 				} else {
 					const escapedMessage = escapeHtml(decodedMessage);
+					
+					// Build reveal stats HTML using helper function
+					const revealStatsHtml = generateRevealStatsHtml(revealData);
+					
 					itemElement.innerHTML = `
 						<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
 							<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
@@ -764,6 +965,7 @@
 								<span style="font-weight: 600; color: #059669;">Secret Revealed!</span>
 							</div>
 							<div style="font-size: 14px; color: #065f46; background: white; padding: 10px; border-radius: 4px; margin-top: 8px; white-space: pre-wrap; word-break: break-word;">${escapedMessage}</div>
+							${revealStatsHtml}
 							<button class="copy-secret-btn" style="margin-top: 10px; padding: 6px 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
 								<span>📋</span>
 								<span>Copy Secret</span>

@@ -3,13 +3,14 @@
  * GET /api/limited-reveals/analytics?post_id={post_id}
  * 
  * Get detailed analytics for a limited secret including reveal timeline
+ * Requires authentication - only the creator can view analytics
  */
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabase } from '$lib/supabase';
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	try {
 		const post_id = url.searchParams.get('post_id');
 
@@ -29,6 +30,14 @@ export const GET: RequestHandler = async ({ url }) => {
 				success: false, 
 				error: 'Limited secret not found' 
 			}, { status: 404 });
+		}
+
+		// Verify that the user is the creator of this limited secret
+		if (!locals.session || limitedSecret.user_id !== locals.session.user.id) {
+			return json({ 
+				success: false, 
+				error: 'Unauthorized - only the creator can view analytics' 
+			}, { status: 403 });
 		}
 
 		// Get all reveal events
