@@ -24,6 +24,10 @@
 		}
 	];
 
+	// Constants
+	const WASM_INIT_DELAY_MS = 100;
+	const USERSCRIPT_CHECK_DELAY_MS = 1000;
+
 	let demoMessages: Array<{
 		title: string;
 		visible: string;
@@ -37,7 +41,7 @@
 			await initWasm();
 
 			// Give WASM a moment to fully initialize
-			await new Promise((resolve) => setTimeout(resolve, 100));
+			await new Promise((resolve) => setTimeout(resolve, WASM_INIT_DELAY_MS));
 
 			// Generate properly encoded messages at runtime
 			demoMessages = await Promise.all(
@@ -70,7 +74,7 @@
 		setTimeout(() => {
 			const button = document.getElementById('ghostpost-reveal-button');
 			installed = !!button;
-		}, 1000);
+		}, USERSCRIPT_CHECK_DELAY_MS);
 	});
 </script>
 

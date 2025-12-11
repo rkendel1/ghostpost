@@ -39,6 +39,12 @@ let wasmInitialized = false;
 const POST_ID_DELIMITER = '||ghostid:';
 const POST_ID_END = '||';
 
+// Image processing constants
+const MAX_IMAGE_SIZE_KB = 100;
+const MAX_IMAGE_WIDTH = 800;
+const MAX_IMAGE_HEIGHT = 800;
+const QUALITY_LEVELS = [0.9, 0.8, 0.7, 0.6, 0.5];
+
 /**
  * Initialize the WASM module
  * Must be called before using encode/decode functions
@@ -104,6 +110,28 @@ export async function decodeMessage(
 }
 
 /**
+ * Convert an image file to base64 string
+ * @param file - The image file to convert
+ * @returns Base64 encoded string
+ */
+function imageFileToBase64(file: File): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => {
+			const arrayBuffer = reader.result as ArrayBuffer;
+			const uint8Array = new Uint8Array(arrayBuffer);
+			let binaryString = '';
+			uint8Array.forEach((byte) => {
+				binaryString += String.fromCharCode(byte);
+			});
+			resolve(btoa(binaryString));
+		};
+		reader.onerror = () => reject(new Error('Failed to read file'));
+		reader.readAsArrayBuffer(file);
+	});
+}
+
+/**
  * Resize and compress an image if it's too large
  * @param file - The image file to process
  * @param maxSizeKB - Maximum size in KB (default: 100KB)
@@ -113,9 +141,9 @@ export async function decodeMessage(
  */
 async function resizeImageIfNeeded(
 	file: File,
-	maxSizeKB: number = 100,
-	maxWidth: number = 800,
-	maxHeight: number = 800
+	maxSizeKB: number = MAX_IMAGE_SIZE_KB,
+	maxWidth: number = MAX_IMAGE_WIDTH,
+	maxHeight: number = MAX_IMAGE_HEIGHT
 ): Promise<File> {
 	// If file is already small enough, return it as-is
 	if (file.size <= maxSizeKB * 1024) {
@@ -177,7 +205,7 @@ async function resizeImageIfNeeded(
 
 			// Try progressively lower quality until we get under the size limit
 			(async () => {
-				for (const quality of [0.9, 0.8, 0.7, 0.6, 0.5]) {
+				for (const quality of QUALITY_LEVELS) {
 					const blob = await tryQuality(quality);
 					if (blob) {
 						const newFile = new File([blob], file.name, {
@@ -225,18 +253,15 @@ export async function encodeImage(
 
 	// Resize image if needed to prevent crashes on mobile devices
 	// Maximum 100KB to keep encoded strings manageable
-	const processedFile = await resizeImageIfNeeded(imageFile, 100, 800, 800);
+	const processedFile = await resizeImageIfNeeded(
+		imageFile,
+		MAX_IMAGE_SIZE_KB,
+		MAX_IMAGE_WIDTH,
+		MAX_IMAGE_HEIGHT
+	);
 
 	// Convert image to base64
-	const arrayBuffer = await processedFile.arrayBuffer();
-	const uint8Array = new Uint8Array(arrayBuffer);
-
-	let binaryString = '';
-	uint8Array.forEach((byte) => {
-		binaryString += String.fromCharCode(byte);
-	});
-
-	const base64Image = btoa(binaryString);
+	const base64Image = await imageFileToBase64(processedFile);
 	let imageWithMeta = `data:${processedFile.type};base64,${base64Image}`;
 
 	let postId: string | undefined;
