@@ -23,9 +23,8 @@
 	}
 	
 	function installExtension() {
-		// For now, guide users to load unpacked extension
+		// Guide users to load unpacked extension
 		// In production, this would link to Chrome Web Store / Firefox Add-ons
-		alert('Extension installation: Please follow the instructions below to install the browser extension.');
 		installMethod = 'extension';
 	}
 	

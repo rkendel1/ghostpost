@@ -23,12 +23,6 @@
 		}
 	}
 
-	// Check if Tampermonkey is installed
-	function checkTampermonkey() {
-		// We can't directly detect Tampermonkey, but we can guide the user
-		return false;
-	}
-
 	function installTampermonkey() {
 		let url = '';
 		if (browserType === 'chrome' || browserType === 'edge') {
@@ -53,21 +47,7 @@
 		}, 2000);
 	}
 
-	function openExtensionSettings() {
-		let url = '';
-		if (browserType === 'chrome') {
-			url = 'chrome://extensions/';
-		} else if (browserType === 'edge') {
-			url = 'edge://extensions/';
-		} else if (browserType === 'firefox') {
-			url = 'about:addons';
-		}
-		
-		if (url) {
-			// Can't directly open chrome:// URLs, show instructions instead
-			alert(`Please manually open: ${url}\n\nThen find Tampermonkey and enable "Allow in Incognito" or "Allow in Private Windows"`);
-		}
-	}
+	// Note: openExtensionSettings removed as we now provide inline instructions in Step 3
 
 	onMount(() => {
 		detectBrowser();
