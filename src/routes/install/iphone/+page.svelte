@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	
 	let step = $state(1);
 	let userscriptsInstalled = $state(false);
 	let userscriptInstalled = $state(false);
 	let extensionEnabled = $state(false);
+	let siteUrl = $state('');
 
 	// Check if user is on iOS
 	let isIOS = $state(false);
@@ -12,6 +14,9 @@
 	onMount(() => {
 		const ua = navigator.userAgent.toLowerCase();
 		isIOS = /iphone|ipad|ipod/.test(ua);
+		
+		// Get the site's base URL
+		siteUrl = window.location.origin;
 	});
 
 	function installUserscriptsApp() {
@@ -22,9 +27,8 @@
 	function installUserscript() {
 		window.location.href = '/ghostpost-reveal.user.js';
 		step = 3;
-		setTimeout(() => {
-			userscriptInstalled = true;
-		}, 2000);
+		// Note: User must manually confirm installation in Step 3
+		// The timeout is removed - user will manually click to proceed to Step 4
 	}
 </script>
 
@@ -251,6 +255,29 @@
 				<p class="text-xs">Make sure you're viewing this page in <strong>Safari</strong> for the one-click install to work. If you're in another browser, copy this URL and open it in Safari.</p>
 			</div>
 
+			<!-- Verification -->
+			<div class="card p-6 variant-ghost-success space-y-4">
+				<h3 class="h3">✅ Verify Installation</h3>
+				<p class="text-sm">Did you tap "Install" in the Userscripts popup?</p>
+				
+				<div class="flex gap-4">
+					<button 
+						class="btn variant-filled-success flex-1"
+						on:click={() => step = 4}
+					>
+						<span>✓</span>
+						<span>Yes, installed successfully!</span>
+					</button>
+					<button 
+						class="btn variant-soft-surface flex-1"
+						on:click={installUserscript}
+					>
+						<span>↺</span>
+						<span>Try again</span>
+					</button>
+				</div>
+			</div>
+
 			<div class="text-center">
 				<button class="btn btn-sm variant-ghost-surface" on:click={() => step = 2}>
 					← Back to Step 2
@@ -311,7 +338,7 @@
 				
 				<div class="card p-4 variant-ghost-surface">
 					<code class="text-xs break-all">
-						https://ghostpost-six.vercel.app/install/iphone
+						{siteUrl}/install/iphone
 					</code>
 				</div>
 
@@ -319,7 +346,7 @@
 					Or send them this message: "Ghostpost on iPhone: Tap 
 					<a href="https://apps.apple.com/app/userscripts/id1463298887" class="anchor">this</a> 
 					to install the free app, enable in Safari Settings → Extensions. Then tap 
-					<a href="https://ghostpost-six.vercel.app/ghostpost-reveal.user.js" class="anchor">this</a> 
+					<a href="{siteUrl}/ghostpost-reveal.user.js" class="anchor">this</a> 
 					to add the 👻 button. Boom—reveal secrets anywhere!"
 				</p>
 			</div>
