@@ -1,18 +1,27 @@
 <script lang="ts">
 	import { drawerStore } from '@skeletonlabs/skeleton';
 	import { base } from '$app/paths';
+	import { authStore } from '$lib/stores/auth';
 
 	function drawerClose(): void {
 		drawerStore.close();
 	}
 
-	let menus = [
+	// Public pages accessible to everyone
+	const publicMenus = [
 		{ href: '/', label: '🏠 Home' },
-		{ href: '/compose', label: '✍️ Compose' },
 		{ href: '/decode', label: '🔍 Decode' },
-		{ href: '/dashboard', label: '📊 My Posts' },
 		{ href: '/analytics', label: '🌐 Analytics' }
 	];
+
+	// Pages that require authentication
+	const authMenus = [
+		{ href: '/compose', label: '✍️ Compose' },
+		{ href: '/dashboard', label: '📊 My Posts' }
+	];
+
+	$: user = $authStore.user;
+	$: menus = user ? [...publicMenus, ...authMenus] : publicMenus;
 </script>
 
 <nav class="list-nav p-4">

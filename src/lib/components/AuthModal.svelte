@@ -41,9 +41,9 @@
 				if (authError) {
 					error = authError.message;
 				} else {
-					modalStore.close();
 					// Redirect to dashboard after successful sign-in
 					await goto('/dashboard');
+					modalStore.close();
 				}
 			}
 		} catch (err) {
