@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.3.1
+// @version      2.3.2
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -22,6 +22,13 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.3.2 (2025-12-11):
+ * - CODE QUALITY: Addressed code review feedback
+ * - Added error handling to fingerprinting with fallback methods
+ * - Extracted LOW_COUNT_THRESHOLD constant (was magic number 5)
+ * - Created generateRevealStatsHtml() helper to eliminate code duplication
+ * - Improved maintainability and robustness for privacy-focused browsers
+ *
  * v2.3.1 (2025-12-11):
  * - ANALYTICS: Added user fingerprinting for reveal tracking
  * - Generates anonymous browser fingerprint using canvas and browser properties
@@ -111,7 +118,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.3.1';
+	const SCRIPT_VERSION = '2.3.2';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Check if button already exists (might be from an old version)
@@ -752,32 +759,106 @@
 	// Generate a simple browser fingerprint for analytics
 	// This is used to track unique reveals without identifying users
 	function generateFingerprint() {
-		const canvas = document.createElement('canvas');
-		const ctx = canvas.getContext('2d');
-		ctx.textBaseline = 'top';
-		ctx.font = '14px Arial';
-		ctx.fillText('fingerprint', 2, 2);
-		const canvasData = canvas.toDataURL();
-		
-		// Create a simple hash from browser properties
+		try {
+			const canvas = document.createElement('canvas');
+			const ctx = canvas.getContext('2d');
+			if (!ctx) {
+				// Canvas not supported, use fallback
+				return generateFallbackFingerprint();
+			}
+			ctx.textBaseline = 'top';
+			ctx.font = '14px Arial';
+			ctx.fillText('fingerprint', 2, 2);
+			const canvasData = canvas.toDataURL();
+			
+			// Create a simple hash from browser properties
+			const fingerprint = [
+				navigator.userAgent,
+				navigator.language,
+				screen.colorDepth,
+				screen.width + 'x' + screen.height,
+				new Date().getTimezoneOffset(),
+				canvasData.substring(0, 100) // Use part of canvas data
+			].join('|');
+			
+			return hashString(fingerprint);
+		} catch (err) {
+			// Canvas operations failed (privacy settings, etc), use fallback
+			if (DEBUG_MODE) {
+				console.log('[Ghostpost] Canvas fingerprinting failed, using fallback:', err);
+			}
+			return generateFallbackFingerprint();
+		}
+	}
+
+	// Fallback fingerprinting without canvas
+	function generateFallbackFingerprint() {
 		const fingerprint = [
 			navigator.userAgent,
 			navigator.language,
 			screen.colorDepth,
 			screen.width + 'x' + screen.height,
 			new Date().getTimezoneOffset(),
-			canvasData.substring(0, 100) // Use part of canvas data
+			navigator.platform,
+			navigator.hardwareConcurrency || 'unknown'
 		].join('|');
 		
-		// Simple hash function
+		return hashString(fingerprint);
+	}
+
+	// Simple hash function
+	function hashString(str) {
 		let hash = 0;
-		for (let i = 0; i < fingerprint.length; i++) {
-			const char = fingerprint.charCodeAt(i);
+		for (let i = 0; i < str.length; i++) {
+			const char = str.charCodeAt(i);
 			hash = ((hash << 5) - hash) + char;
 			hash = hash & hash; // Convert to 32bit integer
 		}
 		
 		return 'fp_' + Math.abs(hash).toString(36);
+	}
+
+	// Constants for reveal display
+	const LOW_COUNT_THRESHOLD = 5;
+
+	// Helper function to generate reveal stats HTML
+	function generateRevealStatsHtml(revealData) {
+		if (!revealData) {
+			return '';
+		}
+
+		if (revealData.expired) {
+			return `
+				<div style="margin-top: 12px; padding: 10px; background: #fef2f2; border-radius: 6px; border: 1px solid #ef4444;">
+					<div style="font-size: 12px; font-weight: 600; color: #b91c1c;">
+						💔 ${revealData.message}
+					</div>
+				</div>
+			`;
+		}
+
+		if (revealData.reveal_number === null) {
+			return '';
+		}
+
+		const isLowCount = revealData.remaining !== null && revealData.remaining <= LOW_COUNT_THRESHOLD;
+		const isSoldOut = revealData.remaining === 0;
+		
+		return `
+			<div style="margin-top: 12px; padding: 10px; background: ${isSoldOut ? '#fef2f2' : isLowCount ? '#fef3c7' : '#eff6ff'}; border-radius: 6px; border: 1px solid ${isSoldOut ? '#ef4444' : isLowCount ? '#f59e0b' : '#3b82f6'};">
+				<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+					<span style="font-size: 12px; font-weight: 600; color: ${isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af'};">
+						${isSoldOut ? '🔥 SOLD OUT!' : isLowCount ? `⚠️ ONLY ${revealData.remaining} LEFT!` : '👻 Limited Reveal'}
+					</span>
+					<span style="font-size: 16px; font-weight: 700; color: ${isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af'};">
+						#${revealData.reveal_number}/${revealData.total_reveals}
+					</span>
+				</div>
+				<div style="font-size: 11px; color: ${isSoldOut ? '#991b1b' : isLowCount ? '#78350f' : '#1e3a8a'};">
+					${revealData.message}
+				</div>
+			</div>
+		`;
 	}
 
 	// Function to reveal a single message inline
@@ -858,35 +939,8 @@
 						throw new Error('Invalid image format');
 					}
 
-					// Build reveal stats HTML
-					let revealStatsHtml = '';
-					if (revealData && !revealData.expired && revealData.reveal_number !== null) {
-						const isLowCount = revealData.remaining !== null && revealData.remaining <= 5;
-						const isSoldOut = revealData.remaining === 0;
-						revealStatsHtml = `
-							<div style="margin-top: 12px; padding: 10px; background: ${isSoldOut ? '#fef2f2' : isLowCount ? '#fef3c7' : '#eff6ff'}; border-radius: 6px; border: 1px solid ${isSoldOut ? '#ef4444' : isLowCount ? '#f59e0b' : '#3b82f6'};">
-								<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-									<span style="font-size: 12px; font-weight: 600; color: ${isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af'};">
-										${isSoldOut ? '🔥 SOLD OUT!' : isLowCount ? `⚠️ ONLY ${revealData.remaining} LEFT!` : '👻 Limited Reveal'}
-									</span>
-									<span style="font-size: 16px; font-weight: 700; color: ${isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af'};">
-										#${revealData.reveal_number}/${revealData.total_reveals}
-									</span>
-								</div>
-								<div style="font-size: 11px; color: ${isSoldOut ? '#991b1b' : isLowCount ? '#78350f' : '#1e3a8a'};">
-									${revealData.message}
-								</div>
-							</div>
-						`;
-					} else if (revealData && revealData.expired) {
-						revealStatsHtml = `
-							<div style="margin-top: 12px; padding: 10px; background: #fef2f2; border-radius: 6px; border: 1px solid #ef4444;">
-								<div style="font-size: 12px; font-weight: 600; color: #b91c1c;">
-									💔 ${revealData.message}
-								</div>
-							</div>
-						`;
-					}
+					// Build reveal stats HTML using helper function
+					const revealStatsHtml = generateRevealStatsHtml(revealData);
 
 					itemElement.innerHTML = `
 						<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
@@ -901,35 +955,8 @@
 				} else {
 					const escapedMessage = escapeHtml(decodedMessage);
 					
-					// Build reveal stats HTML
-					let revealStatsHtml = '';
-					if (revealData && !revealData.expired && revealData.reveal_number !== null) {
-						const isLowCount = revealData.remaining !== null && revealData.remaining <= 5;
-						const isSoldOut = revealData.remaining === 0;
-						revealStatsHtml = `
-							<div style="margin-top: 12px; padding: 10px; background: ${isSoldOut ? '#fef2f2' : isLowCount ? '#fef3c7' : '#eff6ff'}; border-radius: 6px; border: 1px solid ${isSoldOut ? '#ef4444' : isLowCount ? '#f59e0b' : '#3b82f6'};">
-								<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-									<span style="font-size: 12px; font-weight: 600; color: ${isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af'};">
-										${isSoldOut ? '🔥 SOLD OUT!' : isLowCount ? `⚠️ ONLY ${revealData.remaining} LEFT!` : '👻 Limited Reveal'}
-									</span>
-									<span style="font-size: 16px; font-weight: 700; color: ${isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af'};">
-										#${revealData.reveal_number}/${revealData.total_reveals}
-									</span>
-								</div>
-								<div style="font-size: 11px; color: ${isSoldOut ? '#991b1b' : isLowCount ? '#78350f' : '#1e3a8a'};">
-									${revealData.message}
-								</div>
-							</div>
-						`;
-					} else if (revealData && revealData.expired) {
-						revealStatsHtml = `
-							<div style="margin-top: 12px; padding: 10px; background: #fef2f2; border-radius: 6px; border: 1px solid #ef4444;">
-								<div style="font-size: 12px; font-weight: 600; color: #b91c1c;">
-									💔 ${revealData.message}
-								</div>
-							</div>
-						`;
-					}
+					// Build reveal stats HTML using helper function
+					const revealStatsHtml = generateRevealStatsHtml(revealData);
 					
 					itemElement.innerHTML = `
 						<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
