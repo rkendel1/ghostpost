@@ -644,32 +644,24 @@
 			// Note: Rust's DeflateEncoder produces RAW DEFLATE format (no zlib headers)
 			// We must use pako.inflateRaw() not pako.inflate()
 			let finalBytes;
-			try {
-				// Use pako to decompress RAW DEFLATE data
-				if (typeof pako !== 'undefined' && pako.inflateRaw) {
-					try {
-						finalBytes = pako.inflateRaw(decodedBytes);
-						if (DEBUG_MODE) {
-							console.log('[Ghostpost] Successfully decompressed with pako.inflateRaw');
-						}
-					} catch (decompressError) {
-						// Decompression failed - might be legacy uncompressed message
-						// Fall back to using original bytes
-						if (DEBUG_MODE) {
-							console.log('[Ghostpost] Decompression failed, trying uncompressed:', decompressError);
-						}
-						finalBytes = decodedBytes;
+			// Use pako to decompress RAW DEFLATE data
+			if (typeof pako !== 'undefined' && typeof pako.inflateRaw === 'function') {
+				try {
+					finalBytes = pako.inflateRaw(decodedBytes);
+					if (DEBUG_MODE) {
+						console.log('[Ghostpost] Successfully decompressed with pako.inflateRaw');
 					}
-				} else {
-					// Pako not available - use uncompressed bytes
-					console.warn('[Ghostpost] Pako library not available, assuming uncompressed message');
+				} catch (decompressError) {
+					// Decompression failed - might be legacy uncompressed message
+					// Fall back to using original bytes
+					if (DEBUG_MODE) {
+						console.log('[Ghostpost] Decompression failed, trying uncompressed:', decompressError);
+					}
 					finalBytes = decodedBytes;
 				}
-			} catch (e) {
-				// If decompression fails, try uncompressed
-				if (DEBUG_MODE) {
-					console.log('[Ghostpost] Exception during decompression, using uncompressed:', e);
-				}
+			} else {
+				// Pako not available - use uncompressed bytes
+				console.warn('[Ghostpost] Pako library not available, assuming uncompressed message');
 				finalBytes = decodedBytes;
 			}
 
