@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.1.2
+// @version      2.1.3
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -12,6 +12,7 @@
 // @exclude      *://*.bank.*/*
 // @exclude      *://*.paypal.*/*
 // @grant        none
+// @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js#sha512-ao+909PCNAe2ioXJCM/z62rT8g1nCdUhtyWz1jL7UlcN2ysLjNAz3OTWwSTd67QqYyj9VCZe9/8Zxqhxh3C0aA==
 // @updateURL    https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // @downloadURL  https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // ==/UserScript==
@@ -21,6 +22,12 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.1.3 (2025-12-11):
+ * - CRITICAL FIX: Added decompression support for encoded messages
+ * - Now properly decodes compressed secrets using pako.js DEFLATE
+ * - Fixes garbled text issue when revealing secrets
+ * - Backward compatible with legacy uncompressed messages
+ *
  * v2.1.2 (2025-12-11):
  * - MOBILE FIX: Made overlay modal responsive for better mobile viewing
  * - Modal width now adapts to screen size (screen width - 40px, max 400px)
@@ -84,8 +91,28 @@
 
 	// Configuration
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.1.2';
+	const SCRIPT_VERSION = '2.1.3';
 	const DEBUG_MODE = false; // Set to true for verbose logging
+
+	/**
+	 * Dynamically load pako.js for DEFLATE decompression if not already loaded
+	 * Returns a promise that resolves when pako is ready
+	 */
+	async function ensurePako() {
+		if (typeof pako !== 'undefined') {
+			return;
+		}
+
+		return new Promise((resolve, reject) => {
+			const script = document.createElement('script');
+			script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
+			script.integrity = 'sha512-ao+909PCNAe2ioXJCM/z62rT8g1nCdUhtyWz1jL7UlcN2ysLjNAz3OTWwSTd67QqYyj9VCZe9/8Zxqhxh3C0aA==';
+			script.crossOrigin = 'anonymous';
+			script.onload = () => resolve();
+			script.onerror = () => reject(new Error('Failed to load pako.js'));
+			document.head.appendChild(script);
+		});
+	}
 
 	// Check if button already exists (might be from an old version)
 	const existingButton = document.getElementById(BUTTON_ID);
@@ -576,9 +603,13 @@
 
 	/**
 	 * Decode a hidden message from encoded text (client-side implementation)
+	 * Now supports DEFLATE decompression for compressed messages
 	 */
-	function decodeHiddenMessage(encodedText) {
+	async function decodeHiddenMessage(encodedText) {
 		try {
+			// Ensure pako is loaded
+			await ensurePako();
+
 			// Extract content between delimiters (FEFF characters)
 			const parts = encodedText.split('\uFEFF');
 			if (parts.length < 2) {
@@ -606,8 +637,7 @@
 				throw new Error('Invalid encoded content');
 			}
 
-			// Decode base64 to get the secret message
-			// Use atob for base64 decoding, then properly decode UTF-8
+			// Decode base64 to get the compressed/uncompressed bytes
 			let decodedBytes;
 			try {
 				decodedBytes = atob(base64String);
@@ -615,30 +645,46 @@
 				throw new Error('Invalid base64 encoding');
 			}
 
+			// Convert base64 decoded string to Uint8Array
+			const byteArray = new Uint8Array(decodedBytes.length);
+			for (let i = 0; i < decodedBytes.length; i++) {
+				byteArray[i] = decodedBytes.charCodeAt(i);
+			}
+
+			// Try decompressing first (for new compressed messages)
+			// If decompression fails, it's likely a legacy uncompressed message
+			let finalBytes;
 			try {
-				// Convert byte string to proper UTF-8
-				const decoded = decodeURIComponent(
+				finalBytes = pako.inflate(byteArray);
+			} catch (e) {
+				// Decompression failed - likely legacy uncompressed message
+				if (DEBUG_MODE) {
+					console.log('[Ghostpost] Decompression failed, trying uncompressed:', e);
+				}
+				finalBytes = byteArray;
+			}
+
+			// Decode UTF-8
+			let decoded;
+			try {
+				decoded = new TextDecoder('utf-8').decode(finalBytes);
+			} catch (e) {
+				// Fallback to manual UTF-8 decode
+				decoded = decodeURIComponent(
 					Array.from(
-						decodedBytes,
-						(c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+						finalBytes,
+						(byte) => '%' + ('00' + byte.toString(16)).slice(-2)
 					).join('')
 				);
-
-				// Check for post ID and strip it
-				const postIdIndex = decoded.indexOf(POST_ID_DELIMITER);
-				if (postIdIndex !== -1) {
-					return decoded.substring(0, postIdIndex);
-				}
-
-				return decoded;
-			} catch (e) {
-				// If UTF-8 decoding fails, return the raw decoded bytes
-				const postIdIndex = decodedBytes.indexOf(POST_ID_DELIMITER);
-				if (postIdIndex !== -1) {
-					return decodedBytes.substring(0, postIdIndex);
-				}
-				return decodedBytes;
 			}
+
+			// Check for post ID and strip it
+			const postIdIndex = decoded.indexOf(POST_ID_DELIMITER);
+			if (postIdIndex !== -1) {
+				return decoded.substring(0, postIdIndex);
+			}
+
+			return decoded;
 		} catch (err) {
 			console.error('Decode error:', err);
 			throw new Error('Failed to decode: ' + err.message);
@@ -646,7 +692,7 @@
 	}
 
 	// Function to reveal a single message inline
-	function revealSingleMessage(encodedText, textNode, element, itemElement, revealBtn) {
+	async function revealSingleMessage(encodedText, textNode, element, itemElement, revealBtn) {
 		// Hide the reveal button
 		revealBtn.style.display = 'none';
 
@@ -660,122 +706,120 @@
 			</div>
 		`;
 
-		// Decode the message
-		setTimeout(() => {
-			try {
-				const decodedMessage = decodeHiddenMessage(encodedText);
+		// Decode the message (async)
+		try {
+			const decodedMessage = await decodeHiddenMessage(encodedText);
 
-				// Check if it's an image
-				const isImage = decodedMessage.startsWith('data:image/');
+			// Check if it's an image
+			const isImage = decodedMessage.startsWith('data:image/');
 
-				// Show the decoded content
-				if (isImage) {
-					// Validate data URL format to prevent XSS
-					const dataUrlPattern = /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/;
-					if (!dataUrlPattern.test(decodedMessage)) {
-						throw new Error('Invalid image format');
-					}
-
-					itemElement.innerHTML = `
-						<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
-							<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-								<span style="font-size: 20px;">✨</span>
-								<span style="font-weight: 600; color: #059669;">Hidden Image Revealed!</span>
-							</div>
-							<img src="${decodedMessage}" style="max-width: 100%; border-radius: 4px; margin-top: 8px;" alt="Decoded hidden image" />
-						</div>
-					`;
-				} else {
-					const escapedMessage = escapeHtml(decodedMessage);
-					itemElement.innerHTML = `
-						<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
-							<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-								<span style="font-size: 20px;">✨</span>
-								<span style="font-weight: 600; color: #059669;">Secret Revealed!</span>
-							</div>
-							<div style="font-size: 14px; color: #065f46; background: white; padding: 10px; border-radius: 4px; margin-top: 8px; white-space: pre-wrap; word-break: break-word;">${escapedMessage}</div>
-							<button class="copy-secret-btn" style="margin-top: 10px; padding: 6px 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
-								<span>📋</span>
-								<span>Copy Secret</span>
-							</button>
-						</div>
-					`;
-
-					// Add copy functionality
-					setTimeout(() => {
-						const copyBtn = itemElement.querySelector('.copy-secret-btn');
-						if (copyBtn) {
-							copyBtn.onclick = function () {
-								// Check if clipboard API is available
-								if (!navigator.clipboard || !navigator.clipboard.writeText) {
-									// Fallback for browsers without clipboard API
-									const textArea = document.createElement('textarea');
-									textArea.value = decodedMessage;
-									textArea.style.position = 'fixed';
-									textArea.style.left = '-999999px';
-									document.body.appendChild(textArea);
-									textArea.select();
-									try {
-										document.execCommand('copy');
-										this.innerHTML = '<span>✅</span><span>Copied!</span>';
-										setTimeout(() => {
-											this.innerHTML = '<span>📋</span><span>Copy Secret</span>';
-										}, 2000);
-									} catch (err) {
-										console.error('Copy failed:', err);
-										showNotification('Failed to copy to clipboard', 'error');
-									}
-									document.body.removeChild(textArea);
-									return;
-								}
-
-								navigator.clipboard
-									.writeText(decodedMessage)
-									.then(() => {
-										this.innerHTML = '<span>✅</span><span>Copied!</span>';
-										setTimeout(() => {
-											this.innerHTML = '<span>📋</span><span>Copy Secret</span>';
-										}, 2000);
-									})
-									.catch((err) => {
-										console.error('Copy failed:', err);
-										showNotification('Failed to copy to clipboard', 'error');
-									});
-							};
-						}
-					}, 0);
+			// Show the decoded content
+			if (isImage) {
+				// Validate data URL format to prevent XSS
+				const dataUrlPattern = /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/;
+				if (!dataUrlPattern.test(decodedMessage)) {
+					throw new Error('Invalid image format');
 				}
 
-				// Flash the element on page to indicate which one was revealed
-				highlightElement(element);
-				setTimeout(() => {
-					element.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
-				}, 300);
-			} catch (err) {
-				// Show error
 				itemElement.innerHTML = `
-					<div style="padding: 15px; background: #fef2f2; border-radius: 8px; border-left: 4px solid #ef4444; margin-top: 10px;">
+					<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
 						<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-							<span style="font-size: 20px;">❌</span>
-							<span style="font-weight: 600; color: #b91c1c;">Decoding Failed</span>
+							<span style="font-size: 20px;">✨</span>
+							<span style="font-weight: 600; color: #059669;">Hidden Image Revealed!</span>
 						</div>
-						<p style="font-size: 13px; color: #991b1b; margin: 0;">${escapeHtml(err.message)}</p>
-						<button class="retry-reveal-btn" style="margin-top: 10px; padding: 6px 12px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Try Again</button>
+						<img src="${decodedMessage}" style="max-width: 100%; border-radius: 4px; margin-top: 8px;" alt="Decoded hidden image" />
+					</div>
+				`;
+			} else {
+				const escapedMessage = escapeHtml(decodedMessage);
+				itemElement.innerHTML = `
+					<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
+						<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+							<span style="font-size: 20px;">✨</span>
+							<span style="font-weight: 600; color: #059669;">Secret Revealed!</span>
+						</div>
+						<div style="font-size: 14px; color: #065f46; background: white; padding: 10px; border-radius: 4px; margin-top: 8px; white-space: pre-wrap; word-break: break-word;">${escapedMessage}</div>
+						<button class="copy-secret-btn" style="margin-top: 10px; padding: 6px 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+							<span>📋</span>
+							<span>Copy Secret</span>
+						</button>
 					</div>
 				`;
 
-				// Add retry functionality
+				// Add copy functionality
 				setTimeout(() => {
-					const retryBtn = itemElement.querySelector('.retry-reveal-btn');
-					if (retryBtn) {
-						retryBtn.onclick = function () {
-							itemElement.innerHTML = '';
-							revealBtn.style.display = 'inline-flex';
+					const copyBtn = itemElement.querySelector('.copy-secret-btn');
+					if (copyBtn) {
+						copyBtn.onclick = function () {
+							// Check if clipboard API is available
+							if (!navigator.clipboard || !navigator.clipboard.writeText) {
+								// Fallback for browsers without clipboard API
+								const textArea = document.createElement('textarea');
+								textArea.value = decodedMessage;
+								textArea.style.position = 'fixed';
+								textArea.style.left = '-999999px';
+								document.body.appendChild(textArea);
+								textArea.select();
+								try {
+									document.execCommand('copy');
+									this.innerHTML = '<span>✅</span><span>Copied!</span>';
+									setTimeout(() => {
+										this.innerHTML = '<span>📋</span><span>Copy Secret</span>';
+									}, 2000);
+								} catch (err) {
+									console.error('Copy failed:', err);
+									showNotification('Failed to copy to clipboard', 'error');
+								}
+								document.body.removeChild(textArea);
+								return;
+							}
+
+							navigator.clipboard
+								.writeText(decodedMessage)
+								.then(() => {
+									this.innerHTML = '<span>✅</span><span>Copied!</span>';
+									setTimeout(() => {
+										this.innerHTML = '<span>📋</span><span>Copy Secret</span>';
+									}, 2000);
+								})
+								.catch((err) => {
+									console.error('Copy failed:', err);
+									showNotification('Failed to copy to clipboard', 'error');
+								});
 						};
 					}
 				}, 0);
 			}
-		}, 100);
+
+			// Flash the element on page to indicate which one was revealed
+			highlightElement(element);
+			setTimeout(() => {
+				element.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+			}, 300);
+		} catch (err) {
+			// Show error
+			itemElement.innerHTML = `
+				<div style="padding: 15px; background: #fef2f2; border-radius: 8px; border-left: 4px solid #ef4444; margin-top: 10px;">
+					<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+						<span style="font-size: 20px;">❌</span>
+						<span style="font-weight: 600; color: #b91c1c;">Decoding Failed</span>
+					</div>
+					<p style="font-size: 13px; color: #991b1b; margin: 0;">${escapeHtml(err.message)}</p>
+					<button class="retry-reveal-btn" style="margin-top: 10px; padding: 6px 12px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Try Again</button>
+				</div>
+			`;
+
+			// Add retry functionality
+			setTimeout(() => {
+				const retryBtn = itemElement.querySelector('.retry-reveal-btn');
+				if (retryBtn) {
+					retryBtn.onclick = function () {
+						itemElement.innerHTML = '';
+						revealBtn.style.display = 'inline-flex';
+					};
+				}
+			}, 0);
+		}
 	}
 
 	// Utility function to escape HTML
@@ -991,7 +1035,7 @@
 
 		// Reveal button handlers
 		modal.querySelectorAll('.reveal-btn').forEach((btn) => {
-			btn.onclick = function () {
+			btn.onclick = async function () {
 				const index = parseInt(this.dataset.index, 10);
 				const { node, encodedText } = hiddenMessages[index];
 				const element = node.parentElement;
@@ -999,7 +1043,7 @@
 
 				// Reveal the message using stored encodedText
 				// This is critical for X.com/Twitter where re-reading may lose invisible characters
-				revealSingleMessage(encodedText, node, element, contentDiv, this);
+				await revealSingleMessage(encodedText, node, element, contentDiv, this);
 			};
 		});
 
