@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.0.2
+// @version      2.0.3
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -19,7 +19,16 @@
 /**
  * Ghostpost Reveal Userscript
  *
- * NEW in v2.0.2:
+ * CHANGELOG:
+ * ==========
+ * v2.0.3 (2025-12-11):
+ * - FIXED: X.com/Twitter decode failures - "No hidden content found" error
+ * - Changed detectHiddenMessages() to use node.data instead of node.textContent
+ * - Store encoded text at detection time to prevent Unicode character loss
+ * - Detection now returns {node, encodedText} objects for reliable decoding
+ * - Better preservation of invisible Unicode characters on dynamic DOM platforms
+ *
+ * v2.0.2:
  * - Fixed X.com/Twitter decode issue: Now uses text node content directly instead of element.textContent
  * - This preserves invisible Unicode characters that may be lost when accessing parent element content
  * - Fixes "No hidden content found" error on X.com and similar platforms
@@ -56,7 +65,7 @@
 
 	// Configuration
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.0.2';
+	const SCRIPT_VERSION = '2.0.3';
 
 	// Check if button already exists (might be from an old version)
 	const existingButton = document.getElementById(BUTTON_ID);
@@ -223,8 +232,9 @@
 	}
 
 	// Function to detect hidden messages with performance optimization
+	// Returns array of objects: { node, encodedText }
 	function detectHiddenMessages() {
-		const textNodes = [];
+		const results = [];
 		const startTime = Date.now();
 		let nodesChecked = 0;
 
@@ -254,12 +264,16 @@
 
 			nodesChecked++;
 
-			if (node.textContent && isLikelyHidenlyMessage(node.textContent)) {
-				textNodes.push(node);
+			// Use node.data (or nodeValue) instead of textContent for text nodes
+			// This preserves invisible Unicode characters better on X.com/Twitter
+			const nodeText = node.data || node.nodeValue || node.textContent || '';
+			if (nodeText && isLikelyHidenlyMessage(nodeText)) {
+				// Store both the node and the encoded text at detection time
+				results.push({ node, encodedText: nodeText });
 			}
 		}
 
-		return textNodes;
+		return results;
 	}
 
 	// Detect if on a social media site for micro-pulsing
@@ -686,7 +700,7 @@
 		}
 
 		// Highlight all elements with hidden messages
-		hiddenMessages.forEach((node) => {
+		hiddenMessages.forEach(({ node }) => {
 			const element = node.parentElement;
 			if (element) highlightElement(element);
 		});
@@ -772,7 +786,7 @@
 		`;
 
 		// Add message items
-		hiddenMessages.forEach((node, index) => {
+		hiddenMessages.forEach(({ node, encodedText }, index) => {
 			const element = node.parentElement;
 			if (!element) return;
 
@@ -883,14 +897,12 @@
 		modal.querySelectorAll('.reveal-btn').forEach((btn) => {
 			btn.onclick = function () {
 				const index = parseInt(this.dataset.index, 10);
-				const node = hiddenMessages[index];
+				const { node, encodedText } = hiddenMessages[index];
 				const element = node.parentElement;
-				// Use the text node's content directly to preserve invisible characters
-				// This is critical for X.com/Twitter where element.textContent may be normalized
-				const encodedText = node.textContent;
 				const contentDiv = this.parentElement.nextElementSibling;
 
-				// Reveal the message
+				// Reveal the message using stored encodedText
+				// This is critical for X.com/Twitter where re-reading may lose invisible characters
 				revealSingleMessage(encodedText, node, element, contentDiv, this);
 			};
 		});
@@ -899,7 +911,7 @@
 		modal.querySelectorAll('.locate-btn').forEach((btn) => {
 			btn.onclick = function () {
 				const index = parseInt(this.dataset.index, 10);
-				const node = hiddenMessages[index];
+				const { node } = hiddenMessages[index];
 				const element = node.parentElement;
 
 				// Scroll to element
