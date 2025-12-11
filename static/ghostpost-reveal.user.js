@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.1.1
+// @version      2.1.2
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -21,6 +21,11 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.1.2 (2025-12-11):
+ * - MOBILE FIX: Made overlay modal responsive for better mobile viewing
+ * - Modal width now adapts to screen size (90% width on mobile, max 400px)
+ * - Ensures 20px margin on each side for better mobile web experience
+ *
  * v2.1.1 (2025-12-11):
  * - CODE QUALITY: Extracted common text extraction logic to reduce duplication
  * - Added DEBUG_MODE flag to control console logging in production
@@ -79,7 +84,7 @@
 
 	// Configuration
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.1.1';
+	const SCRIPT_VERSION = '2.1.2';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Check if button already exists (might be from an old version)
@@ -797,7 +802,9 @@
 		// Calculate position above ghost button
 		const ghostButton = document.getElementById(BUTTON_ID);
 		const buttonRect = ghostButton.getBoundingClientRect();
-		const modalWidth = 400;
+		// Make modal responsive: narrower on mobile, wider on desktop
+		// Use 90% of screen width on mobile (max 400px), with 20px margin on each side
+		const modalWidth = Math.min(400, window.innerWidth - 40);
 		const modalMaxHeight = Math.min(500, window.innerHeight - 120);
 
 		// Position modal above the button, centered horizontally with it
