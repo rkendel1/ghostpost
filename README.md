@@ -185,15 +185,17 @@ This is the **fastest and easiest** way to use Ghostpost:
 2. **Follow the guided process** - Install Tampermonkey → Install Userscript → Done!
 
 The installation wizard will:
+
 - Guide you through installing Tampermonkey (one-time, 30 seconds)
 - Install the Ghostpost Reveal userscript with one click
 - Verify installation and show you how to enable incognito mode (optional)
 - Test that everything works correctly
 
 **What you get:**
+
 - A floating 👻 button on every website (bottom-right corner)
 - Automatic scanning for hidden Ghostpost messages
-- Red counter badge when secrets are detected  
+- Red counter badge when secrets are detected
 - One-click reveal of all hidden messages
 - Auto-updates (no maintenance needed!)
 - Works on all websites (Twitter, Reddit, Discord, etc.)

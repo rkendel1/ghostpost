@@ -1,7 +1,7 @@
 /**
  * API Endpoint: Get Reveal Analytics
  * GET /api/limited-reveals/analytics?post_id={post_id}
- * 
+ *
  * Get detailed analytics for a limited secret including reveal timeline
  * Requires authentication - only the creator can view analytics
  */
@@ -26,18 +26,24 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			.single();
 
 		if (secretError || !limitedSecret) {
-			return json({ 
-				success: false, 
-				error: 'Limited secret not found' 
-			}, { status: 404 });
+			return json(
+				{
+					success: false,
+					error: 'Limited secret not found'
+				},
+				{ status: 404 }
+			);
 		}
 
 		// Verify that the user is the creator of this limited secret
 		if (!locals.session || limitedSecret.user_id !== locals.session.user.id) {
-			return json({ 
-				success: false, 
-				error: 'Unauthorized - only the creator can view analytics' 
-			}, { status: 403 });
+			return json(
+				{
+					success: false,
+					error: 'Unauthorized - only the creator can view analytics'
+				},
+				{ status: 403 }
+			);
 		}
 
 		// Get all reveal events
@@ -53,13 +59,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		// Calculate analytics
 		const events = revealEvents || [];
-		const timeSeriesData = events.map(event => ({
+		const timeSeriesData = events.map((event) => ({
 			reveal_number: event.reveal_number,
 			timestamp: event.timestamp
 		}));
 
-		const remaining = limitedSecret.max_reveals 
-			? limitedSecret.max_reveals - limitedSecret.current_reveals 
+		const remaining = limitedSecret.max_reveals
+			? limitedSecret.max_reveals - limitedSecret.current_reveals
 			: null;
 
 		const percentage = limitedSecret.max_reveals

@@ -1,118 +1,125 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-    <title>Test Ghostpost Compression</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 20px;
-        }
-        .result {
-            background: #f0f0f0;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 5px;
-        }
-        .stats {
-            background: #e8f5e9;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 5px;
-        }
-        textarea {
-            width: 100%;
-            min-height: 100px;
-            margin: 10px 0;
-        }
-    </style>
-</head>
-<body>
-    <h1>GhostPost Compression Test</h1>
-    
-    <h2>Test 1: Text Encoding</h2>
-    <div>
-        <label>Visible Message:</label>
-        <input type="text" id="visibleText" value="Hello World" style="width: 100%; padding: 5px;">
-    </div>
-    <div>
-        <label>Secret Message:</label>
-        <input type="text" id="secretText" value="This is a secret message that will be compressed!" style="width: 100%; padding: 5px;">
-    </div>
-    <button onclick="testTextEncoding()">Encode Text</button>
-    <div id="textResult" class="result" style="display: none;"></div>
-    <div id="textStats" class="stats" style="display: none;"></div>
+	<head>
+		<title>Test Ghostpost Compression</title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				max-width: 800px;
+				margin: 50px auto;
+				padding: 20px;
+			}
+			.result {
+				background: #f0f0f0;
+				padding: 15px;
+				margin: 10px 0;
+				border-radius: 5px;
+			}
+			.stats {
+				background: #e8f5e9;
+				padding: 15px;
+				margin: 10px 0;
+				border-radius: 5px;
+			}
+			textarea {
+				width: 100%;
+				min-height: 100px;
+				margin: 10px 0;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>GhostPost Compression Test</h1>
 
-    <h2>Test 2: Compare with/without Compression</h2>
-    <p>Testing a longer text message to see compression benefits:</p>
-    <button onclick="testCompression()">Test Compression Ratio</button>
-    <div id="compressionResult" class="result" style="display: none;"></div>
+		<h2>Test 1: Text Encoding</h2>
+		<div>
+			<label>Visible Message:</label>
+			<input type="text" id="visibleText" value="Hello World" style="width: 100%; padding: 5px" />
+		</div>
+		<div>
+			<label>Secret Message:</label>
+			<input
+				type="text"
+				id="secretText"
+				value="This is a secret message that will be compressed!"
+				style="width: 100%; padding: 5px"
+			/>
+		</div>
+		<button onclick="testTextEncoding()">Encode Text</button>
+		<div id="textResult" class="result" style="display: none"></div>
+		<div id="textStats" class="stats" style="display: none"></div>
 
-    <script type="module">
-        import init, { encode, decode } from '/wasm/pkg/wasm.js';
-        
-        // Initialize WASM
-        await init();
-        console.log('WASM initialized successfully');
-        
-        window.testTextEncoding = async function() {
-            const visible = document.getElementById('visibleText').value;
-            const secret = document.getElementById('secretText').value;
-            
-            const encoded = encode(visible, secret);
-            
-            const visibleLength = visible.length;
-            const totalLength = encoded.length;
-            const hiddenLength = totalLength - visibleLength;
-            
-            document.getElementById('textResult').style.display = 'block';
-            document.getElementById('textResult').innerHTML = `
+		<h2>Test 2: Compare with/without Compression</h2>
+		<p>Testing a longer text message to see compression benefits:</p>
+		<button onclick="testCompression()">Test Compression Ratio</button>
+		<div id="compressionResult" class="result" style="display: none"></div>
+
+		<script type="module">
+			import init, { encode, decode } from '/wasm/pkg/wasm.js';
+
+			// Initialize WASM
+			await init();
+			console.log('WASM initialized successfully');
+
+			window.testTextEncoding = async function () {
+				const visible = document.getElementById('visibleText').value;
+				const secret = document.getElementById('secretText').value;
+
+				const encoded = encode(visible, secret);
+
+				const visibleLength = visible.length;
+				const totalLength = encoded.length;
+				const hiddenLength = totalLength - visibleLength;
+
+				document.getElementById('textResult').style.display = 'block';
+				document.getElementById('textResult').innerHTML = `
                 <strong>Encoded Message:</strong><br>
                 <textarea readonly>${encoded}</textarea>
             `;
-            
-            document.getElementById('textStats').style.display = 'block';
-            document.getElementById('textStats').innerHTML = `
+
+				document.getElementById('textStats').style.display = 'block';
+				document.getElementById('textStats').innerHTML = `
                 <strong>Character Count:</strong><br>
                 Visible message: ${visibleLength} characters<br>
                 Hidden characters: ${hiddenLength} characters<br>
                 Total length: ${totalLength} characters<br>
                 <br>
-                <strong>Compression Ratio:</strong> ${(secret.length / hiddenLength * 100).toFixed(2)}% 
+                <strong>Compression Ratio:</strong> ${((secret.length / hiddenLength) * 100).toFixed(2)}% 
                 (${secret.length} bytes compressed to ${hiddenLength} chars)
             `;
-            
-            // Test decoding
-            try {
-                const decoded = decode(encoded);
-                console.log('Decoded successfully:', decoded);
-                document.getElementById('textStats').innerHTML += `<br><br>✅ Decoding successful: "${decoded}"`;
-            } catch (err) {
-                console.error('Decoding failed:', err);
-                document.getElementById('textStats').innerHTML += `<br><br>❌ Decoding failed: ${err}`;
-            }
-        };
-        
-        window.testCompression = async function() {
-            const visible = "Test Message";
-            // Create a longer secret to test compression
-            const secret = "This is a much longer secret message that contains repetitive data. ".repeat(10);
-            
-            const encoded = encode(visible, secret);
-            
-            const visibleLength = visible.length;
-            const totalLength = encoded.length;
-            const hiddenLength = totalLength - visibleLength;
-            
-            // Calculate efficiency
-            const secretBytes = secret.length;
-            const compressionRatio = ((hiddenLength / secretBytes) * 100).toFixed(2);
-            const savings = secretBytes - hiddenLength;
-            const savingsPercent = ((savings / secretBytes) * 100).toFixed(2);
-            
-            document.getElementById('compressionResult').style.display = 'block';
-            document.getElementById('compressionResult').innerHTML = `
+
+				// Test decoding
+				try {
+					const decoded = decode(encoded);
+					console.log('Decoded successfully:', decoded);
+					document.getElementById('textStats').innerHTML +=
+						`<br><br>✅ Decoding successful: "${decoded}"`;
+				} catch (err) {
+					console.error('Decoding failed:', err);
+					document.getElementById('textStats').innerHTML += `<br><br>❌ Decoding failed: ${err}`;
+				}
+			};
+
+			window.testCompression = async function () {
+				const visible = 'Test Message';
+				// Create a longer secret to test compression
+				const secret =
+					'This is a much longer secret message that contains repetitive data. '.repeat(10);
+
+				const encoded = encode(visible, secret);
+
+				const visibleLength = visible.length;
+				const totalLength = encoded.length;
+				const hiddenLength = totalLength - visibleLength;
+
+				// Calculate efficiency
+				const secretBytes = secret.length;
+				const compressionRatio = ((hiddenLength / secretBytes) * 100).toFixed(2);
+				const savings = secretBytes - hiddenLength;
+				const savingsPercent = ((savings / secretBytes) * 100).toFixed(2);
+
+				document.getElementById('compressionResult').style.display = 'block';
+				document.getElementById('compressionResult').innerHTML = `
                 <strong>Compression Analysis:</strong><br>
                 Original secret size: ${secretBytes} bytes<br>
                 Encoded hidden characters: ${hiddenLength} characters<br>
@@ -123,17 +130,19 @@
                 <br>
                 ${totalLength > 40000 ? '⚠️ <span style="color: red;">Warning: Exceeds 40,000 character limit!</span>' : '✅ <span style="color: green;">Within acceptable limits for most platforms</span>'}
             `;
-            
-            // Test decoding
-            try {
-                const decoded = decode(encoded);
-                const matches = decoded === secret;
-                document.getElementById('compressionResult').innerHTML += `<br><br>✅ Decoding ${matches ? 'successful' : 'FAILED'}: ${decoded.length} characters recovered`;
-            } catch (err) {
-                console.error('Decoding failed:', err);
-                document.getElementById('compressionResult').innerHTML += `<br><br>❌ Decoding failed: ${err}`;
-            }
-        };
-    </script>
-</body>
+
+				// Test decoding
+				try {
+					const decoded = decode(encoded);
+					const matches = decoded === secret;
+					document.getElementById('compressionResult').innerHTML +=
+						`<br><br>✅ Decoding ${matches ? 'successful' : 'FAILED'}: ${decoded.length} characters recovered`;
+				} catch (err) {
+					console.error('Decoding failed:', err);
+					document.getElementById('compressionResult').innerHTML +=
+						`<br><br>❌ Decoding failed: ${err}`;
+				}
+			};
+		</script>
+	</body>
 </html>

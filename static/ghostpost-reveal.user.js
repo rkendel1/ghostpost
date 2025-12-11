@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.3.2
+// @version      2.3.3
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -22,6 +22,12 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.3.3 (2025-12-11):
+ * - RESPONSIVE: Made overlay modal responsive for mobile devices
+ * - Modal width now uses Math.min(400, window.innerWidth - 40) formula
+ * - Maintains 20px margin on each side for mobile while max 400px for desktop
+ * - Prevents modal from exceeding mobile viewport boundaries
+ *
  * v2.3.2 (2025-12-11):
  * - CODE QUALITY: Addressed code review feedback
  * - Added error handling to fingerprinting with fallback methods
@@ -118,7 +124,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.3.2';
+	const SCRIPT_VERSION = '2.3.3';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Check if button already exists (might be from an old version)
@@ -302,7 +308,7 @@
 	/**
 	 * Site-specific text extraction strategies
 	 * Each site can define how to best extract text from nodes
-	 * 
+	 *
 	 * TO ADD A NEW SITE:
 	 * Simply add a new entry with the domain as key and an adapter object:
 	 * 'example.com': {
@@ -315,7 +321,7 @@
 		'x.com': twitterAdapter,
 		'twitter.com': twitterAdapter,
 		// Default strategy for all other sites
-		'default': {
+		default: {
 			extractText: defaultTextExtraction,
 			description: 'Standard text extraction with Unicode preservation'
 		}
@@ -326,7 +332,7 @@
 	 */
 	function getSiteAdapter() {
 		const hostname = window.location.hostname.toLowerCase();
-		
+
 		// Check for exact match (e.g., 'x.com', 'twitter.com')
 		if (SITE_ADAPTERS[hostname]) {
 			if (DEBUG_MODE) {
@@ -334,7 +340,7 @@
 			}
 			return SITE_ADAPTERS[hostname];
 		}
-		
+
 		// Check for subdomain match (e.g., 'mobile.twitter.com' matches 'twitter.com')
 		// Note: hostname.endsWith('.' + domain) ensures proper subdomain matching
 		// For example: 'mobile.twitter.com'.endsWith('.twitter.com') = true
@@ -347,7 +353,7 @@
 				return SITE_ADAPTERS[domain];
 			}
 		}
-		
+
 		// Fall back to default
 		if (DEBUG_MODE) {
 			console.log('[Ghostpost] Using default adapter');
@@ -610,7 +616,7 @@
 			'\u202C\u202D': '+',
 			'\u202C\u202C': '/'
 		}),
-		
+
 		// Delimiters used in encoding format
 		POST_ID_DELIMITER: '||ghostid:',
 		POST_ID_END: '||',
@@ -711,10 +717,7 @@
 				// Fallback: Try decodeURIComponent method
 				try {
 					const decoded = decodeURIComponent(
-						Array.from(
-							finalBytes,
-							(byte) => '%' + ('00' + byte.toString(16)).slice(-2)
-						).join('')
+						Array.from(finalBytes, (byte) => '%' + ('00' + byte.toString(16)).slice(-2)).join('')
 					);
 
 					// Check for post ID and extract it
@@ -736,7 +739,7 @@
 					for (let i = 0; i < finalBytes.length; i++) {
 						decoded += String.fromCharCode(finalBytes[i]);
 					}
-					
+
 					const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
 					if (postIdIndex !== -1) {
 						const postIdStart = postIdIndex + ENCODING_CONSTANTS.POST_ID_DELIMITER.length;
@@ -770,7 +773,7 @@
 			ctx.font = '14px Arial';
 			ctx.fillText('fingerprint', 2, 2);
 			const canvasData = canvas.toDataURL();
-			
+
 			// Create a simple hash from browser properties
 			const fingerprint = [
 				navigator.userAgent,
@@ -780,7 +783,7 @@
 				new Date().getTimezoneOffset(),
 				canvasData.substring(0, 100) // Use part of canvas data
 			].join('|');
-			
+
 			return hashString(fingerprint);
 		} catch (err) {
 			// Canvas operations failed (privacy settings, etc), use fallback
@@ -802,7 +805,7 @@
 			navigator.platform,
 			navigator.hardwareConcurrency || 'unknown'
 		].join('|');
-		
+
 		return hashString(fingerprint);
 	}
 
@@ -811,10 +814,10 @@
 		let hash = 0;
 		for (let i = 0; i < str.length; i++) {
 			const char = str.charCodeAt(i);
-			hash = ((hash << 5) - hash) + char;
+			hash = (hash << 5) - hash + char;
 			hash = hash & hash; // Convert to 32bit integer
 		}
-		
+
 		return 'fp_' + Math.abs(hash).toString(36);
 	}
 
@@ -843,7 +846,7 @@
 
 		const isLowCount = revealData.remaining !== null && revealData.remaining <= LOW_COUNT_THRESHOLD;
 		const isSoldOut = revealData.remaining === 0;
-		
+
 		return `
 			<div style="margin-top: 12px; padding: 10px; background: ${isSoldOut ? '#fef2f2' : isLowCount ? '#fef3c7' : '#eff6ff'}; border-radius: 6px; border: 1px solid ${isSoldOut ? '#ef4444' : isLowCount ? '#f59e0b' : '#3b82f6'};">
 				<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
@@ -888,12 +891,14 @@
 				if (postId) {
 					try {
 						// First check status
-						const statusResponse = await fetch(`https://ghostpost-six.vercel.app/api/limited-reveals/status?post_id=${postId}`);
+						const statusResponse = await fetch(
+							`https://ghostpost-six.vercel.app/api/limited-reveals/status?post_id=${postId}`
+						);
 						const statusData = await statusResponse.json();
-						
+
 						if (statusData.success && statusData.status) {
 							const status = statusData.status;
-							
+
 							// Check if can still reveal
 							if (status.is_expired || !status.can_reveal) {
 								// Show expired message but still reveal the secret
@@ -904,17 +909,20 @@
 							} else {
 								// Record the reveal with user fingerprint for analytics
 								const userFingerprint = generateFingerprint();
-								const revealResponse = await fetch('https://ghostpost-six.vercel.app/api/limited-reveals/reveal', {
-									method: 'POST',
-									headers: {
-										'Content-Type': 'application/json'
-									},
-									body: JSON.stringify({
-										post_id: postId,
-										user_fingerprint: userFingerprint
-									})
-								});
-								
+								const revealResponse = await fetch(
+									'https://ghostpost-six.vercel.app/api/limited-reveals/reveal',
+									{
+										method: 'POST',
+										headers: {
+											'Content-Type': 'application/json'
+										},
+										body: JSON.stringify({
+											post_id: postId,
+											user_fingerprint: userFingerprint
+										})
+									}
+								);
+
 								const revealResponseData = await revealResponse.json();
 								if (revealResponseData.success) {
 									revealData = revealResponseData;
@@ -923,7 +931,10 @@
 						}
 					} catch (apiError) {
 						if (DEBUG_MODE) {
-							console.log('[Ghostpost] Limited reveals API error (showing message anyway):', apiError);
+							console.log(
+								'[Ghostpost] Limited reveals API error (showing message anyway):',
+								apiError
+							);
 						}
 					}
 				}
@@ -954,10 +965,10 @@
 					`;
 				} else {
 					const escapedMessage = escapeHtml(decodedMessage);
-					
+
 					// Build reveal stats HTML using helper function
 					const revealStatsHtml = generateRevealStatsHtml(revealData);
-					
+
 					itemElement.innerHTML = `
 						<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
 							<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
@@ -1074,7 +1085,7 @@
 		// Calculate position above ghost button
 		const ghostButton = document.getElementById(BUTTON_ID);
 		const buttonRect = ghostButton.getBoundingClientRect();
-		const modalWidth = 400;
+		const modalWidth = Math.min(400, window.innerWidth - 40);
 		const modalMaxHeight = Math.min(500, window.innerHeight - 120);
 
 		// Position modal above the button, centered horizontally with it

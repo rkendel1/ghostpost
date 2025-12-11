@@ -1,7 +1,7 @@
 /**
  * API Endpoint: Get Reveal Status
  * GET /api/limited-reveals/status?post_id={post_id}
- * 
+ *
  * Check if a secret can be revealed and get current status
  */
 
@@ -44,12 +44,13 @@ export const GET: RequestHandler = async ({ url }) => {
 		const remaining = limitedSecret.max_reveals
 			? limitedSecret.max_reveals - limitedSecret.current_reveals
 			: null;
-		
+
 		const percentage = limitedSecret.max_reveals
 			? (limitedSecret.current_reveals / limitedSecret.max_reveals) * 100
 			: null;
 
-		const canReveal = !limitedSecret.is_expired && 
+		const canReveal =
+			!limitedSecret.is_expired &&
 			(!limitedSecret.max_reveals || limitedSecret.current_reveals < limitedSecret.max_reveals);
 
 		const status: RevealStatus = {

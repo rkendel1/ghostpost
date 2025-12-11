@@ -13,7 +13,10 @@
 	export let hiddenType: string = 'text';
 
 	let image = '';
-	let encodedImage: Promise<EncodingWithStats> = Promise.resolve({ text: '', stats: { visibleLength: 0, hiddenLength: 0, totalLength: 0 } });
+	let encodedImage: Promise<EncodingWithStats> = Promise.resolve({
+		text: '',
+		stats: { visibleLength: 0, hiddenLength: 0, totalLength: 0 }
+	});
 	let imageError = '';
 
 	async function imageToBase64(imageFile: File): Promise<string> {
@@ -59,7 +62,8 @@
 	}
 
 	async function encodeTextMessage(msg: string, secret: string): Promise<EncodingWithStats> {
-		if (!msg || !secret) return { text: '', stats: { visibleLength: 0, hiddenLength: 0, totalLength: 0 } };
+		if (!msg || !secret)
+			return { text: '', stats: { visibleLength: 0, hiddenLength: 0, totalLength: 0 } };
 		const result = await encodeMsg(msg, secret, false);
 		return {
 			text: result.encoded,

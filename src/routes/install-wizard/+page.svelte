@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	
+
 	let extensionInstalled = $state(false);
 	let userscriptInstalled = $state(false);
 	let browserType = $state<'chrome' | 'firefox' | 'safari' | 'edge' | 'other'>('other');
 	let installMethod = $state<'extension' | 'userscript' | null>(null);
-	
+
 	// Detect browser
 	function detectBrowser() {
 		const ua = navigator.userAgent.toLowerCase();
@@ -21,13 +21,13 @@
 			browserType = 'other';
 		}
 	}
-	
+
 	function installExtension() {
 		// Guide users to load unpacked extension
 		// In production, this would link to Chrome Web Store / Firefox Add-ons
 		installMethod = 'extension';
 	}
-	
+
 	function installUserscript() {
 		window.location.href = '/ghostpost-reveal.user.js';
 		installMethod = 'userscript';
@@ -35,7 +35,7 @@
 			userscriptInstalled = true;
 		}, 1000);
 	}
-	
+
 	onMount(() => {
 		detectBrowser();
 	});
@@ -53,9 +53,7 @@
 	<!-- Hero Section -->
 	<div class="card p-10 space-y-4 text-center variant-gradient-primary-secondary">
 		<div class="text-7xl mb-4">👻</div>
-		<h1 class="h1 text-white">
-			Ghostpost Reveal
-		</h1>
+		<h1 class="h1 text-white">Ghostpost Reveal</h1>
 		<p class="text-xl text-white/90 max-w-2xl mx-auto">
 			Discover hidden messages on any website with one click. Zero configuration. Works everywhere.
 		</p>
@@ -74,9 +72,9 @@
 						<h3 class="h3">Browser Extension</h3>
 						<span class="badge variant-filled-success">Recommended</span>
 					</div>
-					
+
 					<div class="text-4xl text-center">🚀</div>
-					
+
 					<ul class="space-y-2 text-sm">
 						<li class="flex items-start gap-2">
 							<span class="text-success-500">✓</span>
@@ -100,10 +98,7 @@
 						</li>
 					</ul>
 
-					<button 
-						class="btn variant-filled-primary w-full" 
-						on:click={installExtension}
-					>
+					<button class="btn variant-filled-primary w-full" on:click={installExtension}>
 						<span class="text-xl">⚡</span>
 						<span>Install Extension</span>
 					</button>
@@ -126,9 +121,9 @@
 				<!-- Userscript Option -->
 				<div class="card p-6 variant-ghost-surface space-y-4">
 					<h3 class="h3">Userscript</h3>
-					
+
 					<div class="text-4xl text-center">📜</div>
-					
+
 					<ul class="space-y-2 text-sm">
 						<li class="flex items-start gap-2">
 							<span class="text-warning-500">⚠</span>
@@ -152,17 +147,15 @@
 						</li>
 					</ul>
 
-					<button 
-						class="btn variant-filled-surface w-full" 
-						on:click={() => installMethod = 'userscript'}
+					<button
+						class="btn variant-filled-surface w-full"
+						on:click={() => (installMethod = 'userscript')}
 					>
 						<span>📋</span>
 						<span>Choose Userscript</span>
 					</button>
 
-					<p class="text-xs text-center opacity-70">
-						Alternative installation method
-					</p>
+					<p class="text-xs text-center opacity-70">Alternative installation method</p>
 				</div>
 			</div>
 		</div>
@@ -173,7 +166,7 @@
 		<div class="card p-8 space-y-6">
 			<div class="flex items-center justify-between">
 				<h2 class="h2">Browser Extension Installation</h2>
-				<button class="btn btn-sm variant-ghost-surface" on:click={() => installMethod = null}>
+				<button class="btn btn-sm variant-ghost-surface" on:click={() => (installMethod = null)}>
 					← Back
 				</button>
 			</div>
@@ -186,15 +179,17 @@
 						<ol class="list-decimal list-inside space-y-3 text-sm">
 							<li class="font-bold">Download the extension package:</li>
 							<div class="ml-6 mt-2">
-								<a 
-									href="https://github.com/rkendel1/ghostpost/archive/refs/heads/main.zip" 
+								<a
+									href="https://github.com/rkendel1/ghostpost/archive/refs/heads/main.zip"
 									class="btn variant-filled-primary"
 									download
 								>
 									<span>⬇️</span>
 									<span>Download Extension</span>
 								</a>
-								<p class="text-xs mt-2 opacity-70">Extract and navigate to the `browser-extension` folder</p>
+								<p class="text-xs mt-2 opacity-70">
+									Extract and navigate to the `browser-extension` folder
+								</p>
 							</div>
 
 							<li class="font-bold mt-4">Open your browser's extension page:</li>
@@ -212,7 +207,9 @@
 
 							<li class="font-bold">Click "Load unpacked" button</li>
 
-							<li class="font-bold">Select the `browser-extension` folder from the extracted files</li>
+							<li class="font-bold">
+								Select the `browser-extension` folder from the extracted files
+							</li>
 
 							<li class="font-bold">The 👻 button will now appear on every website!</li>
 						</ol>
@@ -220,8 +217,10 @@
 						<div class="card p-4 variant-ghost-success mt-6">
 							<p class="text-sm">
 								<strong>✅ Optional:</strong> To use in incognito/private mode:
-								<br/>
-								<span class="text-xs opacity-80">Click "Details" on the extension → Enable "Allow in Incognito"</span>
+								<br />
+								<span class="text-xs opacity-80"
+									>Click "Details" on the extension → Enable "Allow in Incognito"</span
+								>
 							</p>
 						</div>
 					</div>
@@ -236,29 +235,38 @@
 						<ol class="list-decimal list-inside space-y-3 text-sm">
 							<li class="font-bold">Download the extension:</li>
 							<div class="ml-6 mt-2">
-								<a 
-									href="https://github.com/rkendel1/ghostpost/archive/refs/heads/main.zip" 
+								<a
+									href="https://github.com/rkendel1/ghostpost/archive/refs/heads/main.zip"
 									class="btn variant-filled-primary"
 									download
 								>
 									<span>⬇️</span>
 									<span>Download Extension</span>
 								</a>
-								<p class="text-xs mt-2 opacity-70">Extract and navigate to the `browser-extension` folder</p>
+								<p class="text-xs mt-2 opacity-70">
+									Extract and navigate to the `browser-extension` folder
+								</p>
 							</div>
 
-							<li class="font-bold mt-4">Open Firefox and navigate to <code class="code">about:debugging#/runtime/this-firefox</code></li>
+							<li class="font-bold mt-4">
+								Open Firefox and navigate to <code class="code"
+									>about:debugging#/runtime/this-firefox</code
+								>
+							</li>
 
 							<li class="font-bold">Click "Load Temporary Add-on"</li>
 
-							<li class="font-bold">Navigate to the browser-extension folder and select any file</li>
+							<li class="font-bold">
+								Navigate to the browser-extension folder and select any file
+							</li>
 
 							<li class="font-bold">The 👻 button will now appear on every website!</li>
 						</ol>
 
 						<div class="card p-4 variant-ghost-warning mt-6">
 							<p class="text-sm">
-								<strong>⚠️ Note:</strong> Temporary add-ons are removed when Firefox restarts. For permanent installation, use the userscript method or wait for the official Firefox add-on release.
+								<strong>⚠️ Note:</strong> Temporary add-ons are removed when Firefox restarts. For permanent
+								installation, use the userscript method or wait for the official Firefox add-on release.
 							</p>
 						</div>
 					</div>
@@ -289,7 +297,7 @@
 		<div class="card p-8 space-y-6">
 			<div class="flex items-center justify-between">
 				<h2 class="h2">Userscript Installation</h2>
-				<button class="btn btn-sm variant-ghost-surface" on:click={() => installMethod = null}>
+				<button class="btn btn-sm variant-ghost-surface" on:click={() => (installMethod = null)}>
 					← Back
 				</button>
 			</div>
@@ -341,10 +349,7 @@
 							Once you have a userscript manager installed, click this button:
 						</p>
 
-						<button 
-							class="btn variant-filled-primary btn-xl w-full" 
-							on:click={installUserscript}
-						>
+						<button class="btn variant-filled-primary btn-xl w-full" on:click={installUserscript}>
 							<span class="text-2xl">⚡</span>
 							<span class="text-xl">Install Ghostpost Reveal</span>
 						</button>
@@ -358,16 +363,19 @@
 					<div class="card p-6 variant-ghost-surface">
 						<h3 class="h3 text-sm mb-3">⚙️ Recommended Configuration</h3>
 						<p class="text-sm mb-3">The userscript is pre-configured with optimal settings:</p>
-						
+
 						<ul class="list-disc list-inside space-y-2 text-sm ml-4">
-							<li><strong>Auto-update:</strong> Enabled by default (script updates automatically)</li>
+							<li>
+								<strong>Auto-update:</strong> Enabled by default (script updates automatically)
+							</li>
 							<li><strong>All websites:</strong> Runs on all pages automatically</li>
 							<li><strong>Security:</strong> Sensitive domains (banking, login) are excluded</li>
 						</ul>
 
 						<div class="card p-4 variant-ghost-warning mt-4">
 							<p class="text-xs">
-								<strong>For incognito/private mode:</strong> You need to enable your userscript manager (Tampermonkey) to run in incognito mode from your browser's extension settings.
+								<strong>For incognito/private mode:</strong> You need to enable your userscript manager
+								(Tampermonkey) to run in incognito mode from your browser's extension settings.
 							</p>
 						</div>
 					</div>
@@ -378,9 +386,7 @@
 					<p>
 						Your userscript manager should have prompted you to install the Ghostpost Reveal script.
 					</p>
-					<p>
-						If you approved it, the 👻 button will now appear on every website you visit!
-					</p>
+					<p>If you approved it, the 👻 button will now appear on every website you visit!</p>
 
 					<div class="text-center mt-6">
 						<a href="/demo" class="btn variant-filled-success">
@@ -431,9 +437,9 @@
 		<details class="space-y-2">
 			<summary class="font-bold cursor-pointer">Button not appearing after installation?</summary>
 			<p class="text-sm mt-2 ml-4">
-				• Refresh the page (press F5 or Cmd+R)<br/>
-				• Check that your extension/userscript manager is enabled<br/>
-				• Verify the extension/script has permission to run on all websites<br/>
+				• Refresh the page (press F5 or Cmd+R)<br />
+				• Check that your extension/userscript manager is enabled<br />
+				• Verify the extension/script has permission to run on all websites<br />
 				• Try opening a new tab
 			</p>
 		</details>
@@ -449,8 +455,9 @@
 		<details class="space-y-2">
 			<summary class="font-bold cursor-pointer">Need to uninstall?</summary>
 			<p class="text-sm mt-2 ml-4">
-				<strong>Extension:</strong> Go to your browser's extensions page and click "Remove"<br/>
-				<strong>Userscript:</strong> Open your userscript manager, find "Ghostpost Reveal", and delete it
+				<strong>Extension:</strong> Go to your browser's extensions page and click "Remove"<br />
+				<strong>Userscript:</strong> Open your userscript manager, find "Ghostpost Reveal", and delete
+				it
 			</p>
 		</details>
 

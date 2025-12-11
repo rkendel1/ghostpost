@@ -90,7 +90,7 @@ export function subscribeRevealEvents(
  */
 export async function broadcastRevealEvent(postId: string, revealNumber: number): Promise<void> {
 	const channel = supabase.channel(`reveal-broadcast:${postId}`);
-	
+
 	await channel.send({
 		type: 'broadcast',
 		event: 'reveal',

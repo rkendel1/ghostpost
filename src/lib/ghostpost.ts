@@ -81,12 +81,12 @@ export async function encodeMessage(
 	}
 
 	const encoded = encode(visibleMessage, finalSecret);
-	
+
 	// Calculate character counts
 	const visibleLength = visibleMessage.length;
 	const totalLength = encoded.length;
 	const hiddenLength = totalLength - visibleLength;
-	
+
 	return { encoded, postId, visibleLength, hiddenLength, totalLength };
 }
 
@@ -280,12 +280,12 @@ export async function encodeImage(
 	}
 
 	const encoded = encode(visibleMessage, imageWithMeta);
-	
+
 	// Calculate character counts
 	const visibleLength = visibleMessage.length;
 	const totalLength = encoded.length;
 	const hiddenLength = totalLength - visibleLength;
-	
+
 	return { encoded, postId, visibleLength, hiddenLength, totalLength };
 }
 

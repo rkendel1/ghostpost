@@ -5,6 +5,7 @@
 The userscript has been updated from v2.2.0 to v2.2.1 to fix garbled character decoding issues.
 
 ### What Changed
+
 - **Problem:** `pako.inflate()` was being used (expects zlib format)
 - **Solution:** Changed to `pako.inflateRaw()` (handles raw DEFLATE)
 - **Result:** Messages now decode correctly instead of showing garbled text
@@ -14,6 +15,7 @@ The userscript has been updated from v2.2.0 to v2.2.1 to fix garbled character d
 ### Option 1: Automated Browser Test
 
 1. **Open the test page:**
+
    ```
    https://your-deployment-url/test-pako-fix.html
    ```
@@ -21,7 +23,6 @@ The userscript has been updated from v2.2.0 to v2.2.1 to fix garbled character d
 2. **Run the tests:**
    - Click "Run Test" under each section
    - All tests should show green checkmarks (✅)
-   
 3. **Expected results:**
    - Test 1: `pako.inflate()` fails with "incorrect header check" ✅
    - Test 2: `pako.inflateRaw()` succeeds with correct text ✅
@@ -30,12 +31,14 @@ The userscript has been updated from v2.2.0 to v2.2.1 to fix garbled character d
 ### Option 2: Manual Testing with Real Messages
 
 #### Step 1: Create a Test Message
+
 1. Go to the Compose page: `https://your-deployment-url/compose`
 2. Enter visible message: "Test message"
 3. Enter secret: "This is a secret"
 4. Click "Encode" and copy the result
 
 #### Step 2: Test Decoding
+
 1. Open a new page or social media post
 2. Paste the encoded message
 3. The ghost button (👻) should appear with a red badge showing "1"
@@ -43,6 +46,7 @@ The userscript has been updated from v2.2.0 to v2.2.1 to fix garbled character d
 5. Click "Reveal" on the message
 
 #### Step 3: Verify Results
+
 **✅ SUCCESS if you see:** "This is a secret"  
 **❌ FAILURE if you see:** Garbled characters like `s��!�Rp�}...`
 
@@ -53,52 +57,53 @@ Open browser console and paste this test:
 ```javascript
 // Test the fix
 (async function testPakoFix() {
-    // Load pako if not already loaded
-    if (typeof pako === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
-        document.head.appendChild(script);
-        await new Promise(resolve => script.onload = resolve);
-    }
+	// Load pako if not already loaded
+	if (typeof pako === 'undefined') {
+		const script = document.createElement('script');
+		script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
+		document.head.appendChild(script);
+		await new Promise((resolve) => (script.onload = resolve));
+	}
 
-    console.log('%cTesting Pako Fix', 'font-size: 20px; font-weight: bold; color: #667eea');
-    
-    const testString = "Hello, Ghostpost!";
-    console.log('Original:', testString);
-    
-    // Simulate Rust encoding (compress with raw DEFLATE)
-    const compressed = pako.deflateRaw(new TextEncoder().encode(testString));
-    console.log('Compressed:', compressed.length, 'bytes');
-    
-    // Test wrong method (the bug)
-    try {
-        pako.inflate(compressed);
-        console.log('%c❌ pako.inflate() should have failed!', 'color: red');
-    } catch (e) {
-        console.log('%c✅ pako.inflate() failed correctly:', 'color: green', e.message);
-    }
-    
-    // Test correct method (the fix)
-    try {
-        const decompressed = pako.inflateRaw(compressed);
-        const decoded = new TextDecoder().decode(decompressed);
-        if (decoded === testString) {
-            console.log('%c✅ pako.inflateRaw() WORKS PERFECTLY!', 'color: green; font-weight: bold');
-            console.log('Decoded:', decoded);
-        } else {
-            console.log('%c❌ Mismatch!', 'color: red');
-        }
-    } catch (e) {
-        console.log('%c❌ pako.inflateRaw() failed:', 'color: red', e.message);
-    }
-    
-    // Show the bug
-    const garbled = new TextDecoder('utf-8', {fatal: false}).decode(compressed);
-    console.log('%cWithout decompression (the bug):', 'color: orange', garbled);
+	console.log('%cTesting Pako Fix', 'font-size: 20px; font-weight: bold; color: #667eea');
+
+	const testString = 'Hello, Ghostpost!';
+	console.log('Original:', testString);
+
+	// Simulate Rust encoding (compress with raw DEFLATE)
+	const compressed = pako.deflateRaw(new TextEncoder().encode(testString));
+	console.log('Compressed:', compressed.length, 'bytes');
+
+	// Test wrong method (the bug)
+	try {
+		pako.inflate(compressed);
+		console.log('%c❌ pako.inflate() should have failed!', 'color: red');
+	} catch (e) {
+		console.log('%c✅ pako.inflate() failed correctly:', 'color: green', e.message);
+	}
+
+	// Test correct method (the fix)
+	try {
+		const decompressed = pako.inflateRaw(compressed);
+		const decoded = new TextDecoder().decode(decompressed);
+		if (decoded === testString) {
+			console.log('%c✅ pako.inflateRaw() WORKS PERFECTLY!', 'color: green; font-weight: bold');
+			console.log('Decoded:', decoded);
+		} else {
+			console.log('%c❌ Mismatch!', 'color: red');
+		}
+	} catch (e) {
+		console.log('%c❌ pako.inflateRaw() failed:', 'color: red', e.message);
+	}
+
+	// Show the bug
+	const garbled = new TextDecoder('utf-8', { fatal: false }).decode(compressed);
+	console.log('%cWithout decompression (the bug):', 'color: orange', garbled);
 })();
 ```
 
 **Expected output:**
+
 ```
 Testing Pako Fix
 Original: Hello, Ghostpost!
@@ -114,6 +119,7 @@ Without decompression (the bug): �H����/,.�/..Q�
 ### Issue: Userscript not updating
 
 **Solution:**
+
 1. Open userscript manager (Tampermonkey/Greasemonkey/etc.)
 2. Find "Ghostpost Reveal"
 3. Click "Check for updates" or manually update
@@ -122,6 +128,7 @@ Without decompression (the bug): �H����/,.�/..Q�
 ### Issue: Still seeing garbled text
 
 **Check:**
+
 1. Verify userscript version is 2.2.1 (check console or script manager)
 2. Clear browser cache and reload
 3. Check console for errors:
@@ -133,6 +140,7 @@ Without decompression (the bug): �H����/,.�/..Q�
 ### Issue: "Pako library not available" warning
 
 **Solution:**
+
 1. Check network: Pako loads from CDN
 2. Verify CDN is accessible:
    ```
@@ -146,6 +154,7 @@ Without decompression (the bug): �H����/,.�/..Q�
 ### Verify the Fix in Code
 
 Check the userscript code contains:
+
 ```javascript
 // ✅ CORRECT (v2.2.1)
 if (typeof pako !== 'undefined' && typeof pako.inflateRaw === 'function') {
@@ -153,6 +162,7 @@ if (typeof pako !== 'undefined' && typeof pako.inflateRaw === 'function') {
 ```
 
 NOT:
+
 ```javascript
 // ❌ WRONG (v2.2.0)
 if (typeof pako !== 'undefined' && pako.inflate) {
@@ -162,9 +172,10 @@ if (typeof pako !== 'undefined' && pako.inflate) {
 ### Verify Version
 
 In browser console:
+
 ```javascript
 // Check version
-document.querySelector('#ghostpost-reveal-button')?.dataset?.version
+document.querySelector('#ghostpost-reveal-button')?.dataset?.version;
 // Should return: "2.2.1"
 ```
 
@@ -174,25 +185,30 @@ To verify messages are using raw DEFLATE:
 
 ```javascript
 // In Node.js or browser with pako
-const testSecret = "Test";
+const testSecret = 'Test';
 const compressed = pako.deflateRaw(new TextEncoder().encode(testSecret));
 
 // These should match Rust output
-console.log('Hex:', Array.from(compressed).map(b => b.toString(16).padStart(2, '0')).join(' '));
+console.log(
+	'Hex:',
+	Array.from(compressed)
+		.map((b) => b.toString(16).padStart(2, '0'))
+		.join(' ')
+);
 
 // Try both methods
-try { 
-    pako.inflate(compressed); 
-    console.log('inflate: ❌ Should have failed'); 
-} catch { 
-    console.log('inflate: ✅ Failed as expected'); 
+try {
+	pako.inflate(compressed);
+	console.log('inflate: ❌ Should have failed');
+} catch {
+	console.log('inflate: ✅ Failed as expected');
 }
 
-try { 
-    const result = pako.inflateRaw(compressed); 
-    console.log('inflateRaw: ✅', new TextDecoder().decode(result)); 
-} catch { 
-    console.log('inflateRaw: ❌ Failed unexpectedly'); 
+try {
+	const result = pako.inflateRaw(compressed);
+	console.log('inflateRaw: ✅', new TextDecoder().decode(result));
+} catch {
+	console.log('inflateRaw: ❌ Failed unexpectedly');
 }
 ```
 
@@ -201,6 +217,7 @@ try {
 ### Test with Multiple Platforms
 
 Test the userscript on various platforms:
+
 - [ ] Twitter/X posts
 - [ ] Facebook posts
 - [ ] LinkedIn updates
@@ -230,7 +247,7 @@ Test the userscript on various platforms:
 5. **Special Characters**
    - Test with emojis: "Secret 😊🎉"
    - Test with Unicode: "Тест Δοκιμή テスト"
-   - Test with symbols: "Test!@#$%^&*()"
+   - Test with symbols: "Test!@#$%^&\*()"
 
 ## Regression Testing
 
@@ -262,6 +279,7 @@ console.timeEnd('decode');
 ## Security Verification
 
 Confirm no new vulnerabilities:
+
 - [ ] CodeQL scan: 0 alerts
 - [ ] No eval() or dangerous functions
 - [ ] Proper HTML escaping
@@ -271,6 +289,7 @@ Confirm no new vulnerabilities:
 ## Success Criteria
 
 ✅ **Fix is successful if:**
+
 1. Decoded messages show correct readable text
 2. No garbled characters appear
 3. Legacy uncompressed messages still work
@@ -284,6 +303,7 @@ Confirm no new vulnerabilities:
 If issues occur:
 
 1. **Immediate rollback:**
+
    ```javascript
    // In userscript, change back to:
    finalBytes = pako.inflate(decodedBytes);
@@ -309,6 +329,7 @@ If issues occur:
 ## Support
 
 If you encounter issues:
+
 1. Check this guide first
 2. Run the console test above
 3. Check browser console for errors
