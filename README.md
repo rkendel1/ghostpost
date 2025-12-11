@@ -179,7 +179,7 @@ ghostpost/
 
 This is the **fastest and easiest** way to use Ghostpost:
 
-**Quick Start - 2 Simple Steps:**
+**Desktop (Chrome, Firefox, Edge, Safari):**
 
 1. **Visit `/install`** - Our step-by-step installation wizard
 2. **Follow the guided process** - Install Tampermonkey → Install Userscript → Done!
@@ -190,6 +190,20 @@ The installation wizard will:
 - Verify installation and show you how to enable incognito mode (optional)
 - Test that everything works correctly
 
+**iPhone/iPad (Safari):**
+
+1. **Visit `/install/iphone`** - iPhone-specific installation guide
+2. **Install Userscripts App** - Free app from the App Store (~10 seconds)
+3. **Enable in Safari Settings** - Settings → Safari → Extensions → Userscripts (~15 seconds)
+4. **One-Click Install Script** - Tap the install link to add Ghostpost Reveal
+
+The iPhone installation:
+- Uses the free Userscripts app for iOS
+- Takes under 30 seconds total
+- Works on all websites in Safari
+- Auto-updates automatically
+- Privacy-focused - all processing happens locally
+
 **What you get:**
 - A floating 👻 button on every website (bottom-right corner)
 - Automatic scanning for hidden Ghostpost messages
@@ -198,7 +212,7 @@ The installation wizard will:
 - Auto-updates (no maintenance needed!)
 - Works on all websites (Twitter, Reddit, Discord, etc.)
 
-[Easy Install Guide →](/install) | [Try Demo →](/demo)
+[Desktop Install →](/install-easy) | [iPhone Install →](/install/iphone) | [Try Demo →](/demo)
 
 ### Using Mobile Share (For Mobile Users)
 
