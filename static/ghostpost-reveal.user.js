@@ -456,7 +456,7 @@
 		 * Twitter/X.com specialized adapter - Simplified since detection aggregates
 		 * 
 		 * STRATEGY: Detection already provides fully aggregated text from tweetText container.
-		 * This adapter just re-aggregates from the closest tweetText for safety.
+		 * This adapter re-aggregates from the closest tweetText container to ensure consistency.
 		 * 
 		 * CONTEXT: X.com's GraphQL API preserves all invisible Unicode characters in the
 		 * full_text field, and the DOM preserves them in the tweetText container.
@@ -466,8 +466,7 @@
 		 */
 		const twitterAdapter = {
 			extractText: (node) => {
-				// Since detection already gives us the full combinedText, just return what's stored
-				// But for safety, re-aggregate from the closest tweetText
+				// Re-aggregate from the closest tweetText for consistency with detection
 				const tweetTextContainer = node.closest('[data-testid="tweetText"]') || 
 										   node.closest('article[data-testid="tweet"]')?.querySelector('[data-testid="tweetText"]');
 				if (!tweetTextContainer) return '';

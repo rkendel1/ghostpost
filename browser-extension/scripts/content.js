@@ -79,17 +79,13 @@ const PERIODIC_SCAN_INTERVAL = 10000; // Periodic background scan interval for s
 function hasInvisibleChars(text) {
 	// Quick check for delimiter first (most reliable indicator)
 	if (text.indexOf('\uFEFF') !== -1) return true;
-	// Check for at least one of the common encoding chars
-	return (
-		text.indexOf('\u200B') !== -1 ||
-		text.indexOf('\u200C') !== -1 ||
-		text.indexOf('\u200D') !== -1 ||
-		text.indexOf('\u2060') !== -1 ||
-		text.indexOf('\u200E') !== -1 ||
-		text.indexOf('\u200F') !== -1 ||
-		text.indexOf('\u202C') !== -1 ||
-		text.indexOf('\u202D') !== -1
-	);
+	// Check for at least one of the common encoding chars from HIDENLY_CHARS
+	for (const char of HIDENLY_CHARS) {
+		if (char !== '\uFEFF' && text.indexOf(char) !== -1) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
