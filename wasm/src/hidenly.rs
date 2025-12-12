@@ -138,15 +138,31 @@ fn unwrap(input: &str) -> String {
 }
 
 pub fn encode(input: &str, secret: &str) -> String {
-    // Compress the secret data using DEFLATE compression
-    // If compression fails (rare), fall back to uncompressed encoding
-    let compressed = compress_data(secret.as_bytes()).unwrap_or_else(|_e| {
-        // Log compression failure in debug builds
-        #[cfg(debug_assertions)]
-        eprintln!("Warning: Compression failed ({}), using uncompressed data", _e);
-        secret.as_bytes().to_vec()
-    });
-    let preprocessed = encode_base64(&compressed);
+    // Compression threshold: only compress messages above this size
+    // For small messages, DEFLATE compression overhead (headers/metadata)
+    // results in larger output than uncompressed data
+    // Testing shows:
+    // - "bye" (3 bytes): 75% overhead with compression
+    // - "bye" + UUID (51 bytes): 10% overhead with compression (152 vs 138 chars)
+    // - 100+ bytes: compression provides clear benefits
+    // Threshold set to 100 bytes to ensure we only compress when beneficial
+    const COMPRESSION_THRESHOLD_BYTES: usize = 100;
+    
+    let secret_bytes = secret.as_bytes();
+    let data_to_encode = if secret_bytes.len() >= COMPRESSION_THRESHOLD_BYTES {
+        // Compress for larger messages
+        compress_data(secret_bytes).unwrap_or_else(|_e| {
+            // Log compression failure in debug builds
+            #[cfg(debug_assertions)]
+            eprintln!("Warning: Compression failed ({}), using uncompressed data", _e);
+            secret_bytes.to_vec()
+        })
+    } else {
+        // Skip compression for small messages to avoid overhead
+        secret_bytes.to_vec()
+    };
+    
+    let preprocessed = encode_base64(&data_to_encode);
     let encoded = base64_to_encoded(preprocessed.as_str());
     wrap(input, &encoded)
 }
