@@ -133,6 +133,12 @@
 
 	// Function to initialize the userscript
 	function init() {
+		// Safety check: ensure document.body exists before proceeding
+		if (!document.body) {
+			console.error('[Ghostpost] Cannot initialize: document.body not available');
+			return;
+		}
+
 		// Check if button already exists (might be from an old version)
 		const existingButton = document.getElementById(BUTTON_ID);
 		if (existingButton) {
@@ -1321,6 +1327,12 @@
 
 	// Function to show notification
 	function showNotification(message, type = 'info') {
+		// Safety check: ensure document.body exists
+		if (!document.body) {
+			console.warn('[Ghostpost] Cannot show notification: document.body not available');
+			return;
+		}
+
 		const notification = document.createElement('div');
 		notification.style.cssText = `
             position: fixed;
@@ -1350,8 +1362,13 @@
 	// Click handler
 	button.onclick = revealMessages;
 
-	// Add button to page
-	document.body.appendChild(button);
+	// Add button to page (with safety check)
+	if (document.body) {
+		document.body.appendChild(button);
+	} else {
+		console.error('[Ghostpost] Cannot add button: document.body not available');
+		return;
+	}
 
 	// Initial counter update (debounced to let page load)
 	setTimeout(updateCounter, 1000);
@@ -1363,30 +1380,34 @@
 		debounceTimeout = setTimeout(updateCounter, DEBOUNCE_DELAY);
 	}
 
-	// Monitor for dynamic content changes with debouncing
-	const observer = new MutationObserver((mutations) => {
-		// Only update if there are actual content changes
-		let hasContentChange = false;
-		for (const mutation of mutations) {
-			if (
-				mutation.type === 'characterData' ||
-				(mutation.type === 'childList' && mutation.addedNodes.length > 0)
-			) {
-				hasContentChange = true;
-				break;
+	// Monitor for dynamic content changes with debouncing (with safety check)
+	if (document.body) {
+		const observer = new MutationObserver((mutations) => {
+			// Only update if there are actual content changes
+			let hasContentChange = false;
+			for (const mutation of mutations) {
+				if (
+					mutation.type === 'characterData' ||
+					(mutation.type === 'childList' && mutation.addedNodes.length > 0)
+				) {
+					hasContentChange = true;
+					break;
+				}
 			}
-		}
 
-		if (hasContentChange) {
-			debouncedUpdateCounter();
-		}
-	});
+			if (hasContentChange) {
+				debouncedUpdateCounter();
+			}
+		});
 
-	observer.observe(document.body, {
-		childList: true,
-		subtree: true,
-		characterData: true
-	});
+		observer.observe(document.body, {
+			childList: true,
+			subtree: true,
+			characterData: true
+		});
+	} else {
+		console.warn('[Ghostpost] Cannot set up MutationObserver: document.body not available');
+	}
 
 	console.log(
 		'Ghostpost Reveal extension loaded! Click the 👻 button to reveal hidden messages. Scanning is optimized for performance.'
