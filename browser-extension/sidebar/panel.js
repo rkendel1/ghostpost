@@ -8,6 +8,13 @@ import init, { decode } from '../wasm/wasm.js';
 
 let wasmInitialized = false;
 
+// API Configuration
+const API_BASE_URL = 'https://ghostpost.vercel.app'; // Production API URL
+
+// Delimiter for post ID in the secret payload
+const POST_ID_DELIMITER = '||ghostid:';
+const POST_ID_END = '||';
+
 /**
  * Initialize WASM module
  */
@@ -34,15 +41,110 @@ async function initWasm() {
 }
 
 /**
- * Decode a message using WASM
+ * Decode a message using WASM and extract postId if present
+ * @returns {Promise<{message: string, postId?: string}>}
  */
 async function decodeMessage(encodedText) {
 	await initWasm();
 	try {
-		return decode(encodedText);
+		const decoded = decode(encodedText);
+
+		// Check if there's a post ID in the decoded message
+		const postIdIndex = decoded.indexOf(POST_ID_DELIMITER);
+		if (postIdIndex !== -1) {
+			const postIdStart = postIdIndex + POST_ID_DELIMITER.length;
+			const postIdEnd = decoded.indexOf(POST_ID_END, postIdStart);
+			if (postIdEnd !== -1) {
+				const postId = decoded.substring(postIdStart, postIdEnd);
+				const message = decoded.substring(0, postIdIndex);
+				return { message, postId };
+			}
+		}
+
+		return { message: decoded };
 	} catch (error) {
 		console.error('[Hidenly Sidebar] Decode error:', error);
 		throw error;
+	}
+}
+
+/**
+ * Generate a browser fingerprint for reveal tracking
+ */
+function generateFingerprint() {
+	const components = [
+		navigator.userAgent,
+		navigator.language,
+		navigator.languages?.join(',') || '',
+		screen.width.toString(),
+		screen.height.toString(),
+		screen.colorDepth.toString(),
+		new Date().getTimezoneOffset().toString(),
+		navigator.hardwareConcurrency?.toString() || '',
+		navigator.deviceMemory?.toString() || ''
+	];
+
+	// Canvas fingerprinting for additional entropy
+	const canvas = document.createElement('canvas');
+	const ctx = canvas.getContext('2d');
+	const txt = 'ghostpost-fingerprint-2024';
+	if (ctx) {
+		ctx.textBaseline = 'top';
+		ctx.font = '14px Arial';
+		ctx.fillStyle = '#f60';
+		ctx.fillRect(0, 0, 100, 50);
+		ctx.fillStyle = '#069';
+		ctx.fillText(txt, 2, 2);
+	}
+	const canvasData = canvas.toDataURL().slice(-50);
+	components.push(canvasData);
+
+	const fingerprint = components.join('|');
+	
+	// Create a simple hash
+	let hash = 0;
+	for (let i = 0; i < fingerprint.length; i++) {
+		const char = fingerprint.charCodeAt(i);
+		hash = ((hash << 5) - hash) + char;
+		hash = hash & hash;
+	}
+	return Math.abs(hash).toString(36);
+}
+
+/**
+ * Check reveal status for a post
+ */
+async function checkRevealStatus(postId) {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/limited-reveals/status?post_id=${postId}`);
+		const data = await response.json();
+		return data;
+	} catch (error) {
+		console.warn('[Hidenly Sidebar] Failed to check reveal status:', error);
+		return null;
+	}
+}
+
+/**
+ * Record a reveal for a post
+ */
+async function recordReveal(postId) {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/limited-reveals/reveal`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				post_id: postId,
+				user_fingerprint: generateFingerprint()
+			})
+		});
+		const data = await response.json();
+		return data;
+	} catch (error) {
+		console.warn('[Hidenly Sidebar] Failed to record reveal:', error);
+		return null;
 	}
 }
 
@@ -279,6 +381,30 @@ class DetectionPanel {
 				throw new Error('Decoded output element missing from DOM');
 			}
 
+			// Check for limited reveals if postId is present
+			let revealResult = null;
+			if (decoded.postId) {
+				// Check status first
+				const statusResponse = await checkRevealStatus(decoded.postId);
+				if (statusResponse?.success && statusResponse.status) {
+					const status = statusResponse.status;
+
+					// If expired, show error and don't reveal
+					if (status.is_expired || !status.can_reveal) {
+						alert('❌ This secret has expired — all reveals are gone forever 💔');
+						return;
+					}
+
+					// Record the reveal
+					revealResult = await recordReveal(decoded.postId);
+					
+					if (!revealResult?.success) {
+						alert('❌ Failed to reveal secret: ' + (revealResult?.message || 'Unknown error'));
+						return;
+					}
+				}
+			}
+
 			// Show the decoded content container
 			decodedContainer.classList.remove('hidden');
 
@@ -287,17 +413,71 @@ class DetectionPanel {
 				decodedOutput.removeChild(decodedOutput.firstChild);
 			}
 
+			// Add limited reveal info if available
+			if (revealResult && revealResult.reveal_number !== null) {
+				const revealInfo = document.createElement('div');
+				revealInfo.className = 'reveal-info';
+				
+				// Determine styling based on remaining reveals
+				let styleClass = 'primary';
+				if (revealResult.remaining !== null) {
+					if (revealResult.remaining === 0) {
+						styleClass = 'sold-out';
+					} else if (revealResult.remaining <= 5) {
+						styleClass = 'critical';
+					} else if (revealResult.remaining <= 20) {
+						styleClass = 'warning';
+					}
+				}
+				
+				revealInfo.className = `reveal-info ${styleClass}`;
+				
+				let headerText = '🎉 Limited Edition Reveal!';
+				if (revealResult.remaining === 0) {
+					headerText = '🔥 SOLD OUT FOREVER! 🔥';
+				} else if (revealResult.remaining !== null && revealResult.remaining <= 5) {
+					headerText = `⚠️ ONLY ${revealResult.remaining} LEFT! ⚠️`;
+				}
+				
+				let progressHTML = '';
+				if (revealResult.total_reveals) {
+					const percentage = (revealResult.reveal_number / revealResult.total_reveals) * 100;
+					progressHTML = `
+						<div class="progress-bar">
+							<div class="progress-fill ${styleClass}" style="width: ${percentage}%"></div>
+						</div>
+					`;
+				}
+				
+				revealInfo.innerHTML = `
+					<div class="reveal-header">
+						<span class="reveal-title">${headerText}</span>
+						${revealResult.total_reveals ? `<span class="reveal-count">${revealResult.reveal_number}/${revealResult.total_reveals}</span>` : ''}
+					</div>
+					<p class="reveal-message">${revealResult.message}</p>
+					${progressHTML}
+				`;
+				
+				decodedOutput.appendChild(revealInfo);
+			}
+
+			// Add the actual decoded content
+			const contentDiv = document.createElement('div');
+			contentDiv.className = 'decoded-message';
+			
 			// Check if it's an image
-			if (decoded.startsWith('data:image')) {
+			if (decoded.message.startsWith('data:image')) {
 				// Create image element safely
 				const img = document.createElement('img');
-				img.src = decoded;
+				img.src = decoded.message;
 				img.alt = 'Decoded image';
-				decodedOutput.appendChild(img);
+				contentDiv.appendChild(img);
 			} else {
 				// Use textContent for text to prevent XSS
-				decodedOutput.textContent = decoded;
+				contentDiv.textContent = decoded.message;
 			}
+			
+			decodedOutput.appendChild(contentDiv);
 		} catch (error) {
 			alert('Error decoding message: ' + error.message);
 		} finally {
