@@ -41,10 +41,12 @@ const POST_ID_DELIMITER = '||ghostid:';
 const POST_ID_END = '||';
 
 // Image processing constants
-const MAX_IMAGE_SIZE_KB = 100;
-const MAX_IMAGE_WIDTH = 800;
-const MAX_IMAGE_HEIGHT = 800;
-const QUALITY_LEVELS = [0.9, 0.8, 0.7, 0.6, 0.5];
+// Target 25KB to stay well under 40k character limit after base64 encoding
+// 25KB * 1.33 (base64 overhead) ≈ 33KB base64 ≈ 33k hidden characters
+const MAX_IMAGE_SIZE_KB = 25;
+const MAX_IMAGE_WIDTH = 600;
+const MAX_IMAGE_HEIGHT = 600;
+const QUALITY_LEVELS = [0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2];
 
 /**
  * Initialize the WASM module
@@ -141,7 +143,7 @@ function imageFileToBase64(file: File): Promise<string> {
 /**
  * Resize and compress an image if it's too large
  * @param file - The image file to process
- * @param maxSizeKB - Maximum size in KB (default: 100KB)
+ * @param maxSizeKB - Maximum size in KB (default: 25KB)
  * @param maxWidth - Maximum width in pixels (default: 800)
  * @param maxHeight - Maximum height in pixels (default: 800)
  * @returns Promise<File> - The processed image file
@@ -152,11 +154,6 @@ async function resizeImageIfNeeded(
 	maxWidth: number = MAX_IMAGE_WIDTH,
 	maxHeight: number = MAX_IMAGE_HEIGHT
 ): Promise<File> {
-	// If file is already small enough, return it as-is
-	if (file.size <= maxSizeKB * 1024) {
-		return file;
-	}
-
 	return new Promise((resolve, reject) => {
 		const img = new Image();
 		const reader = new FileReader();
@@ -170,6 +167,7 @@ async function resizeImageIfNeeded(
 			let width = img.width;
 			let height = img.height;
 
+			// Always resize to maxWidth/maxHeight if image is larger
 			if (width > maxWidth || height > maxHeight) {
 				const aspectRatio = width / height;
 				if (width > height) {
@@ -193,10 +191,25 @@ async function resizeImageIfNeeded(
 
 			ctx.drawImage(img, 0, 0, width, height);
 
-			// Try different quality settings to get under the size limit
-			const tryQuality = async (quality: number): Promise<Blob | null> => {
+			// Try different quality settings and dimensions to get under the size limit
+			const tryQuality = async (quality: number, scaleFactor: number = 1.0): Promise<Blob | null> => {
 				return new Promise((resolve) => {
-					canvas.toBlob(
+					const scaledWidth = Math.floor(width * scaleFactor);
+					const scaledHeight = Math.floor(height * scaleFactor);
+					
+					// Create a new canvas with scaled dimensions if needed
+					const finalCanvas = scaleFactor < 1.0 ? document.createElement('canvas') : canvas;
+					if (scaleFactor < 1.0) {
+						finalCanvas.width = scaledWidth;
+						finalCanvas.height = scaledHeight;
+						const finalCtx = finalCanvas.getContext('2d');
+						if (finalCtx) {
+							finalCtx.drawImage(canvas, 0, 0, scaledWidth, scaledHeight);
+						}
+					}
+					
+					// Always convert to JPEG for better compression
+					finalCanvas.toBlob(
 						(blob) => {
 							if (blob && blob.size <= maxSizeKB * 1024) {
 								resolve(blob);
@@ -204,29 +217,45 @@ async function resizeImageIfNeeded(
 								resolve(null);
 							}
 						},
-						file.type === 'image/png' ? 'image/jpeg' : file.type,
+						'image/jpeg',
 						quality
 					);
 				});
 			};
 
-			// Try progressively lower quality until we get under the size limit
+			// Try progressively lower quality and dimensions until we get under the size limit
 			(async () => {
+				// First try different quality levels at full resolution
 				for (const quality of QUALITY_LEVELS) {
-					const blob = await tryQuality(quality);
+					const blob = await tryQuality(quality, 1.0);
 					if (blob) {
-						const newFile = new File([blob], file.name, {
-							type: file.type === 'image/png' ? 'image/jpeg' : file.type,
+						const newFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+							type: 'image/jpeg',
 							lastModified: Date.now()
 						});
 						resolve(newFile);
 						return;
 					}
 				}
+				
+				// If still too large, try reducing dimensions with lowest quality
+				const scaleFactors = [0.9, 0.8, 0.7, 0.6, 0.5];
+				for (const scale of scaleFactors) {
+					const blob = await tryQuality(QUALITY_LEVELS[QUALITY_LEVELS.length - 1], scale);
+					if (blob) {
+						const newFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+							type: 'image/jpeg',
+							lastModified: Date.now()
+						});
+						resolve(newFile);
+						return;
+					}
+				}
+				
 				// If still too large, reject with error
 				reject(
 					new Error(
-						`Image is too large. Please use an image smaller than ${maxSizeKB}KB or reduce dimensions.`
+						`Image is too large to compress to ${maxSizeKB}KB. Please use a smaller or simpler image.`
 					)
 				);
 			})();
@@ -258,8 +287,8 @@ export async function encodeImage(
 ): Promise<EncodingResult> {
 	await initWasm();
 
-	// Resize image if needed to prevent crashes on mobile devices
-	// Maximum 100KB to keep encoded strings manageable
+	// Resize and compress image aggressively to stay under platform character limits
+	// Maximum 25KB to keep encoded strings under 40k characters
 	const processedFile = await resizeImageIfNeeded(
 		imageFile,
 		MAX_IMAGE_SIZE_KB,
