@@ -323,6 +323,9 @@
 		// Create regex pattern to detect invisible characters
 		const escapedChars = HIDENLY_CHARS.map((char) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 		const invisibleCharRegex = new RegExp(`[${escapedChars.join('')}]`, 'g');
+		
+		// Create regex pattern for hex debug logging of invisible characters
+		const invisibleCharsHexPattern = new RegExp('[' + HIDENLY_CHARS.map(c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')).join('') + ']', 'g');
 
 		// Minimum threshold - Hidenly uses pairs of chars, so minimum 8 chars = ~4 base64 chars
 		const MIN_INVISIBLE_CHAR_COUNT = 8;
@@ -507,8 +510,7 @@
 				if (DEBUG_MODE) {
 					console.log('[Ghostpost] [X.com] ✓ Extracted full text from tweetText container:', fullText.substring(0, 50) + '...');
 					// Debug invisible chars as hex - uses exact HIDENLY_CHARS for precision
-					const invisibleCharsPattern = new RegExp('[' + HIDENLY_CHARS.map(c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')).join('') + ']', 'g');
-					const invisibleHex = fullText.replace(invisibleCharsPattern, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+					const invisibleHex = fullText.replace(invisibleCharsHexPattern, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
 					console.log('[Ghostpost] [X.com] Invisible chars (hex):', invisibleHex);
 				}
 
