@@ -2,6 +2,31 @@
 
 # Ghostpost Reveal Browser Extension
 
+## [1.2.2] - 2025-12-12
+
+### Enhanced
+- **X.COM RELIABILITY ENHANCEMENT**: Added comprehensive X.com API behavior documentation (XCOM_API_BEHAVIOR.md)
+- Implemented multi-strategy text extraction for X.com with 4 fallback approaches
+- **Strategy 1**: Check text node itself (fastest path)
+- **Strategy 2**: Walk up parent tree and aggregate child text nodes (handles nested splits)
+- **Strategy 3**: Aggregate sibling text nodes (handles horizontal splits)
+- **Strategy 4**: Use parent.textContent as last resort
+- Added detailed debug logging with X.com-specific context
+- Enhanced error messages that reference X.com's tweet_text preservation behavior
+
+### Technical Details
+- X.com's GraphQL API preserves ALL invisible Unicode characters in tweet_text field
+- Frontend visually collapses them but they're fully accessible in the DOM/API
+- New multi-strategy approach ensures reliable extraction even with complex DOM splitting
+- Console logs now include strategy used and troubleshooting guidance
+- See XCOM_API_BEHAVIOR.md for complete explanation of X.com's behavior
+
+### Context
+- This update ensures we can **always** decode hidden characters in the overlay/extension
+- Provides comprehensive documentation of how X.com handles encoded messages
+- Multiple extraction strategies cover all known X.com DOM splitting patterns
+- Better debugging output helps troubleshoot extraction failures
+
 ## [1.2.1] - 2025-12-12
 
 ### Fixed

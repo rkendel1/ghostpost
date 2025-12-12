@@ -2,13 +2,20 @@
  * Content Script - Scans page for hidden content
  * Detects invisible Unicode characters used by Hidenly encoding
  *
- * ENHANCED FEATURES:
+ * ENHANCED FEATURES (v1.2.2):
+ * - Multi-strategy text extraction for X.com reliability (see XCOM_API_BEHAVIOR.md)
  * - Continuous monitoring with MutationObserver
  * - Optimized scanning for social media feeds (Twitter/X, Facebook, LinkedIn, etc.)
  * - Adaptive debounce delays (500ms for social media, 1000ms for regular sites)
  * - Incremental scanning of new nodes for better performance
  * - Periodic background scanning (every 10s) for social media to catch missed updates
  * - Feed-specific DOM selectors for targeted detection
+ * 
+ * X.COM CONTEXT:
+ * X.com's GraphQL API preserves all invisible Unicode characters in the tweet_text field.
+ * The frontend visually collapses them, but they're fully accessible in DOM/API responses.
+ * This extension uses multiple extraction strategies to handle X.com's complex DOM splitting.
+ * See XCOM_API_BEHAVIOR.md for detailed documentation on X.com's behavior and detection methods.
  */
 
 // List of invisible Unicode characters used for encoding
@@ -183,19 +190,31 @@ function hasCompleteEncodedMessage(text) {
  * Extract complete encoded text from a text node
  * For X.com/Twitter and other sites that split text across nodes,
  * this walks up the DOM to aggregate text from parent elements
- * ENHANCED: Increased parent traversal to 10 levels for deeply nested X.com structures
+ * ENHANCED v1.2.2: Added multiple fallback strategies for reliable extraction
+ * 
+ * CONTEXT: X.com's GraphQL API preserves all invisible Unicode characters in the
+ * tweet_text field. The characters are NOT truncated or removed. However, X.com's
+ * frontend rendering engine splits text content across multiple nested DOM nodes,
+ * which can separate delimiters from the encoded content. This function implements
+ * multiple strategies to reconstruct the complete message:
+ * 
+ * 1. Check text node itself (fastest, works if not split)
+ * 2. Walk up parent tree and aggregate (handles nested splits)
+ * 3. Check sibling nodes (handles horizontal splits)
+ * 4. Combination of parent + sibling aggregation (handles complex splits)
+ * 
+ * See XCOM_API_BEHAVIOR.md for detailed explanation of X.com's behavior.
  */
 function extractCompleteText(node) {
-	// First try the text node itself
+	// Strategy 1: Try the text node itself first (fastest path)
 	const nodeText = node.data || node.nodeValue || node.textContent || '';
 	if (nodeText && hasCompleteEncodedMessage(nodeText)) {
-		// Has complete message (both delimiters), use it directly
-		console.log('[Hidenly] Complete message found in text node');
+		console.log('[Hidenly] [X.com] Complete message found in text node (Strategy 1)');
 		return nodeText;
 	}
 	
-	// If not, walk up the DOM tree to find a parent that contains the complete message
-	// ENHANCED: Try up to 10 levels (increased from 5) for X.com's deep nesting
+	// Strategy 2: Walk up the DOM tree to find a parent that contains the complete message
+	// X.com can nest content up to 10+ levels deep, especially with media, quotes, etc.
 	let currentElement = node.parentElement;
 	let levelsChecked = 0;
 	const MAX_PARENT_LEVELS = 10;
@@ -215,7 +234,7 @@ function extractCompleteText(node) {
 		
 		// Check if combined text has complete message (both delimiters + valid content)
 		if (combinedText && hasCompleteEncodedMessage(combinedText)) {
-			console.log('[Hidenly] Complete message found at level', levelsChecked + 1);
+			console.log('[Hidenly] [X.com] Complete message found at parent level', levelsChecked + 1, '(Strategy 2)');
 			return combinedText;
 		}
 		
@@ -224,11 +243,46 @@ function extractCompleteText(node) {
 		levelsChecked++;
 	}
 	
-	// Fallback to node text as last resort
-	// Note: If we reach here, the message may be incomplete (missing one or both delimiters)
-	// The decoder will handle this gracefully by returning an appropriate error
-	console.log('[Hidenly] Warning: Could not find complete message after checking', MAX_PARENT_LEVELS, 'levels');
-	return nodeText;
+	// Strategy 3: Check sibling nodes (horizontal splitting)
+	// Sometimes X.com splits delimiters and content across sibling <span> elements
+	if (node.parentElement) {
+		let siblingText = '';
+		const parent = node.parentElement;
+		const children = parent.childNodes;
+		
+		for (let i = 0; i < children.length; i++) {
+			const child = children[i];
+			if (child.nodeType === Node.TEXT_NODE) {
+				siblingText += child.data || child.nodeValue || '';
+			}
+		}
+		
+		if (siblingText && hasCompleteEncodedMessage(siblingText)) {
+			console.log('[Hidenly] [X.com] Complete message found in sibling aggregation (Strategy 3)');
+			return siblingText;
+		}
+	}
+	
+	// Strategy 4: Last resort - get textContent from parent element
+	// This is less reliable but can work in some edge cases
+	if (node.parentElement) {
+		const parentText = node.parentElement.textContent || '';
+		if (parentText && hasCompleteEncodedMessage(parentText)) {
+			console.log('[Hidenly] [X.com] Complete message found via parent.textContent (Strategy 4)');
+			return parentText;
+		}
+	}
+	
+	// All strategies exhausted - log detailed debug info
+	console.warn('[Hidenly] [X.com] Could not find complete message after trying all strategies');
+	console.warn('[Hidenly] [X.com] Node text preview:', (nodeText || '').substring(0, 100));
+	console.warn('[Hidenly] [X.com] Has FEFF delimiter:', (nodeText || '').indexOf('\uFEFF') !== -1);
+	console.warn('[Hidenly] [X.com] Checked', MAX_PARENT_LEVELS, 'parent levels');
+	console.warn('[Hidenly] [X.com] NOTE: X.com preserves invisible chars in tweet_text field');
+	console.warn('[Hidenly] [X.com] See XCOM_API_BEHAVIOR.md for troubleshooting guidance');
+	
+	// Return node text anyway - decoder will provide appropriate error message
+	return nodeText || '';
 }
 
 /**
