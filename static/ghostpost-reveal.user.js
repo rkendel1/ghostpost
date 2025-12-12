@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.3.2
+// @version      2.3.3
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -12,6 +12,7 @@
 // @exclude      *://*.bank.*/*
 // @exclude      *://*.paypal.*/*
 // @grant        none
+// @run-at       document-end
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js
 // @updateURL    https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // @downloadURL  https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
@@ -22,6 +23,15 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.3.3 (2025-12-12):
+ * - CRITICAL FIX: Fixed overlay button not appearing on iPhone/mobile Safari
+ * - Added proper DOM ready check to wait for document.body before initialization
+ * - Wrapped initialization in function that runs after DOMContentLoaded if needed
+ * - Added @run-at document-end directive for consistent behavior across userscript managers
+ * - Ensures button is created and appended only when DOM is fully ready
+ * - Fixes issue where userscript runs before body element exists on mobile
+ * - Preserves existing desktop Greasemonkey/Tampermonkey experience
+ *
  * v2.3.2 (2025-12-11):
  * - CODE QUALITY: Addressed code review feedback
  * - Added error handling to fingerprinting with fallback methods
@@ -118,27 +128,35 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.3.2';
+	const SCRIPT_VERSION = '2.3.3';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
-	// Check if button already exists (might be from an old version)
-	const existingButton = document.getElementById(BUTTON_ID);
-	if (existingButton) {
-		// Check if this is an old version by looking for the data-version attribute
-		const existingVersion = existingButton.dataset.version;
-		if (existingVersion && existingVersion !== SCRIPT_VERSION) {
-			console.warn(
-				`[Ghostpost] Detected old version ${existingVersion}. Current version is ${SCRIPT_VERSION}. Please update your userscript.`
-			);
-			existingButton.remove(); // Remove old button
-		} else {
-			// Same version already running, don't load again
+	// Function to initialize the userscript
+	function init() {
+		// Safety check: ensure document.body exists before proceeding
+		if (!document.body) {
+			console.error('[Ghostpost] Cannot initialize: document.body not available');
 			return;
 		}
-	}
 
-	// Create floating reveal button using DOM methods for security
-	const button = document.createElement('div');
+		// Check if button already exists (might be from an old version)
+		const existingButton = document.getElementById(BUTTON_ID);
+		if (existingButton) {
+			// Check if this is an old version by looking for the data-version attribute
+			const existingVersion = existingButton.dataset.version;
+			if (existingVersion && existingVersion !== SCRIPT_VERSION) {
+				console.warn(
+					`[Ghostpost] Detected old version ${existingVersion}. Current version is ${SCRIPT_VERSION}. Please update your userscript.`
+				);
+				existingButton.remove(); // Remove old button
+			} else {
+				// Same version already running, don't load again
+				return;
+			}
+		}
+
+		// Create floating reveal button using DOM methods for security
+		const button = document.createElement('div');
 	button.id = BUTTON_ID;
 	button.dataset.version = SCRIPT_VERSION; // Store version for future compatibility checks
 
@@ -1309,6 +1327,12 @@
 
 	// Function to show notification
 	function showNotification(message, type = 'info') {
+		// Safety check: ensure document.body exists
+		if (!document.body) {
+			console.warn('[Ghostpost] Cannot show notification: document.body not available');
+			return;
+		}
+
 		const notification = document.createElement('div');
 		notification.style.cssText = `
             position: fixed;
@@ -1338,8 +1362,13 @@
 	// Click handler
 	button.onclick = revealMessages;
 
-	// Add button to page
-	document.body.appendChild(button);
+	// Add button to page (with safety check)
+	if (document.body) {
+		document.body.appendChild(button);
+	} else {
+		console.error('[Ghostpost] Cannot add button: document.body not available');
+		return;
+	}
 
 	// Initial counter update (debounced to let page load)
 	setTimeout(updateCounter, 1000);
@@ -1351,32 +1380,47 @@
 		debounceTimeout = setTimeout(updateCounter, DEBOUNCE_DELAY);
 	}
 
-	// Monitor for dynamic content changes with debouncing
-	const observer = new MutationObserver((mutations) => {
-		// Only update if there are actual content changes
-		let hasContentChange = false;
-		for (const mutation of mutations) {
-			if (
-				mutation.type === 'characterData' ||
-				(mutation.type === 'childList' && mutation.addedNodes.length > 0)
-			) {
-				hasContentChange = true;
-				break;
+	// Monitor for dynamic content changes with debouncing (with safety check)
+	if (document.body) {
+		const observer = new MutationObserver((mutations) => {
+			// Only update if there are actual content changes
+			let hasContentChange = false;
+			for (const mutation of mutations) {
+				if (
+					mutation.type === 'characterData' ||
+					(mutation.type === 'childList' && mutation.addedNodes.length > 0)
+				) {
+					hasContentChange = true;
+					break;
+				}
 			}
-		}
 
-		if (hasContentChange) {
-			debouncedUpdateCounter();
-		}
-	});
+			if (hasContentChange) {
+				debouncedUpdateCounter();
+			}
+		});
 
-	observer.observe(document.body, {
-		childList: true,
-		subtree: true,
-		characterData: true
-	});
+		observer.observe(document.body, {
+			childList: true,
+			subtree: true,
+			characterData: true
+		});
+	} else {
+		console.warn('[Ghostpost] Cannot set up MutationObserver: document.body not available');
+	}
 
 	console.log(
 		'Ghostpost Reveal extension loaded! Click the 👻 button to reveal hidden messages. Scanning is optimized for performance.'
 	);
+	}
+
+	// Wait for DOM to be ready before initializing
+	// This is critical for mobile Safari where the script may run before body exists
+	if (document.readyState === 'loading') {
+		// DOM is still loading, wait for it
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		// DOM is already ready, initialize immediately
+		init();
+	}
 })();
