@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.3.3
+// @version      2.3.4
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -23,6 +23,14 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.3.4 (2025-12-12):
+ * - CRITICAL FIX: Fixed X.com/Twitter decoding failures
+ * - Enhanced Twitter adapter to aggregate text from parent elements (up to 5 levels)
+ * - X.com's dynamic DOM splits text nodes, now we reconstruct the full message
+ * - Walks up the DOM tree to find the container with complete encoded message
+ * - Preserves invisible Unicode characters while handling complex nested structures
+ * - Fixes "No hidden content found" error on X.com tweets
+ *
  * v2.3.3 (2025-12-12):
  * - CRITICAL FIX: Fixed overlay button not appearing on iPhone/mobile Safari
  * - Added proper DOM ready check to wait for document.body before initialization
@@ -128,7 +136,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.3.3';
+	const SCRIPT_VERSION = '2.3.4';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Function to initialize the userscript
@@ -305,16 +313,56 @@
 
 	/**
 	 * Default text extraction strategy that preserves invisible Unicode characters
-	 * This works well for most sites including X.com/Twitter
+	 * This works well for most sites
 	 */
 	const defaultTextExtraction = (node) => node.data || node.nodeValue || node.textContent || '';
 
 	/**
-	 * Twitter/X.com adapter - shared between x.com and twitter.com
+	 * Twitter/X.com specialized adapter
+	 * X.com's dynamic DOM often splits text nodes, so we need to aggregate from parent
 	 */
 	const twitterAdapter = {
-		extractText: defaultTextExtraction,
-		description: 'Uses node.data to preserve invisible Unicode characters'
+		extractText: (node) => {
+			// First try the text node itself
+			const nodeText = node.data || node.nodeValue || '';
+			if (nodeText && nodeText.indexOf('\uFEFF') !== -1) {
+				// Has the delimiter, use it directly
+				return nodeText;
+			}
+			
+			// If not, walk up the DOM tree to find a parent that contains the complete message
+			// Try up to 5 levels of parent elements
+			let currentElement = node.parentElement;
+			let levelsChecked = 0;
+			const MAX_PARENT_LEVELS = 5;
+			
+			while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
+				// Get all text from this element by aggregating child text nodes
+				let combinedText = '';
+				const walker = document.createTreeWalker(
+					currentElement,
+					NodeFilter.SHOW_TEXT,
+					null
+				);
+				let textNode;
+				while ((textNode = walker.nextNode())) {
+					combinedText += textNode.data || textNode.nodeValue || '';
+				}
+				
+				// If combined text has the delimiter, we found the complete message
+				if (combinedText && combinedText.indexOf('\uFEFF') !== -1) {
+					return combinedText;
+				}
+				
+				// Move up to parent
+				currentElement = currentElement.parentElement;
+				levelsChecked++;
+			}
+			
+			// Fallback to node text
+			return nodeText;
+		},
+		description: 'Aggregates text from parent elements (up to 5 levels) to handle X.com DOM splitting'
 	};
 
 	/**
