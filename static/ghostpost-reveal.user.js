@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.3.6
+// @version      2.3.7
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -23,6 +23,13 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.3.7 (2025-12-12):
+ * - BUGFIX: Fixed detection missing some hidden messages on demo page
+ * - Increased SCAN_TIMEOUT from 100ms to 500ms to allow more time for thorough scanning
+ * - Increased initial scan delay from 1000ms to 2000ms to ensure page fully loads
+ * - Added more detailed debug logging for troubleshooting detection issues
+ * - These changes ensure all hidden messages are detected even on complex pages
+ *
  * v2.3.6 (2025-12-12):
  * - FEATURE: Enhanced limited reveal countdown display in overlay
  * - Added visual progress bar showing reveal consumption
@@ -154,7 +161,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.3.6';
+	const SCRIPT_VERSION = '2.3.7';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Function to initialize the userscript
@@ -183,19 +190,19 @@
 
 		// Create floating reveal button using DOM methods for security
 		const button = document.createElement('div');
-	button.id = BUTTON_ID;
-	button.dataset.version = SCRIPT_VERSION; // Store version for future compatibility checks
+		button.id = BUTTON_ID;
+		button.dataset.version = SCRIPT_VERSION; // Store version for future compatibility checks
 
-	const container = document.createElement('div');
-	container.style.cssText = 'position: relative; width: 100%; height: 100%;';
+		const container = document.createElement('div');
+		container.style.cssText = 'position: relative; width: 100%; height: 100%;';
 
-	const ghost = document.createElement('span');
-	ghost.textContent = '👻';
-	ghost.style.fontSize = '32px';
+		const ghost = document.createElement('span');
+		ghost.textContent = '👻';
+		ghost.style.fontSize = '32px';
 
-	const counter = document.createElement('span');
-	counter.id = 'ghostpost-counter';
-	counter.style.cssText = `
+		const counter = document.createElement('span');
+		counter.id = 'ghostpost-counter';
+		counter.style.cssText = `
         position: absolute;
         top: -5px;
         right: -5px;
@@ -211,11 +218,11 @@
         justify-content: center;
     `;
 
-	container.appendChild(ghost);
-	container.appendChild(counter);
-	button.appendChild(container);
+		container.appendChild(ghost);
+		container.appendChild(counter);
+		button.appendChild(container);
 
-	button.style.cssText = `
+		button.style.cssText = `
         position: fixed;
         bottom: 20px;
         right: 20px;
@@ -233,336 +240,358 @@
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     `;
 
-	// Hover effect
-	button.onmouseenter = () => {
-		button.style.transform = 'scale(1.1)';
-		button.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4)';
-	};
-	button.onmouseleave = () => {
-		button.style.transform = 'scale(1)';
-		button.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-	};
+		// Hover effect
+		button.onmouseenter = () => {
+			button.style.transform = 'scale(1.1)';
+			button.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4)';
+		};
+		button.onmouseleave = () => {
+			button.style.transform = 'scale(1)';
+			button.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+		};
 
-	// Performance optimization constants
-	const DEBOUNCE_DELAY = 2000; // Wait 2 seconds after last change before scanning
-	const MAX_TEXT_NODE_LENGTH = 50000; // Skip very large text nodes
-	const MAX_NODES_PER_SCAN = 1000; // Limit nodes scanned in one pass
-	const SCAN_TIMEOUT = 100; // Maximum time for a single scan in ms
+		// Performance optimization constants
+		const DEBOUNCE_DELAY = 2000; // Wait 2 seconds after last change before scanning
+		const MAX_TEXT_NODE_LENGTH = 50000; // Skip very large text nodes
+		const MAX_NODES_PER_SCAN = 1000; // Limit nodes scanned in one pass
+		const SCAN_TIMEOUT = 500; // Maximum time for a single scan in ms
+		const INITIAL_SCAN_DELAY = 2000; // Delay before first scan to allow page load and encoding
+		const SECONDARY_SCAN_DELAY = 5000; // Delay for additional scan to catch late-loading content
 
-	// List of invisible Unicode characters used for encoding
-	// Must match the encoding scheme: \u2060, \u200B, \u200C, \u200D, \u200E, \u200F, \u202D, \u202C
-	// Plus \uFEFF used as delimiter
-	const HIDENLY_CHARS = [
-		'\u200B', // Zero Width Space
-		'\u200C', // Zero Width Non-Joiner
-		'\u200D', // Zero Width Joiner
-		'\u200E', // Left-to-Right Mark
-		'\u200F', // Right-to-Left Mark
-		'\u202C', // Pop Directional Formatting
-		'\u202D', // Left-to-Right Override
-		'\u2060', // Word Joiner
-		'\uFEFF' // Zero Width No-Break Space (delimiter)
-	];
-
-	// Create regex pattern to detect invisible characters
-	const escapedChars = HIDENLY_CHARS.map((char) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-	const invisibleCharRegex = new RegExp(`[${escapedChars.join('')}]`, 'g');
-
-	// Minimum threshold - Hidenly uses pairs of chars, so minimum 8 chars = ~4 base64 chars
-	const MIN_INVISIBLE_CHAR_COUNT = 8;
-
-	// Quick pre-check using indexOf for performance
-	function hasInvisibleChars(text) {
-		// Quick check for delimiter first (most reliable indicator)
-		if (text.indexOf('\uFEFF') !== -1) return true;
-		// Check for at least one of the common encoding chars
-		return (
-			text.indexOf('\u200B') !== -1 ||
-			text.indexOf('\u200C') !== -1 ||
-			text.indexOf('\u200D') !== -1 ||
-			text.indexOf('\u2060') !== -1 ||
-			text.indexOf('\u200E') !== -1 ||
-			text.indexOf('\u200F') !== -1 ||
-			text.indexOf('\u202C') !== -1 ||
-			text.indexOf('\u202D') !== -1
-		);
-	}
-
-	/**
-	 * Check if text likely contains a Ghostpost encoded message
-	 * Returns false for legitimate uses like RTL text support
-	 * Optimized for performance
-	 */
-	function isLikelyHidenlyMessage(text) {
-		// Skip empty or extremely long text nodes
-		if (!text || text.length === 0 || text.length > MAX_TEXT_NODE_LENGTH) {
-			return false;
-		}
-
-		// Quick pre-check before expensive regex
-		if (!hasInvisibleChars(text)) {
-			return false;
-		}
-
-		// If we have the delimiter character (FEFF), it's very likely an encoded message
-		// The encoding wraps secrets with FEFF delimiters
-		if (text.indexOf('\uFEFF') !== -1) {
-			return true;
-		}
-
-		const matches = text.match(invisibleCharRegex);
-
-		if (!matches || matches.length < MIN_INVISIBLE_CHAR_COUNT) {
-			return false;
-		}
-
-		// Calculate ratio of invisible chars to total length
-		const ratio = matches.length / text.length;
-
-		// If there are very few invisible chars relative to text length,
-		// it's likely legitimate formatting (e.g., a few RTL marks in longer text)
-		if (ratio < 0.01 && matches.length < 20) {
-			return false;
-		}
-
-		// If high count or high ratio, likely encoded content
-		return matches.length > 30 || ratio > 0.1;
-	}
-
-	/**
-	 * Default text extraction strategy that preserves invisible Unicode characters
-	 * This works well for most sites
-	 */
-	const defaultTextExtraction = (node) => node.data || node.nodeValue || node.textContent || '';
-
-	/**
-	 * Helper function to check if text contains a complete encoded message
-	 * A complete message needs at least TWO delimiter characters (\uFEFF)
-	 * Format: \uFEFF + invisible_chars + \uFEFF
-	 */
-	function hasCompleteEncodedMessage(text) {
-		if (!text) return false;
-		
-		// Count occurrences of the delimiter
-		const delimiterChar = '\uFEFF';
-		let count = 0;
-		let index = text.indexOf(delimiterChar);
-		
-		while (index !== -1) {
-			count++;
-			if (count >= 2) return true; // Found at least 2 delimiters
-			index = text.indexOf(delimiterChar, index + 1);
-		}
-		
-		return false;
-	}
-
-	/**
-	 * Twitter/X.com specialized adapter
-	 * X.com's dynamic DOM often splits text nodes, so we need to aggregate from parent
-	 */
-	const twitterAdapter = {
-		extractText: (node) => {
-			// First try the text node itself
-			const nodeText = node.data || node.nodeValue || '';
-			if (nodeText && hasCompleteEncodedMessage(nodeText)) {
-				// Has complete message (both delimiters), use it directly
-				return nodeText;
-			}
-			
-			// If not, walk up the DOM tree to find a parent that contains the complete message
-			// Try up to 5 levels of parent elements
-			let currentElement = node.parentElement;
-			let levelsChecked = 0;
-			const MAX_PARENT_LEVELS = 5;
-			
-			while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
-				// Get all text from this element by aggregating child text nodes
-				let combinedText = '';
-				const walker = document.createTreeWalker(
-					currentElement,
-					NodeFilter.SHOW_TEXT,
-					null
-				);
-				let textNode;
-				while ((textNode = walker.nextNode())) {
-					combinedText += textNode.data || textNode.nodeValue || '';
-				}
-				
-				// Check if combined text has complete message (both delimiters)
-				if (combinedText && hasCompleteEncodedMessage(combinedText)) {
-					return combinedText;
-				}
-				
-				// Move up to parent
-				currentElement = currentElement.parentElement;
-				levelsChecked++;
-			}
-			
-			// Fallback to node text as last resort
-			// Note: If we reach here, the message may be incomplete (missing one or both delimiters)
-			// The decoder will handle this gracefully by returning an appropriate error
-			return nodeText;
-		},
-		description: 'Aggregates text from parent elements (up to 5 levels) to handle X.com DOM splitting'
-	};
-
-	/**
-	 * Site-specific text extraction strategies
-	 * Each site can define how to best extract text from nodes
-	 * 
-	 * TO ADD A NEW SITE:
-	 * Simply add a new entry with the domain as key and an adapter object:
-	 * 'example.com': {
-	 *   extractText: (node) => { custom logic here },
-	 *   description: 'Brief explanation of the strategy'
-	 * }
-	 */
-	const SITE_ADAPTERS = {
-		// X.com/Twitter - uses shared adapter
-		'x.com': twitterAdapter,
-		'twitter.com': twitterAdapter,
-		// Default strategy for all other sites
-		'default': {
-			extractText: defaultTextExtraction,
-			description: 'Standard text extraction with Unicode preservation'
-		}
-	};
-
-	/**
-	 * Get the appropriate site adapter based on current hostname
-	 */
-	function getSiteAdapter() {
-		const hostname = window.location.hostname.toLowerCase();
-		
-		// Check for exact match (e.g., 'x.com', 'twitter.com')
-		if (SITE_ADAPTERS[hostname]) {
-			if (DEBUG_MODE) {
-				console.log(`[Ghostpost] Using site-specific adapter for ${hostname}`);
-			}
-			return SITE_ADAPTERS[hostname];
-		}
-		
-		// Check for subdomain match (e.g., 'mobile.twitter.com' matches 'twitter.com')
-		// Note: hostname.endsWith('.' + domain) ensures proper subdomain matching
-		// For example: 'mobile.twitter.com'.endsWith('.twitter.com') = true
-		//              but 'badtwitter.com'.endsWith('.twitter.com') = false
-		for (const domain in SITE_ADAPTERS) {
-			if (domain !== 'default' && hostname.endsWith('.' + domain)) {
-				if (DEBUG_MODE) {
-					console.log(`[Ghostpost] Using site-specific adapter for ${domain}`);
-				}
-				return SITE_ADAPTERS[domain];
-			}
-		}
-		
-		// Fall back to default
-		if (DEBUG_MODE) {
-			console.log('[Ghostpost] Using default adapter');
-		}
-		return SITE_ADAPTERS['default'];
-	}
-
-	/**
-	 * Core detection function - site-agnostic
-	 * Returns array of objects: { node, encodedText }
-	 */
-	function detectHiddenMessages() {
-		const results = [];
-		const startTime = Date.now();
-		let nodesChecked = 0;
-
-		// Get site-specific adapter
-		const adapter = getSiteAdapter();
-
-		const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-
-		let node;
-		while ((node = walker.nextNode())) {
-			// Safety check: stop if taking too long
-			if (Date.now() - startTime > SCAN_TIMEOUT) {
-				console.log(
-					'[Ghostpost] Scan timeout - stopping early for performance. Checked',
-					nodesChecked,
-					'nodes'
-				);
-				break;
-			}
-
-			// Limit number of nodes processed
-			if (nodesChecked >= MAX_NODES_PER_SCAN) {
-				console.log(
-					'[Ghostpost] Max nodes reached - stopping scan. Checked',
-					nodesChecked,
-					'nodes'
-				);
-				break;
-			}
-
-			nodesChecked++;
-
-			// Use site-specific text extraction
-			const nodeText = adapter.extractText(node);
-			if (nodeText && isLikelyHidenlyMessage(nodeText)) {
-				// Store both the node and the encoded text at detection time
-				results.push({ node, encodedText: nodeText });
-			}
-		}
-
-		return results;
-	}
-
-	// Detect if on a social media site for micro-pulsing
-	function isSocialMediaSite() {
-		const hostname = window.location.hostname.toLowerCase();
-		const socialDomains = [
-			'twitter.com',
-			'x.com',
-			'facebook.com',
-			'fb.com',
-			'linkedin.com',
-			'instagram.com',
-			'reddit.com',
-			'tiktok.com',
-			'threads.net'
+		// List of invisible Unicode characters used for encoding
+		// Must match the encoding scheme: \u2060, \u200B, \u200C, \u200D, \u200E, \u200F, \u202D, \u202C
+		// Plus \uFEFF used as delimiter
+		const HIDENLY_CHARS = [
+			'\u200B', // Zero Width Space
+			'\u200C', // Zero Width Non-Joiner
+			'\u200D', // Zero Width Joiner
+			'\u200E', // Left-to-Right Mark
+			'\u200F', // Right-to-Left Mark
+			'\u202C', // Pop Directional Formatting
+			'\u202D', // Left-to-Right Override
+			'\u2060', // Word Joiner
+			'\uFEFF' // Zero Width No-Break Space (delimiter)
 		];
 
-		// Check for exact match or subdomain match (e.g., www.twitter.com, mobile.twitter.com)
-		const isKnownSocial = socialDomains.some((domain) => {
-			return hostname === domain || hostname.endsWith('.' + domain);
-		});
+		// Create regex pattern to detect invisible characters
+		const escapedChars = HIDENLY_CHARS.map((char) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+		const invisibleCharRegex = new RegExp(`[${escapedChars.join('')}]`, 'g');
 
-		// For Mastodon, check if 'mastodon' or 'mstdn' appears as a proper subdomain
-		// This matches: mastodon.social, mastodon.online, social.mastodon.example, mstdn.jp
-		// But rejects: evil.mastodon.fake.com, mastodon-fake.evil.com
-		const parts = hostname.split('.');
-		const isMastodon =
-			parts[0] === 'mastodon' ||
-			parts[0] === 'mstdn' ||
-			(parts.length > 2 && parts[parts.length - 2] === 'mastodon');
+		// Minimum threshold - Hidenly uses pairs of chars, so minimum 8 chars = ~4 base64 chars
+		const MIN_INVISIBLE_CHAR_COUNT = 8;
 
-		return isKnownSocial || isMastodon;
-	}
+		// Quick pre-check using indexOf for performance
+		function hasInvisibleChars(text) {
+			// Quick check for delimiter first (most reliable indicator)
+			if (text.indexOf('\uFEFF') !== -1) return true;
+			// Check for at least one of the common encoding chars
+			return (
+				text.indexOf('\u200B') !== -1 ||
+				text.indexOf('\u200C') !== -1 ||
+				text.indexOf('\u200D') !== -1 ||
+				text.indexOf('\u2060') !== -1 ||
+				text.indexOf('\u200E') !== -1 ||
+				text.indexOf('\u200F') !== -1 ||
+				text.indexOf('\u202C') !== -1 ||
+				text.indexOf('\u202D') !== -1
+			);
+		}
 
-	// Function to update counter
-	function updateCounter() {
-		const hiddenMessages = detectHiddenMessages();
-		const counter = document.getElementById('ghostpost-counter');
+		/**
+		 * Check if text likely contains a Ghostpost encoded message
+		 * Returns false for legitimate uses like RTL text support
+		 * Optimized for performance
+		 */
+		function isLikelyHidenlyMessage(text) {
+			// Skip empty or extremely long text nodes
+			if (!text || text.length === 0 || text.length > MAX_TEXT_NODE_LENGTH) {
+				return false;
+			}
 
-		if (hiddenMessages.length > 0) {
-			counter.textContent = hiddenMessages.length;
-			counter.style.display = 'flex';
+			// Quick pre-check before expensive regex
+			if (!hasInvisibleChars(text)) {
+				return false;
+			}
 
-			// Use micro-pulsing for social media feeds for better attention without being intrusive
-			const useMicroPulse = isSocialMediaSite();
-			const animationName = useMicroPulse ? 'micropulse' : 'pulse';
-			button.style.animation = `${animationName} ${useMicroPulse ? '1.5s' : '2s'} infinite`;
+			// If we have the delimiter character (FEFF), it's very likely an encoded message
+			// The encoding wraps secrets with FEFF delimiters
+			if (text.indexOf('\uFEFF') !== -1) {
+				return true;
+			}
 
-			// Add pulse animations
-			if (!document.getElementById('ghostpost-pulse-style')) {
-				const style = document.createElement('style');
-				style.id = 'ghostpost-pulse-style';
-				style.textContent = `
+			const matches = text.match(invisibleCharRegex);
+
+			if (!matches || matches.length < MIN_INVISIBLE_CHAR_COUNT) {
+				return false;
+			}
+
+			// Calculate ratio of invisible chars to total length
+			const ratio = matches.length / text.length;
+
+			// If there are very few invisible chars relative to text length,
+			// it's likely legitimate formatting (e.g., a few RTL marks in longer text)
+			if (ratio < 0.01 && matches.length < 20) {
+				return false;
+			}
+
+			// If high count or high ratio, likely encoded content
+			return matches.length > 30 || ratio > 0.1;
+		}
+
+		/**
+		 * Default text extraction strategy that preserves invisible Unicode characters
+		 * This works well for most sites
+		 */
+		const defaultTextExtraction = (node) => node.data || node.nodeValue || node.textContent || '';
+
+		/**
+		 * Helper function to check if text contains a complete encoded message
+		 * A complete message needs at least TWO delimiter characters (\uFEFF)
+		 * Format: \uFEFF + invisible_chars + \uFEFF
+		 */
+		function hasCompleteEncodedMessage(text) {
+			if (!text) return false;
+
+			// Count occurrences of the delimiter
+			const delimiterChar = '\uFEFF';
+			let count = 0;
+			let index = text.indexOf(delimiterChar);
+
+			while (index !== -1) {
+				count++;
+				if (count >= 2) return true; // Found at least 2 delimiters
+				index = text.indexOf(delimiterChar, index + 1);
+			}
+
+			return false;
+		}
+
+		/**
+		 * Twitter/X.com specialized adapter
+		 * X.com's dynamic DOM often splits text nodes, so we need to aggregate from parent
+		 */
+		const twitterAdapter = {
+			extractText: (node) => {
+				// First try the text node itself
+				const nodeText = node.data || node.nodeValue || '';
+				if (nodeText && hasCompleteEncodedMessage(nodeText)) {
+					// Has complete message (both delimiters), use it directly
+					return nodeText;
+				}
+
+				// If not, walk up the DOM tree to find a parent that contains the complete message
+				// Try up to 5 levels of parent elements
+				let currentElement = node.parentElement;
+				let levelsChecked = 0;
+				const MAX_PARENT_LEVELS = 5;
+
+				while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
+					// Get all text from this element by aggregating child text nodes
+					let combinedText = '';
+					const walker = document.createTreeWalker(currentElement, NodeFilter.SHOW_TEXT, null);
+					let textNode;
+					while ((textNode = walker.nextNode())) {
+						combinedText += textNode.data || textNode.nodeValue || '';
+					}
+
+					// Check if combined text has complete message (both delimiters)
+					if (combinedText && hasCompleteEncodedMessage(combinedText)) {
+						return combinedText;
+					}
+
+					// Move up to parent
+					currentElement = currentElement.parentElement;
+					levelsChecked++;
+				}
+
+				// Fallback to node text as last resort
+				// Note: If we reach here, the message may be incomplete (missing one or both delimiters)
+				// The decoder will handle this gracefully by returning an appropriate error
+				return nodeText;
+			},
+			description:
+				'Aggregates text from parent elements (up to 5 levels) to handle X.com DOM splitting'
+		};
+
+		/**
+		 * Site-specific text extraction strategies
+		 * Each site can define how to best extract text from nodes
+		 *
+		 * TO ADD A NEW SITE:
+		 * Simply add a new entry with the domain as key and an adapter object:
+		 * 'example.com': {
+		 *   extractText: (node) => { custom logic here },
+		 *   description: 'Brief explanation of the strategy'
+		 * }
+		 */
+		const SITE_ADAPTERS = {
+			// X.com/Twitter - uses shared adapter
+			'x.com': twitterAdapter,
+			'twitter.com': twitterAdapter,
+			// Default strategy for all other sites
+			default: {
+				extractText: defaultTextExtraction,
+				description: 'Standard text extraction with Unicode preservation'
+			}
+		};
+
+		/**
+		 * Get the appropriate site adapter based on current hostname
+		 */
+		function getSiteAdapter() {
+			const hostname = window.location.hostname.toLowerCase();
+
+			// Check for exact match (e.g., 'x.com', 'twitter.com')
+			if (SITE_ADAPTERS[hostname]) {
+				if (DEBUG_MODE) {
+					console.log(`[Ghostpost] Using site-specific adapter for ${hostname}`);
+				}
+				return SITE_ADAPTERS[hostname];
+			}
+
+			// Check for subdomain match (e.g., 'mobile.twitter.com' matches 'twitter.com')
+			// Note: hostname.endsWith('.' + domain) ensures proper subdomain matching
+			// For example: 'mobile.twitter.com'.endsWith('.twitter.com') = true
+			//              but 'badtwitter.com'.endsWith('.twitter.com') = false
+			for (const domain in SITE_ADAPTERS) {
+				if (domain !== 'default' && hostname.endsWith('.' + domain)) {
+					if (DEBUG_MODE) {
+						console.log(`[Ghostpost] Using site-specific adapter for ${domain}`);
+					}
+					return SITE_ADAPTERS[domain];
+				}
+			}
+
+			// Fall back to default
+			if (DEBUG_MODE) {
+				console.log('[Ghostpost] Using default adapter');
+			}
+			return SITE_ADAPTERS['default'];
+		}
+
+		/**
+		 * Core detection function - site-agnostic
+		 * Returns array of objects: { node, encodedText }
+		 */
+		function detectHiddenMessages() {
+			const results = [];
+			const startTime = Date.now();
+			let nodesChecked = 0;
+
+			// Get site-specific adapter
+			const adapter = getSiteAdapter();
+
+			const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+
+			let node;
+			while ((node = walker.nextNode())) {
+				// Safety check: stop if taking too long
+				if (Date.now() - startTime > SCAN_TIMEOUT) {
+					if (DEBUG_MODE) {
+						console.log(
+							'[Ghostpost] Scan timeout - stopping early for performance. Checked',
+							nodesChecked,
+							'nodes, found',
+							results.length,
+							'hidden messages'
+						);
+					}
+					break;
+				}
+
+				// Limit number of nodes processed
+				if (nodesChecked >= MAX_NODES_PER_SCAN) {
+					if (DEBUG_MODE) {
+						console.log(
+							'[Ghostpost] Max nodes reached - stopping scan. Checked',
+							nodesChecked,
+							'nodes, found',
+							results.length,
+							'hidden messages'
+						);
+					}
+					break;
+				}
+
+				nodesChecked++;
+
+				// Use site-specific text extraction
+				const nodeText = adapter.extractText(node);
+				if (nodeText && isLikelyHidenlyMessage(nodeText)) {
+					// Store both the node and the encoded text at detection time
+					results.push({ node, encodedText: nodeText });
+					if (DEBUG_MODE) {
+						console.log('[Ghostpost] Found hidden message #' + results.length, 'in node:', node);
+					}
+				}
+			}
+
+			if (DEBUG_MODE) {
+				console.log(
+					'[Ghostpost] Scan complete. Checked',
+					nodesChecked,
+					'nodes in',
+					Date.now() - startTime,
+					'ms. Found',
+					results.length,
+					'hidden messages'
+				);
+			}
+
+			return results;
+		}
+
+		// Detect if on a social media site for micro-pulsing
+		function isSocialMediaSite() {
+			const hostname = window.location.hostname.toLowerCase();
+			const socialDomains = [
+				'twitter.com',
+				'x.com',
+				'facebook.com',
+				'fb.com',
+				'linkedin.com',
+				'instagram.com',
+				'reddit.com',
+				'tiktok.com',
+				'threads.net'
+			];
+
+			// Check for exact match or subdomain match (e.g., www.twitter.com, mobile.twitter.com)
+			const isKnownSocial = socialDomains.some((domain) => {
+				return hostname === domain || hostname.endsWith('.' + domain);
+			});
+
+			// For Mastodon, check if 'mastodon' or 'mstdn' appears as a proper subdomain
+			// This matches: mastodon.social, mastodon.online, social.mastodon.example, mstdn.jp
+			// But rejects: evil.mastodon.fake.com, mastodon-fake.evil.com
+			const parts = hostname.split('.');
+			const isMastodon =
+				parts[0] === 'mastodon' ||
+				parts[0] === 'mstdn' ||
+				(parts.length > 2 && parts[parts.length - 2] === 'mastodon');
+
+			return isKnownSocial || isMastodon;
+		}
+
+		// Function to update counter
+		function updateCounter() {
+			const hiddenMessages = detectHiddenMessages();
+			const counter = document.getElementById('ghostpost-counter');
+
+			if (hiddenMessages.length > 0) {
+				counter.textContent = hiddenMessages.length;
+				counter.style.display = 'flex';
+
+				// Use micro-pulsing for social media feeds for better attention without being intrusive
+				const useMicroPulse = isSocialMediaSite();
+				const animationName = useMicroPulse ? 'micropulse' : 'pulse';
+				button.style.animation = `${animationName} ${useMicroPulse ? '1.5s' : '2s'} infinite`;
+
+				// Add pulse animations
+				if (!document.getElementById('ghostpost-pulse-style')) {
+					const style = document.createElement('style');
+					style.id = 'ghostpost-pulse-style';
+					style.textContent = `
                     @keyframes pulse {
                         0%, 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
                         50% { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.6); }
@@ -578,252 +607,232 @@
                         }
                     }
                 `;
-				document.head.appendChild(style);
+					document.head.appendChild(style);
+				}
+			} else {
+				counter.style.display = 'none';
+				button.style.animation = 'none';
 			}
-		} else {
-			counter.style.display = 'none';
-			button.style.animation = 'none';
-		}
-	}
-
-	// Store for tracking highlighted elements
-	const highlightedElements = new Set();
-
-	// Function to get element description for display
-	function getElementDescription(element) {
-		// Try to find a meaningful context
-		const tagName = element.tagName.toLowerCase();
-
-		// Get visible text preview (first 50 chars)
-		const textContent = element.textContent.trim();
-		let visibleText = textContent.substring(0, 50);
-		if (textContent.length > 50) visibleText += '...';
-
-		// Get location context
-		let location = tagName;
-		if (element.id) location = `#${element.id}`;
-		else if (element.className) {
-			const classes = element.className.split(' ').slice(0, 2).join('.');
-			if (classes) location = `.${classes}`;
 		}
 
-		return { location, visibleText };
-	}
+		// Store for tracking highlighted elements
+		const highlightedElements = new Set();
 
-	// Function to highlight element on the page
-	function highlightElement(element) {
-		if (highlightedElements.has(element)) return;
+		// Function to get element description for display
+		function getElementDescription(element) {
+			// Try to find a meaningful context
+			const tagName = element.tagName.toLowerCase();
 
-		element.style.outline = '3px solid #ef4444';
-		element.style.outlineOffset = '2px';
-		element.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-		element.style.transition = 'all 0.3s ease';
-		highlightedElements.add(element);
-	}
+			// Get visible text preview (first 50 chars)
+			const textContent = element.textContent.trim();
+			let visibleText = textContent.substring(0, 50);
+			if (textContent.length > 50) visibleText += '...';
 
-	// Function to remove highlight from element
-	function removeHighlight(element) {
-		element.style.outline = '';
-		element.style.outlineOffset = '';
-		element.style.backgroundColor = '';
-		highlightedElements.delete(element);
-	}
+			// Get location context
+			let location = tagName;
+			if (element.id) location = `#${element.id}`;
+			else if (element.className) {
+				const classes = element.className.split(' ').slice(0, 2).join('.');
+				if (classes) location = `.${classes}`;
+			}
 
-	// Function to remove all highlights
-	function removeAllHighlights() {
-		highlightedElements.forEach((element) => {
+			return { location, visibleText };
+		}
+
+		// Function to highlight element on the page
+		function highlightElement(element) {
+			if (highlightedElements.has(element)) return;
+
+			element.style.outline = '3px solid #ef4444';
+			element.style.outlineOffset = '2px';
+			element.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+			element.style.transition = 'all 0.3s ease';
+			highlightedElements.add(element);
+		}
+
+		// Function to remove highlight from element
+		function removeHighlight(element) {
 			element.style.outline = '';
 			element.style.outlineOffset = '';
 			element.style.backgroundColor = '';
+			highlightedElements.delete(element);
+		}
+
+		// Function to remove all highlights
+		function removeAllHighlights() {
+			highlightedElements.forEach((element) => {
+				element.style.outline = '';
+				element.style.outlineOffset = '';
+				element.style.backgroundColor = '';
+			});
+			highlightedElements.clear();
+		}
+
+		// Function to scroll element into view smoothly
+		function scrollToElement(element) {
+			element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}
+
+		// ============================================================================
+		// ENCODING CONSTANTS (Hardened and Isolated)
+		// These constants define the critical mappings for steganographic decoding
+		// Frozen with Object.freeze() to prevent tampering and ensure integrity
+		// ============================================================================
+		const ENCODING_CONSTANTS = Object.freeze({
+			// Base64 character to invisible Unicode pair mapping
+			// Maps pairs of invisible Unicode characters to base64 characters
+			BASE64_CHAR_MAP: Object.freeze({
+				'\u2060\u2060': 'A',
+				'\u2060\u200B': 'B',
+				'\u2060\u200C': 'C',
+				'\u2060\u200D': 'D',
+				'\u2060\u200E': 'E',
+				'\u2060\u200F': 'F',
+				'\u2060\u202D': 'G',
+				'\u2060\u202C': 'H',
+				'\u200B\u2060': 'I',
+				'\u200B\u200B': 'J',
+				'\u200B\u200C': 'K',
+				'\u200B\u200D': 'L',
+				'\u200B\u200E': 'M',
+				'\u200B\u200F': 'N',
+				'\u200B\u202D': 'O',
+				'\u200B\u202C': 'P',
+				'\u200C\u2060': 'Q',
+				'\u200C\u200B': 'R',
+				'\u200C\u200C': 'S',
+				'\u200C\u200D': 'T',
+				'\u200C\u200E': 'U',
+				'\u200C\u200F': 'V',
+				'\u200C\u202D': 'W',
+				'\u200C\u202C': 'X',
+				'\u200D\u2060': 'Y',
+				'\u200D\u200B': 'Z',
+				'\u200D\u200C': 'a',
+				'\u200D\u200D': 'b',
+				'\u200D\u200E': 'c',
+				'\u200D\u200F': 'd',
+				'\u200D\u202D': 'e',
+				'\u200D\u202C': 'f',
+				'\u200E\u2060': 'g',
+				'\u200E\u200B': 'h',
+				'\u200E\u200C': 'i',
+				'\u200E\u200D': 'j',
+				'\u200E\u200E': 'k',
+				'\u200E\u200F': 'l',
+				'\u200E\u202D': 'm',
+				'\u200E\u202C': 'n',
+				'\u200F\u2060': 'o',
+				'\u200F\u200B': 'p',
+				'\u200F\u200C': 'q',
+				'\u200F\u200D': 'r',
+				'\u200F\u200E': 's',
+				'\u200F\u200F': 't',
+				'\u200F\u202D': 'u',
+				'\u200F\u202C': 'v',
+				'\u202D\u2060': 'w',
+				'\u202D\u200B': 'x',
+				'\u202D\u200C': 'y',
+				'\u202D\u200D': 'z',
+				'\u202D\u200E': '0',
+				'\u202D\u200F': '1',
+				'\u202D\u202D': '2',
+				'\u202D\u202C': '3',
+				'\u202C\u2060': '4',
+				'\u202C\u200B': '5',
+				'\u202C\u200C': '6',
+				'\u202C\u200D': '7',
+				'\u202C\u200E': '8',
+				'\u202C\u200F': '9',
+				'\u202C\u202D': '+',
+				'\u202C\u202C': '/'
+			}),
+
+			// Delimiters used in encoding format
+			POST_ID_DELIMITER: '||ghostid:',
+			POST_ID_END: '||',
+			CONTENT_DELIMITER: '\uFEFF' // Zero Width No-Break Space - wraps hidden content
 		});
-		highlightedElements.clear();
-	}
 
-	// Function to scroll element into view smoothly
-	function scrollToElement(element) {
-		element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-	}
-
-	// ============================================================================
-	// ENCODING CONSTANTS (Hardened and Isolated)
-	// These constants define the critical mappings for steganographic decoding
-	// Frozen with Object.freeze() to prevent tampering and ensure integrity
-	// ============================================================================
-	const ENCODING_CONSTANTS = Object.freeze({
-		// Base64 character to invisible Unicode pair mapping
-		// Maps pairs of invisible Unicode characters to base64 characters
-		BASE64_CHAR_MAP: Object.freeze({
-			'\u2060\u2060': 'A',
-			'\u2060\u200B': 'B',
-			'\u2060\u200C': 'C',
-			'\u2060\u200D': 'D',
-			'\u2060\u200E': 'E',
-			'\u2060\u200F': 'F',
-			'\u2060\u202D': 'G',
-			'\u2060\u202C': 'H',
-			'\u200B\u2060': 'I',
-			'\u200B\u200B': 'J',
-			'\u200B\u200C': 'K',
-			'\u200B\u200D': 'L',
-			'\u200B\u200E': 'M',
-			'\u200B\u200F': 'N',
-			'\u200B\u202D': 'O',
-			'\u200B\u202C': 'P',
-			'\u200C\u2060': 'Q',
-			'\u200C\u200B': 'R',
-			'\u200C\u200C': 'S',
-			'\u200C\u200D': 'T',
-			'\u200C\u200E': 'U',
-			'\u200C\u200F': 'V',
-			'\u200C\u202D': 'W',
-			'\u200C\u202C': 'X',
-			'\u200D\u2060': 'Y',
-			'\u200D\u200B': 'Z',
-			'\u200D\u200C': 'a',
-			'\u200D\u200D': 'b',
-			'\u200D\u200E': 'c',
-			'\u200D\u200F': 'd',
-			'\u200D\u202D': 'e',
-			'\u200D\u202C': 'f',
-			'\u200E\u2060': 'g',
-			'\u200E\u200B': 'h',
-			'\u200E\u200C': 'i',
-			'\u200E\u200D': 'j',
-			'\u200E\u200E': 'k',
-			'\u200E\u200F': 'l',
-			'\u200E\u202D': 'm',
-			'\u200E\u202C': 'n',
-			'\u200F\u2060': 'o',
-			'\u200F\u200B': 'p',
-			'\u200F\u200C': 'q',
-			'\u200F\u200D': 'r',
-			'\u200F\u200E': 's',
-			'\u200F\u200F': 't',
-			'\u200F\u202D': 'u',
-			'\u200F\u202C': 'v',
-			'\u202D\u2060': 'w',
-			'\u202D\u200B': 'x',
-			'\u202D\u200C': 'y',
-			'\u202D\u200D': 'z',
-			'\u202D\u200E': '0',
-			'\u202D\u200F': '1',
-			'\u202D\u202D': '2',
-			'\u202D\u202C': '3',
-			'\u202C\u2060': '4',
-			'\u202C\u200B': '5',
-			'\u202C\u200C': '6',
-			'\u202C\u200D': '7',
-			'\u202C\u200E': '8',
-			'\u202C\u200F': '9',
-			'\u202C\u202D': '+',
-			'\u202C\u202C': '/'
-		}),
-		
-		// Delimiters used in encoding format
-		POST_ID_DELIMITER: '||ghostid:',
-		POST_ID_END: '||',
-		CONTENT_DELIMITER: '\uFEFF' // Zero Width No-Break Space - wraps hidden content
-	});
-
-	/**
-	 * Decode a hidden message from encoded text (client-side implementation)
-	 * Now supports DEFLATE compression to match WASM encoder
-	 */
-	function decodeHiddenMessage(encodedText) {
-		try {
-			// Step 1: Extract content between delimiters (FEFF characters)
-			const parts = encodedText.split(ENCODING_CONSTANTS.CONTENT_DELIMITER);
-			if (parts.length < 2) {
-				throw new Error('No hidden content found');
-			}
-
-			const unwrapped = parts[1];
-			if (!unwrapped || unwrapped.length === 0) {
-				throw new Error('Empty hidden content');
-			}
-
-			// Step 2: Convert pairs of invisible chars back to base64
-			let base64String = '';
-			for (let i = 0; i < unwrapped.length; i += 2) {
-				if (i + 1 < unwrapped.length) {
-					const pair = unwrapped[i] + unwrapped[i + 1];
-					const base64Char = ENCODING_CONSTANTS.BASE64_CHAR_MAP[pair];
-					if (base64Char) {
-						base64String += base64Char;
-					}
-				}
-			}
-
-			if (!base64String) {
-				throw new Error('Invalid encoded content');
-			}
-
-			// Step 3: Decode base64 to get compressed bytes
-			let decodedBytes;
+		/**
+		 * Decode a hidden message from encoded text (client-side implementation)
+		 * Now supports DEFLATE compression to match WASM encoder
+		 */
+		function decodeHiddenMessage(encodedText) {
 			try {
-				const binaryString = atob(base64String);
-				// Convert binary string to Uint8Array for decompression
-				decodedBytes = new Uint8Array(binaryString.length);
-				for (let i = 0; i < binaryString.length; i++) {
-					decodedBytes[i] = binaryString.charCodeAt(i);
+				// Step 1: Extract content between delimiters (FEFF characters)
+				const parts = encodedText.split(ENCODING_CONSTANTS.CONTENT_DELIMITER);
+				if (parts.length < 2) {
+					throw new Error('No hidden content found');
 				}
-			} catch (e) {
-				throw new Error('Invalid base64 encoding');
-			}
 
-			// Step 4: Try to decompress the data using pako
-			// Note: Rust's DeflateEncoder produces RAW DEFLATE format (no zlib headers)
-			// We must use pako.inflateRaw() not pako.inflate()
-			let finalBytes;
-			// Use pako to decompress RAW DEFLATE data
-			if (typeof pako?.inflateRaw === 'function') {
+				const unwrapped = parts[1];
+				if (!unwrapped || unwrapped.length === 0) {
+					throw new Error('Empty hidden content');
+				}
+
+				// Step 2: Convert pairs of invisible chars back to base64
+				let base64String = '';
+				for (let i = 0; i < unwrapped.length; i += 2) {
+					if (i + 1 < unwrapped.length) {
+						const pair = unwrapped[i] + unwrapped[i + 1];
+						const base64Char = ENCODING_CONSTANTS.BASE64_CHAR_MAP[pair];
+						if (base64Char) {
+							base64String += base64Char;
+						}
+					}
+				}
+
+				if (!base64String) {
+					throw new Error('Invalid encoded content');
+				}
+
+				// Step 3: Decode base64 to get compressed bytes
+				let decodedBytes;
 				try {
-					finalBytes = pako.inflateRaw(decodedBytes);
-					if (DEBUG_MODE) {
-						console.log('[Ghostpost] Successfully decompressed with pako.inflateRaw');
+					const binaryString = atob(base64String);
+					// Convert binary string to Uint8Array for decompression
+					decodedBytes = new Uint8Array(binaryString.length);
+					for (let i = 0; i < binaryString.length; i++) {
+						decodedBytes[i] = binaryString.charCodeAt(i);
 					}
-				} catch (decompressError) {
-					// Decompression failed - might be legacy uncompressed message
-					// Fall back to using original bytes
-					if (DEBUG_MODE) {
-						console.log('[Ghostpost] Decompression failed, trying uncompressed:', decompressError);
+				} catch (e) {
+					throw new Error('Invalid base64 encoding');
+				}
+
+				// Step 4: Try to decompress the data using pako
+				// Note: Rust's DeflateEncoder produces RAW DEFLATE format (no zlib headers)
+				// We must use pako.inflateRaw() not pako.inflate()
+				let finalBytes;
+				// Use pako to decompress RAW DEFLATE data
+				if (typeof pako?.inflateRaw === 'function') {
+					try {
+						finalBytes = pako.inflateRaw(decodedBytes);
+						if (DEBUG_MODE) {
+							console.log('[Ghostpost] Successfully decompressed with pako.inflateRaw');
+						}
+					} catch (decompressError) {
+						// Decompression failed - might be legacy uncompressed message
+						// Fall back to using original bytes
+						if (DEBUG_MODE) {
+							console.log(
+								'[Ghostpost] Decompression failed, trying uncompressed:',
+								decompressError
+							);
+						}
+						finalBytes = decodedBytes;
 					}
+				} else {
+					// Pako not available - use uncompressed bytes
+					console.warn('[Ghostpost] Pako library not available, assuming uncompressed message');
 					finalBytes = decodedBytes;
 				}
-			} else {
-				// Pako not available - use uncompressed bytes
-				console.warn('[Ghostpost] Pako library not available, assuming uncompressed message');
-				finalBytes = decodedBytes;
-			}
 
-			// Step 5: Convert bytes to UTF-8 string
-			try {
-				// Use TextDecoder for proper UTF-8 decoding
-				const decoder = new TextDecoder('utf-8');
-				const decoded = decoder.decode(finalBytes);
-
-				// Check for post ID and extract it
-				const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
-				if (postIdIndex !== -1) {
-					const postIdStart = postIdIndex + ENCODING_CONSTANTS.POST_ID_DELIMITER.length;
-					const postIdEnd = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_END, postIdStart);
-					if (postIdEnd !== -1) {
-						const postId = decoded.substring(postIdStart, postIdEnd);
-						const message = decoded.substring(0, postIdIndex);
-						return { message, postId };
-					}
-				}
-
-				return { message: decoded, postId: null };
-			} catch (e) {
-				// Fallback: Try decodeURIComponent method
+				// Step 5: Convert bytes to UTF-8 string
 				try {
-					const decoded = decodeURIComponent(
-						Array.from(
-							finalBytes,
-							(byte) => '%' + ('00' + byte.toString(16)).slice(-2)
-						).join('')
-					);
+					// Use TextDecoder for proper UTF-8 decoding
+					const decoder = new TextDecoder('utf-8');
+					const decoded = decoder.decode(finalBytes);
 
 					// Check for post ID and extract it
 					const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
@@ -838,141 +847,165 @@
 					}
 
 					return { message: decoded, postId: null };
-				} catch (e2) {
-					// Last resort: Convert bytes directly to string
-					let decoded = '';
-					for (let i = 0; i < finalBytes.length; i++) {
-						decoded += String.fromCharCode(finalBytes[i]);
-					}
-					
-					const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
-					if (postIdIndex !== -1) {
-						const postIdStart = postIdIndex + ENCODING_CONSTANTS.POST_ID_DELIMITER.length;
-						const postIdEnd = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_END, postIdStart);
-						if (postIdEnd !== -1) {
-							const postId = decoded.substring(postIdStart, postIdEnd);
-							const message = decoded.substring(0, postIdIndex);
-							return { message, postId };
-						}
-					}
-					return { message: decoded, postId: null };
-				}
-			}
-		} catch (err) {
-			console.error('Decode error:', err);
-			throw new Error('Failed to decode: ' + err.message);
-		}
-	}
+				} catch (e) {
+					// Fallback: Try decodeURIComponent method
+					try {
+						const decoded = decodeURIComponent(
+							Array.from(finalBytes, (byte) => '%' + ('00' + byte.toString(16)).slice(-2)).join('')
+						);
 
-	// Generate a simple browser fingerprint for analytics
-	// This is used to track unique reveals without identifying users
-	function generateFingerprint() {
-		try {
-			const canvas = document.createElement('canvas');
-			const ctx = canvas.getContext('2d');
-			if (!ctx) {
-				// Canvas not supported, use fallback
+						// Check for post ID and extract it
+						const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
+						if (postIdIndex !== -1) {
+							const postIdStart = postIdIndex + ENCODING_CONSTANTS.POST_ID_DELIMITER.length;
+							const postIdEnd = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_END, postIdStart);
+							if (postIdEnd !== -1) {
+								const postId = decoded.substring(postIdStart, postIdEnd);
+								const message = decoded.substring(0, postIdIndex);
+								return { message, postId };
+							}
+						}
+
+						return { message: decoded, postId: null };
+					} catch (e2) {
+						// Last resort: Convert bytes directly to string
+						let decoded = '';
+						for (let i = 0; i < finalBytes.length; i++) {
+							decoded += String.fromCharCode(finalBytes[i]);
+						}
+
+						const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
+						if (postIdIndex !== -1) {
+							const postIdStart = postIdIndex + ENCODING_CONSTANTS.POST_ID_DELIMITER.length;
+							const postIdEnd = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_END, postIdStart);
+							if (postIdEnd !== -1) {
+								const postId = decoded.substring(postIdStart, postIdEnd);
+								const message = decoded.substring(0, postIdIndex);
+								return { message, postId };
+							}
+						}
+						return { message: decoded, postId: null };
+					}
+				}
+			} catch (err) {
+				console.error('Decode error:', err);
+				throw new Error('Failed to decode: ' + err.message);
+			}
+		}
+
+		// Generate a simple browser fingerprint for analytics
+		// This is used to track unique reveals without identifying users
+		function generateFingerprint() {
+			try {
+				const canvas = document.createElement('canvas');
+				const ctx = canvas.getContext('2d');
+				if (!ctx) {
+					// Canvas not supported, use fallback
+					return generateFallbackFingerprint();
+				}
+				ctx.textBaseline = 'top';
+				ctx.font = '14px Arial';
+				ctx.fillText('fingerprint', 2, 2);
+				const canvasData = canvas.toDataURL();
+
+				// Create a simple hash from browser properties
+				const fingerprint = [
+					navigator.userAgent,
+					navigator.language,
+					screen.colorDepth,
+					screen.width + 'x' + screen.height,
+					new Date().getTimezoneOffset(),
+					canvasData.substring(0, 100) // Use part of canvas data
+				].join('|');
+
+				return hashString(fingerprint);
+			} catch (err) {
+				// Canvas operations failed (privacy settings, etc), use fallback
+				if (DEBUG_MODE) {
+					console.log('[Ghostpost] Canvas fingerprinting failed, using fallback:', err);
+				}
 				return generateFallbackFingerprint();
 			}
-			ctx.textBaseline = 'top';
-			ctx.font = '14px Arial';
-			ctx.fillText('fingerprint', 2, 2);
-			const canvasData = canvas.toDataURL();
-			
-			// Create a simple hash from browser properties
+		}
+
+		// Fallback fingerprinting without canvas
+		function generateFallbackFingerprint() {
 			const fingerprint = [
 				navigator.userAgent,
 				navigator.language,
 				screen.colorDepth,
 				screen.width + 'x' + screen.height,
 				new Date().getTimezoneOffset(),
-				canvasData.substring(0, 100) // Use part of canvas data
+				navigator.platform,
+				navigator.hardwareConcurrency || 'unknown'
 			].join('|');
-			
+
 			return hashString(fingerprint);
-		} catch (err) {
-			// Canvas operations failed (privacy settings, etc), use fallback
-			if (DEBUG_MODE) {
-				console.log('[Ghostpost] Canvas fingerprinting failed, using fallback:', err);
+		}
+
+		// Simple hash function
+		function hashString(str) {
+			let hash = 0;
+			for (let i = 0; i < str.length; i++) {
+				const char = str.charCodeAt(i);
+				hash = (hash << 5) - hash + char;
+				hash = hash & hash; // Convert to 32bit integer
 			}
-			return generateFallbackFingerprint();
-		}
-	}
 
-	// Fallback fingerprinting without canvas
-	function generateFallbackFingerprint() {
-		const fingerprint = [
-			navigator.userAgent,
-			navigator.language,
-			screen.colorDepth,
-			screen.width + 'x' + screen.height,
-			new Date().getTimezoneOffset(),
-			navigator.platform,
-			navigator.hardwareConcurrency || 'unknown'
-		].join('|');
-		
-		return hashString(fingerprint);
-	}
-
-	// Simple hash function
-	function hashString(str) {
-		let hash = 0;
-		for (let i = 0; i < str.length; i++) {
-			const char = str.charCodeAt(i);
-			hash = ((hash << 5) - hash) + char;
-			hash = hash & hash; // Convert to 32bit integer
-		}
-		
-		return 'fp_' + Math.abs(hash).toString(36);
-	}
-
-	// Constants for reveal display
-	const LOW_COUNT_THRESHOLD = 5;
-	const WARNING_COUNT_THRESHOLD = 20;
-	const URGENT_MESSAGE_THRESHOLD = 10;
-
-	// Helper function to generate reveal stats HTML
-	function generateRevealStatsHtml(revealData) {
-		if (!revealData) {
-			return '';
+			return 'fp_' + Math.abs(hash).toString(36);
 		}
 
-		if (revealData.expired) {
-			return `
+		// Constants for reveal display
+		const LOW_COUNT_THRESHOLD = 5;
+		const WARNING_COUNT_THRESHOLD = 20;
+		const URGENT_MESSAGE_THRESHOLD = 10;
+
+		// Helper function to generate reveal stats HTML
+		function generateRevealStatsHtml(revealData) {
+			if (!revealData) {
+				return '';
+			}
+
+			if (revealData.expired) {
+				return `
 				<div style="margin-top: 12px; padding: 10px; background: #fef2f2; border-radius: 6px; border: 1px solid #ef4444;">
 					<div style="font-size: 12px; font-weight: 600; color: #b91c1c;">
 						💔 ${revealData.message}
 					</div>
 				</div>
 			`;
-		}
+			}
 
-		if (revealData.reveal_number === null) {
-			return '';
-		}
+			if (revealData.reveal_number === null) {
+				return '';
+			}
 
-		const isLowCount = revealData.remaining !== null && revealData.remaining <= LOW_COUNT_THRESHOLD;
-		const isSoldOut = revealData.remaining === 0;
-		const percentage = revealData.total_reveals ? (revealData.reveal_number / revealData.total_reveals) * 100 : 0;
-		
-		// Determine progress bar color based on remaining count
-		let progressBarColor = '#3b82f6'; // blue for normal
-		if (isSoldOut) {
-			progressBarColor = '#ef4444'; // red for sold out
-		} else if (revealData.remaining !== null && revealData.remaining <= LOW_COUNT_THRESHOLD) {
-			progressBarColor = '#ef4444'; // red for critical
-		} else if (revealData.remaining !== null && revealData.remaining <= WARNING_COUNT_THRESHOLD) {
-			progressBarColor = '#f59e0b'; // orange/yellow for warning
-		}
-		
-		// Determine styling based on state
-		const bgColor = isSoldOut ? '#fef2f2' : isLowCount ? '#fef3c7' : '#eff6ff';
-		const borderColor = isSoldOut ? '#ef4444' : isLowCount ? '#f59e0b' : '#3b82f6';
-		const titleColor = isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af';
-		const textColor = isSoldOut ? '#991b1b' : isLowCount ? '#78350f' : '#1e3a8a';
-		const shouldPulse = revealData.remaining !== null && revealData.remaining <= WARNING_COUNT_THRESHOLD;
-		
-		return `
+			const isLowCount =
+				revealData.remaining !== null && revealData.remaining <= LOW_COUNT_THRESHOLD;
+			const isSoldOut = revealData.remaining === 0;
+			const percentage = revealData.total_reveals
+				? (revealData.reveal_number / revealData.total_reveals) * 100
+				: 0;
+
+			// Determine progress bar color based on remaining count
+			let progressBarColor = '#3b82f6'; // blue for normal
+			if (isSoldOut) {
+				progressBarColor = '#ef4444'; // red for sold out
+			} else if (revealData.remaining !== null && revealData.remaining <= LOW_COUNT_THRESHOLD) {
+				progressBarColor = '#ef4444'; // red for critical
+			} else if (revealData.remaining !== null && revealData.remaining <= WARNING_COUNT_THRESHOLD) {
+				progressBarColor = '#f59e0b'; // orange/yellow for warning
+			}
+
+			// Determine styling based on state
+			const bgColor = isSoldOut ? '#fef2f2' : isLowCount ? '#fef3c7' : '#eff6ff';
+			const borderColor = isSoldOut ? '#ef4444' : isLowCount ? '#f59e0b' : '#3b82f6';
+			const titleColor = isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af';
+			const textColor = isSoldOut ? '#991b1b' : isLowCount ? '#78350f' : '#1e3a8a';
+			const shouldPulse =
+				revealData.remaining !== null && revealData.remaining <= WARNING_COUNT_THRESHOLD;
+
+			return `
 			<div style="margin-top: 12px; padding: 12px; background: ${bgColor}; border-radius: 6px; border: 1px solid ${borderColor};">
 				<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
 					<div style="flex: 1;">
@@ -992,32 +1025,46 @@
 						</div>
 					</div>
 				</div>
-				${revealData.total_reveals ? `
+				${
+					revealData.total_reveals
+						? `
 					<div style="width: 100%; height: 12px; background: rgba(0, 0, 0, 0.1); border-radius: 6px; overflow: hidden; margin-top: 8px;">
 						<div style="height: 100%; background: ${progressBarColor}; width: ${percentage}%; transition: width 0.5s ease;"></div>
 					</div>
-				` : ''}
-				${revealData.remaining !== null && revealData.remaining > 0 && revealData.remaining <= URGENT_MESSAGE_THRESHOLD ? `
+				`
+						: ''
+				}
+				${
+					revealData.remaining !== null &&
+					revealData.remaining > 0 &&
+					revealData.remaining <= URGENT_MESSAGE_THRESHOLD
+						? `
 					<div style="font-size: 10px; text-align: center; margin-top: 6px; opacity: 0.85; animation: pulse 2s infinite;">
 						⚡ Only ${revealData.remaining} ${revealData.remaining === 1 ? 'person' : 'people'} can reveal this secret before it's gone forever!
 					</div>
-				` : ''}
-				${isSoldOut ? `
+				`
+						: ''
+				}
+				${
+					isSoldOut
+						? `
 					<div style="font-size: 10px; text-align: center; margin-top: 6px; font-weight: 600;">
 						💎 You got the LAST reveal! This secret is now locked forever.
 					</div>
-				` : ''}
+				`
+						: ''
+				}
 			</div>
 		`;
-	}
+		}
 
-	// Function to reveal a single message inline
-	function revealSingleMessage(encodedText, textNode, element, itemElement, revealBtn) {
-		// Hide the reveal button
-		revealBtn.style.display = 'none';
+		// Function to reveal a single message inline
+		function revealSingleMessage(encodedText, textNode, element, itemElement, revealBtn) {
+			// Hide the reveal button
+			revealBtn.style.display = 'none';
 
-		// Show loading state
-		itemElement.innerHTML = `
+			// Show loading state
+			itemElement.innerHTML = `
 			<div style="padding: 15px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #3b82f6; margin-top: 10px;">
 				<div style="display: flex; align-items: center; gap: 10px;">
 					<span style="font-size: 20px;">🔓</span>
@@ -1026,73 +1073,81 @@
 			</div>
 		`;
 
-		// Decode the message
-		setTimeout(async () => {
-			try {
-				const result = decodeHiddenMessage(encodedText);
-				const decodedMessage = result.message;
-				const postId = result.postId;
+			// Decode the message
+			setTimeout(async () => {
+				try {
+					const result = decodeHiddenMessage(encodedText);
+					const decodedMessage = result.message;
+					const postId = result.postId;
 
-				// Track reveal if post_id is present
-				let revealData = null;
-				if (postId) {
-					try {
-						// First check status
-						const statusResponse = await fetch(`https://ghostpost-six.vercel.app/api/limited-reveals/status?post_id=${postId}`);
-						const statusData = await statusResponse.json();
-						
-						if (statusData.success && statusData.status) {
-							const status = statusData.status;
-							
-							// Check if can still reveal
-							if (status.is_expired || !status.can_reveal) {
-								// Show expired message but still reveal the secret
-								revealData = {
-									expired: true,
-									message: 'This secret has expired — all reveals are gone forever 💔'
-								};
-							} else {
-								// Record the reveal with user fingerprint for analytics
-								const userFingerprint = generateFingerprint();
-								const revealResponse = await fetch('https://ghostpost-six.vercel.app/api/limited-reveals/reveal', {
-									method: 'POST',
-									headers: {
-										'Content-Type': 'application/json'
-									},
-									body: JSON.stringify({
-										post_id: postId,
-										user_fingerprint: userFingerprint
-									})
-								});
-								
-								const revealResponseData = await revealResponse.json();
-								if (revealResponseData.success) {
-									revealData = revealResponseData;
+					// Track reveal if post_id is present
+					let revealData = null;
+					if (postId) {
+						try {
+							// First check status
+							const statusResponse = await fetch(
+								`https://ghostpost-six.vercel.app/api/limited-reveals/status?post_id=${postId}`
+							);
+							const statusData = await statusResponse.json();
+
+							if (statusData.success && statusData.status) {
+								const status = statusData.status;
+
+								// Check if can still reveal
+								if (status.is_expired || !status.can_reveal) {
+									// Show expired message but still reveal the secret
+									revealData = {
+										expired: true,
+										message: 'This secret has expired — all reveals are gone forever 💔'
+									};
+								} else {
+									// Record the reveal with user fingerprint for analytics
+									const userFingerprint = generateFingerprint();
+									const revealResponse = await fetch(
+										'https://ghostpost-six.vercel.app/api/limited-reveals/reveal',
+										{
+											method: 'POST',
+											headers: {
+												'Content-Type': 'application/json'
+											},
+											body: JSON.stringify({
+												post_id: postId,
+												user_fingerprint: userFingerprint
+											})
+										}
+									);
+
+									const revealResponseData = await revealResponse.json();
+									if (revealResponseData.success) {
+										revealData = revealResponseData;
+									}
 								}
 							}
-						}
-					} catch (apiError) {
-						if (DEBUG_MODE) {
-							console.log('[Ghostpost] Limited reveals API error (showing message anyway):', apiError);
+						} catch (apiError) {
+							if (DEBUG_MODE) {
+								console.log(
+									'[Ghostpost] Limited reveals API error (showing message anyway):',
+									apiError
+								);
+							}
 						}
 					}
-				}
 
-				// Check if it's an image
-				const isImage = decodedMessage.startsWith('data:image/');
+					// Check if it's an image
+					const isImage = decodedMessage.startsWith('data:image/');
 
-				// Show the decoded content
-				if (isImage) {
-					// Validate data URL format to prevent XSS
-					const dataUrlPattern = /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/;
-					if (!dataUrlPattern.test(decodedMessage)) {
-						throw new Error('Invalid image format');
-					}
+					// Show the decoded content
+					if (isImage) {
+						// Validate data URL format to prevent XSS
+						const dataUrlPattern = /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/;
+						if (!dataUrlPattern.test(decodedMessage)) {
+							throw new Error('Invalid image format');
+						}
 
-					// Build reveal stats HTML using helper function
-					const revealStatsHtml = generateRevealStatsHtml(revealData);
+						// Build reveal stats HTML using helper function
+						const revealStatsHtml = generateRevealStatsHtml(revealData);
 
-					itemElement.innerHTML = `
+						itemElement.innerHTML = `
 						<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
 							<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
 								<span style="font-size: 20px;">✨</span>
@@ -1102,13 +1157,13 @@
 							${revealStatsHtml}
 						</div>
 					`;
-				} else {
-					const escapedMessage = escapeHtml(decodedMessage);
-					
-					// Build reveal stats HTML using helper function
-					const revealStatsHtml = generateRevealStatsHtml(revealData);
-					
-					itemElement.innerHTML = `
+					} else {
+						const escapedMessage = escapeHtml(decodedMessage);
+
+						// Build reveal stats HTML using helper function
+						const revealStatsHtml = generateRevealStatsHtml(revealData);
+
+						itemElement.innerHTML = `
 						<div style="padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; margin-top: 10px;">
 							<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
 								<span style="font-size: 20px;">✨</span>
@@ -1123,59 +1178,59 @@
 						</div>
 					`;
 
-					// Add copy functionality
-					setTimeout(() => {
-						const copyBtn = itemElement.querySelector('.copy-secret-btn');
-						if (copyBtn) {
-							copyBtn.onclick = function () {
-								// Check if clipboard API is available
-								if (!navigator.clipboard || !navigator.clipboard.writeText) {
-									// Fallback for browsers without clipboard API
-									const textArea = document.createElement('textarea');
-									textArea.value = decodedMessage;
-									textArea.style.position = 'fixed';
-									textArea.style.left = '-999999px';
-									document.body.appendChild(textArea);
-									textArea.select();
-									try {
-										document.execCommand('copy');
-										this.innerHTML = '<span>✅</span><span>Copied!</span>';
-										setTimeout(() => {
-											this.innerHTML = '<span>📋</span><span>Copy Secret</span>';
-										}, 2000);
-									} catch (err) {
-										console.error('Copy failed:', err);
-										showNotification('Failed to copy to clipboard', 'error');
+						// Add copy functionality
+						setTimeout(() => {
+							const copyBtn = itemElement.querySelector('.copy-secret-btn');
+							if (copyBtn) {
+								copyBtn.onclick = function () {
+									// Check if clipboard API is available
+									if (!navigator.clipboard || !navigator.clipboard.writeText) {
+										// Fallback for browsers without clipboard API
+										const textArea = document.createElement('textarea');
+										textArea.value = decodedMessage;
+										textArea.style.position = 'fixed';
+										textArea.style.left = '-999999px';
+										document.body.appendChild(textArea);
+										textArea.select();
+										try {
+											document.execCommand('copy');
+											this.innerHTML = '<span>✅</span><span>Copied!</span>';
+											setTimeout(() => {
+												this.innerHTML = '<span>📋</span><span>Copy Secret</span>';
+											}, 2000);
+										} catch (err) {
+											console.error('Copy failed:', err);
+											showNotification('Failed to copy to clipboard', 'error');
+										}
+										document.body.removeChild(textArea);
+										return;
 									}
-									document.body.removeChild(textArea);
-									return;
-								}
 
-								navigator.clipboard
-									.writeText(decodedMessage)
-									.then(() => {
-										this.innerHTML = '<span>✅</span><span>Copied!</span>';
-										setTimeout(() => {
-											this.innerHTML = '<span>📋</span><span>Copy Secret</span>';
-										}, 2000);
-									})
-									.catch((err) => {
-										console.error('Copy failed:', err);
-										showNotification('Failed to copy to clipboard', 'error');
-									});
-							};
-						}
-					}, 0);
-				}
+									navigator.clipboard
+										.writeText(decodedMessage)
+										.then(() => {
+											this.innerHTML = '<span>✅</span><span>Copied!</span>';
+											setTimeout(() => {
+												this.innerHTML = '<span>📋</span><span>Copy Secret</span>';
+											}, 2000);
+										})
+										.catch((err) => {
+											console.error('Copy failed:', err);
+											showNotification('Failed to copy to clipboard', 'error');
+										});
+								};
+							}
+						}, 0);
+					}
 
-				// Flash the element on page to indicate which one was revealed
-				highlightElement(element);
-				setTimeout(() => {
-					element.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
-				}, 300);
-			} catch (err) {
-				// Show error
-				itemElement.innerHTML = `
+					// Flash the element on page to indicate which one was revealed
+					highlightElement(element);
+					setTimeout(() => {
+						element.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+					}, 300);
+				} catch (err) {
+					// Show error
+					itemElement.innerHTML = `
 					<div style="padding: 15px; background: #fef2f2; border-radius: 8px; border-left: 4px solid #ef4444; margin-top: 10px;">
 						<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
 							<span style="font-size: 20px;">❌</span>
@@ -1186,61 +1241,61 @@
 					</div>
 				`;
 
-				// Add retry functionality
-				setTimeout(() => {
-					const retryBtn = itemElement.querySelector('.retry-reveal-btn');
-					if (retryBtn) {
-						retryBtn.onclick = function () {
-							itemElement.innerHTML = '';
-							revealBtn.style.display = 'inline-flex';
-						};
-					}
-				}, 0);
-			}
-		}, 100);
-	}
-
-	// Utility function to escape HTML
-	function escapeHtml(text) {
-		const div = document.createElement('div');
-		div.textContent = text;
-		return div.innerHTML;
-	}
-
-	// Function to create and show the reveal modal
-	function showRevealModal(hiddenMessages) {
-		// Remove any existing modal
-		const existingModal = document.getElementById('ghostpost-reveal-modal');
-		if (existingModal) {
-			existingModal.remove();
+					// Add retry functionality
+					setTimeout(() => {
+						const retryBtn = itemElement.querySelector('.retry-reveal-btn');
+						if (retryBtn) {
+							retryBtn.onclick = function () {
+								itemElement.innerHTML = '';
+								revealBtn.style.display = 'inline-flex';
+							};
+						}
+					}, 0);
+				}
+			}, 100);
 		}
 
-		// Highlight all elements with hidden messages
-		hiddenMessages.forEach(({ node }) => {
-			const element = node.parentElement;
-			if (element) highlightElement(element);
-		});
+		// Utility function to escape HTML
+		function escapeHtml(text) {
+			const div = document.createElement('div');
+			div.textContent = text;
+			return div.innerHTML;
+		}
 
-		// Calculate position above ghost button
-		const ghostButton = document.getElementById(BUTTON_ID);
-		const buttonRect = ghostButton.getBoundingClientRect();
-		const modalWidth = 400;
-		const modalMaxHeight = Math.min(500, window.innerHeight - 120);
+		// Function to create and show the reveal modal
+		function showRevealModal(hiddenMessages) {
+			// Remove any existing modal
+			const existingModal = document.getElementById('ghostpost-reveal-modal');
+			if (existingModal) {
+				existingModal.remove();
+			}
 
-		// Position modal above the button, centered horizontally with it
-		const modalLeft = Math.max(
-			10,
-			Math.min(
-				window.innerWidth - modalWidth - 10,
-				buttonRect.left + buttonRect.width / 2 - modalWidth / 2
-			)
-		);
-		const modalBottom = window.innerHeight - buttonRect.top + 10; // 10px gap above button
+			// Highlight all elements with hidden messages
+			hiddenMessages.forEach(({ node }) => {
+				const element = node.parentElement;
+				if (element) highlightElement(element);
+			});
 
-		// Create modal
-		const modal = document.createElement('div');
-		modal.id = 'ghostpost-reveal-modal';
-		modal.style.cssText = `
+			// Calculate position above ghost button
+			const ghostButton = document.getElementById(BUTTON_ID);
+			const buttonRect = ghostButton.getBoundingClientRect();
+			const modalWidth = 400;
+			const modalMaxHeight = Math.min(500, window.innerHeight - 120);
+
+			// Position modal above the button, centered horizontally with it
+			const modalLeft = Math.max(
+				10,
+				Math.min(
+					window.innerWidth - modalWidth - 10,
+					buttonRect.left + buttonRect.width / 2 - modalWidth / 2
+				)
+			);
+			const modalBottom = window.innerHeight - buttonRect.top + 10; // 10px gap above button
+
+			// Create modal
+			const modal = document.createElement('div');
+			modal.id = 'ghostpost-reveal-modal';
+			modal.style.cssText = `
 			position: fixed;
 			bottom: ${modalBottom}px;
 			left: ${modalLeft}px;
@@ -1256,10 +1311,10 @@
 			animation: modalSlideUp 0.3s ease;
 		`;
 
-		// Create backdrop
-		const backdrop = document.createElement('div');
-		backdrop.id = 'ghostpost-modal-backdrop';
-		backdrop.style.cssText = `
+			// Create backdrop
+			const backdrop = document.createElement('div');
+			backdrop.id = 'ghostpost-modal-backdrop';
+			backdrop.style.cssText = `
 			position: fixed;
 			top: 0;
 			left: 0;
@@ -1270,9 +1325,9 @@
 			animation: fadeIn 0.3s ease;
 		`;
 
-		// Modal header
-		const header = document.createElement('div');
-		header.style.cssText = `
+			// Modal header
+			const header = document.createElement('div');
+			header.style.cssText = `
 			padding: 16px;
 			border-bottom: 1px solid #e5e7eb;
 			display: flex;
@@ -1281,7 +1336,7 @@
 			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 			border-radius: 12px 12px 0 0;
 		`;
-		header.innerHTML = `
+			header.innerHTML = `
 			<div>
 				<h2 style="margin: 0; font-size: 18px; font-weight: 600; color: white;">
 					<span style="font-size: 20px;">👻</span> Hidden Messages
@@ -1293,23 +1348,23 @@
 			<button id="ghostpost-close-modal" style="background: rgba(255,255,255,0.2); border: none; font-size: 20px; cursor: pointer; color: white; padding: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: background 0.2s;">×</button>
 		`;
 
-		// Modal content
-		const content = document.createElement('div');
-		content.style.cssText = `
+			// Modal content
+			const content = document.createElement('div');
+			content.style.cssText = `
 			padding: 12px;
 			overflow-y: auto;
 			flex: 1;
 		`;
 
-		// Add message items
-		hiddenMessages.forEach(({ node, encodedText }, index) => {
-			const element = node.parentElement;
-			if (!element) return;
+			// Add message items
+			hiddenMessages.forEach(({ node, encodedText }, index) => {
+				const element = node.parentElement;
+				if (!element) return;
 
-			const { location, visibleText } = getElementDescription(element);
+				const { location, visibleText } = getElementDescription(element);
 
-			const item = document.createElement('div');
-			item.style.cssText = `
+				const item = document.createElement('div');
+				item.style.cssText = `
 				margin-bottom: 12px;
 				padding: 12px;
 				border: 1px solid #e5e7eb;
@@ -1317,7 +1372,7 @@
 				background: #f9fafb;
 			`;
 
-			item.innerHTML = `
+				item.innerHTML = `
 				<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
 					<div style="flex: 1;">
 						<div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">
@@ -1341,15 +1396,15 @@
 				<div class="reveal-content"></div>
 			`;
 
-			content.appendChild(item);
-		});
+				content.appendChild(item);
+			});
 
-		modal.appendChild(header);
-		modal.appendChild(content);
+			modal.appendChild(header);
+			modal.appendChild(content);
 
-		// Add animations
-		const style = document.createElement('style');
-		style.textContent = `
+			// Add animations
+			const style = document.createElement('style');
+			style.textContent = `
 			@keyframes modalSlideUp {
 				from {
 					opacity: 0;
@@ -1393,84 +1448,84 @@
 				border-color: #9ca3af !important;
 			}
 		`;
-		document.head.appendChild(style);
+			document.head.appendChild(style);
 
-		// Add to page
-		document.body.appendChild(backdrop);
-		document.body.appendChild(modal);
+			// Add to page
+			document.body.appendChild(backdrop);
+			document.body.appendChild(modal);
 
-		// Close button handler
-		const closeModal = () => {
-			modal.style.animation = 'modalSlideDown 0.2s ease';
-			backdrop.style.animation = 'fadeOut 0.2s ease';
-			setTimeout(() => {
-				modal.remove();
-				backdrop.remove();
-				removeAllHighlights();
-			}, 200);
-		};
-
-		document.getElementById('ghostpost-close-modal').onclick = closeModal;
-		backdrop.onclick = closeModal;
-
-		// Reveal button handlers
-		modal.querySelectorAll('.reveal-btn').forEach((btn) => {
-			btn.onclick = function () {
-				const index = parseInt(this.dataset.index, 10);
-				const { node, encodedText } = hiddenMessages[index];
-				const element = node.parentElement;
-				const contentDiv = this.parentElement.nextElementSibling;
-
-				// Reveal the message using stored encodedText
-				// This is critical for X.com/Twitter where re-reading may lose invisible characters
-				revealSingleMessage(encodedText, node, element, contentDiv, this);
-			};
-		});
-
-		// Locate button handlers
-		modal.querySelectorAll('.locate-btn').forEach((btn) => {
-			btn.onclick = function () {
-				const index = parseInt(this.dataset.index, 10);
-				const { node } = hiddenMessages[index];
-				const element = node.parentElement;
-
-				// Scroll to element
-				scrollToElement(element);
-
-				// Flash highlight
-				element.style.outline = '5px solid #ef4444';
-				element.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
+			// Close button handler
+			const closeModal = () => {
+				modal.style.animation = 'modalSlideDown 0.2s ease';
+				backdrop.style.animation = 'fadeOut 0.2s ease';
 				setTimeout(() => {
-					element.style.outline = '3px solid #ef4444';
-					element.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-				}, 500);
+					modal.remove();
+					backdrop.remove();
+					removeAllHighlights();
+				}, 200);
 			};
-		});
-	}
 
-	// Function to reveal all hidden messages
-	function revealMessages() {
-		const hiddenMessages = detectHiddenMessages();
+			document.getElementById('ghostpost-close-modal').onclick = closeModal;
+			backdrop.onclick = closeModal;
 
-		if (hiddenMessages.length === 0) {
-			showNotification('No hidden messages found on this page', 'info');
-			return;
+			// Reveal button handlers
+			modal.querySelectorAll('.reveal-btn').forEach((btn) => {
+				btn.onclick = function () {
+					const index = parseInt(this.dataset.index, 10);
+					const { node, encodedText } = hiddenMessages[index];
+					const element = node.parentElement;
+					const contentDiv = this.parentElement.nextElementSibling;
+
+					// Reveal the message using stored encodedText
+					// This is critical for X.com/Twitter where re-reading may lose invisible characters
+					revealSingleMessage(encodedText, node, element, contentDiv, this);
+				};
+			});
+
+			// Locate button handlers
+			modal.querySelectorAll('.locate-btn').forEach((btn) => {
+				btn.onclick = function () {
+					const index = parseInt(this.dataset.index, 10);
+					const { node } = hiddenMessages[index];
+					const element = node.parentElement;
+
+					// Scroll to element
+					scrollToElement(element);
+
+					// Flash highlight
+					element.style.outline = '5px solid #ef4444';
+					element.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
+					setTimeout(() => {
+						element.style.outline = '3px solid #ef4444';
+						element.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+					}, 500);
+				};
+			});
 		}
 
-		// Show the reveal modal instead of opening decode page
-		showRevealModal(hiddenMessages);
-	}
+		// Function to reveal all hidden messages
+		function revealMessages() {
+			const hiddenMessages = detectHiddenMessages();
 
-	// Function to show notification
-	function showNotification(message, type = 'info') {
-		// Safety check: ensure document.body exists
-		if (!document.body) {
-			console.warn('[Ghostpost] Cannot show notification: document.body not available');
-			return;
+			if (hiddenMessages.length === 0) {
+				showNotification('No hidden messages found on this page', 'info');
+				return;
+			}
+
+			// Show the reveal modal instead of opening decode page
+			showRevealModal(hiddenMessages);
 		}
 
-		const notification = document.createElement('div');
-		notification.style.cssText = `
+		// Function to show notification
+		function showNotification(message, type = 'info') {
+			// Safety check: ensure document.body exists
+			if (!document.body) {
+				console.warn('[Ghostpost] Cannot show notification: document.body not available');
+				return;
+			}
+
+			const notification = document.createElement('div');
+			notification.style.cssText = `
             position: fixed;
             bottom: 90px;
             right: 20px;
@@ -1485,69 +1540,73 @@
             max-width: 300px;
             animation: slideIn 0.3s ease;
         `;
-		notification.textContent = message;
+			notification.textContent = message;
 
-		document.body.appendChild(notification);
+			document.body.appendChild(notification);
 
-		setTimeout(() => {
-			notification.style.animation = 'slideOut 0.3s ease';
-			setTimeout(() => notification.remove(), 300);
-		}, 3000);
-	}
+			setTimeout(() => {
+				notification.style.animation = 'slideOut 0.3s ease';
+				setTimeout(() => notification.remove(), 300);
+			}, 3000);
+		}
 
-	// Click handler
-	button.onclick = revealMessages;
+		// Click handler
+		button.onclick = revealMessages;
 
-	// Add button to page (with safety check)
-	if (document.body) {
-		document.body.appendChild(button);
-	} else {
-		console.error('[Ghostpost] Cannot add button: document.body not available');
-		return;
-	}
+		// Add button to page (with safety check)
+		if (document.body) {
+			document.body.appendChild(button);
+		} else {
+			console.error('[Ghostpost] Cannot add button: document.body not available');
+			return;
+		}
 
-	// Initial counter update (debounced to let page load)
-	setTimeout(updateCounter, 1000);
+		// Initial counter update (debounced to let page load and encode messages)
+		setTimeout(updateCounter, INITIAL_SCAN_DELAY);
 
-	// Debounced update function to prevent excessive scanning
-	let debounceTimeout;
-	function debouncedUpdateCounter() {
-		clearTimeout(debounceTimeout);
-		debounceTimeout = setTimeout(updateCounter, DEBOUNCE_DELAY);
-	}
+		// Additional scan after more time to catch any late-loading encoded content
+		// This is especially useful for pages that encode messages asynchronously
+		setTimeout(updateCounter, SECONDARY_SCAN_DELAY);
 
-	// Monitor for dynamic content changes with debouncing (with safety check)
-	if (document.body) {
-		const observer = new MutationObserver((mutations) => {
-			// Only update if there are actual content changes
-			let hasContentChange = false;
-			for (const mutation of mutations) {
-				if (
-					mutation.type === 'characterData' ||
-					(mutation.type === 'childList' && mutation.addedNodes.length > 0)
-				) {
-					hasContentChange = true;
-					break;
+		// Debounced update function to prevent excessive scanning
+		let debounceTimeout;
+		function debouncedUpdateCounter() {
+			clearTimeout(debounceTimeout);
+			debounceTimeout = setTimeout(updateCounter, DEBOUNCE_DELAY);
+		}
+
+		// Monitor for dynamic content changes with debouncing (with safety check)
+		if (document.body) {
+			const observer = new MutationObserver((mutations) => {
+				// Only update if there are actual content changes
+				let hasContentChange = false;
+				for (const mutation of mutations) {
+					if (
+						mutation.type === 'characterData' ||
+						(mutation.type === 'childList' && mutation.addedNodes.length > 0)
+					) {
+						hasContentChange = true;
+						break;
+					}
 				}
-			}
 
-			if (hasContentChange) {
-				debouncedUpdateCounter();
-			}
-		});
+				if (hasContentChange) {
+					debouncedUpdateCounter();
+				}
+			});
 
-		observer.observe(document.body, {
-			childList: true,
-			subtree: true,
-			characterData: true
-		});
-	} else {
-		console.warn('[Ghostpost] Cannot set up MutationObserver: document.body not available');
-	}
+			observer.observe(document.body, {
+				childList: true,
+				subtree: true,
+				characterData: true
+			});
+		} else {
+			console.warn('[Ghostpost] Cannot set up MutationObserver: document.body not available');
+		}
 
-	console.log(
-		'Ghostpost Reveal extension loaded! Click the 👻 button to reveal hidden messages. Scanning is optimized for performance.'
-	);
+		console.log(
+			'Ghostpost Reveal extension loaded! Click the 👻 button to reveal hidden messages. Scanning is optimized for performance.'
+		);
 	}
 
 	// Wait for DOM to be ready before initializing
