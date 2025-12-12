@@ -144,8 +144,8 @@ function imageFileToBase64(file: File): Promise<string> {
  * Resize and compress an image if it's too large
  * @param file - The image file to process
  * @param maxSizeKB - Maximum size in KB (default: 25KB)
- * @param maxWidth - Maximum width in pixels (default: 800)
- * @param maxHeight - Maximum height in pixels (default: 800)
+ * @param maxWidth - Maximum width in pixels (default: 600)
+ * @param maxHeight - Maximum height in pixels (default: 600)
  * @returns Promise<File> - The processed image file
  */
 async function resizeImageIfNeeded(
@@ -192,7 +192,7 @@ async function resizeImageIfNeeded(
 			ctx.drawImage(img, 0, 0, width, height);
 
 			// Try different quality settings and dimensions to get under the size limit
-			const tryQuality = async (quality: number, scaleFactor: number = 1.0): Promise<Blob | null> => {
+			const tryQuality = (quality: number, scaleFactor: number = 1.0): Promise<Blob | null> => {
 				return new Promise((resolve, reject) => {
 					const scaledWidth = Math.floor(width * scaleFactor);
 					const scaledHeight = Math.floor(height * scaleFactor);
