@@ -472,6 +472,12 @@
 					// fallback: continue to DOM node logic if extraction failed
 				}
 				
+				// Safety check: ensure tweetOrNode is valid
+				if (!tweetOrNode) {
+					if (DEBUG_MODE) console.log('[Ghostpost] [X.com] ⚠️ Invalid tweetOrNode (null/undefined)');
+					return '';
+				}
+				
 				// Find the closest tweet text container - this is x.com's standard for tweet content
 				const tweetTextContainer = tweetOrNode.closest?.('[data-testid="tweetText"]');
 				if (!tweetTextContainer) {
