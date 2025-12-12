@@ -134,42 +134,62 @@ function isLikelyHidenlyMessage(text) {
  * Helper function to check if text contains a complete encoded message
  * A complete message needs at least TWO delimiter characters (\uFEFF)
  * Format: \uFEFF + invisible_chars + \uFEFF
+ * ENHANCED: Validates content between delimiters contains only invisible characters
  */
 function hasCompleteEncodedMessage(text) {
 	if (!text) return false;
 	
-	// Count occurrences of the delimiter
 	const delimiterChar = '\uFEFF';
-	let count = 0;
-	let index = text.indexOf(delimiterChar);
 	
-	while (index !== -1) {
-		count++;
-		if (count >= 2) return true; // Found at least 2 delimiters
-		index = text.indexOf(delimiterChar, index + 1);
+	// Find first delimiter
+	const firstDelimIndex = text.indexOf(delimiterChar);
+	if (firstDelimIndex === -1) return false;
+	
+	// Find second delimiter after the first
+	const secondDelimIndex = text.indexOf(delimiterChar, firstDelimIndex + 1);
+	if (secondDelimIndex === -1) return false;
+	
+	// Extract content between delimiters
+	const betweenDelimiters = text.substring(firstDelimIndex + 1, secondDelimIndex);
+	
+	// Must have content between delimiters
+	if (betweenDelimiters.length === 0) return false;
+	
+	// Validate that content between delimiters contains only invisible characters
+	// This prevents false positives from legitimate FEFF usage
+	const invisibleCharsOnly = HIDENLY_CHARS.filter(char => char !== '\uFEFF');
+	const hasOnlyInvisible = [...betweenDelimiters].every(char => 
+		invisibleCharsOnly.includes(char)
+	);
+	
+	if (!hasOnlyInvisible) {
+		console.log('[Hidenly] Rejected: visible text found between delimiters');
+		return false;
 	}
 	
-	return false;
+	return true;
 }
 
 /**
  * Extract complete encoded text from a text node
  * For X.com/Twitter and other sites that split text across nodes,
  * this walks up the DOM to aggregate text from parent elements
+ * ENHANCED: Increased parent traversal to 10 levels for deeply nested X.com structures
  */
 function extractCompleteText(node) {
 	// First try the text node itself
 	const nodeText = node.data || node.nodeValue || node.textContent || '';
 	if (nodeText && hasCompleteEncodedMessage(nodeText)) {
 		// Has complete message (both delimiters), use it directly
+		console.log('[Hidenly] Complete message found in text node');
 		return nodeText;
 	}
 	
 	// If not, walk up the DOM tree to find a parent that contains the complete message
-	// Try up to 5 levels of parent elements
+	// ENHANCED: Try up to 10 levels (increased from 5) for X.com's deep nesting
 	let currentElement = node.parentElement;
 	let levelsChecked = 0;
-	const MAX_PARENT_LEVELS = 5;
+	const MAX_PARENT_LEVELS = 10;
 	
 	while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
 		// Get all text from this element by aggregating child text nodes
@@ -184,8 +204,9 @@ function extractCompleteText(node) {
 			combinedText += textNode.data || textNode.nodeValue || '';
 		}
 		
-		// Check if combined text has complete message (both delimiters)
+		// Check if combined text has complete message (both delimiters + valid content)
 		if (combinedText && hasCompleteEncodedMessage(combinedText)) {
+			console.log('[Hidenly] Complete message found at level', levelsChecked + 1);
 			return combinedText;
 		}
 		
@@ -197,6 +218,7 @@ function extractCompleteText(node) {
 	// Fallback to node text as last resort
 	// Note: If we reach here, the message may be incomplete (missing one or both delimiters)
 	// The decoder will handle this gracefully by returning an appropriate error
+	console.log('[Hidenly] Warning: Could not find complete message after checking', MAX_PARENT_LEVELS, 'levels');
 	return nodeText;
 }
 
