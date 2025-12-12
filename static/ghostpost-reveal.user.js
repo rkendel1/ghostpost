@@ -269,6 +269,8 @@
 		// List of invisible Unicode characters used for encoding
 		// Must match the encoding scheme: \u2060, \u200B, \u200C, \u200D, \u200E, \u200F, \u202D, \u202C
 		// Plus \uFEFF used as delimiter
+		// NOTE: \uFEFF is included here so that filtering it out in validation
+		// creates the list of characters that can appear BETWEEN delimiters
 		const HIDENLY_CHARS = [
 			'\u200B', // Zero Width Space
 			'\u200C', // Zero Width Non-Joiner
@@ -357,6 +359,10 @@
 		 * A complete message needs at least TWO delimiter characters (\uFEFF)
 		 * Format: \uFEFF + invisible_chars + \uFEFF
 		 * ENHANCED: Validates content between delimiters contains only invisible characters
+		 * 
+		 * Design note: We filter \uFEFF from HIDENLY_CHARS to create the list of
+		 * valid characters that can appear BETWEEN delimiters. This ensures that
+		 * delimiter characters themselves don't appear in the encoded content.
 		 */
 		function hasCompleteEncodedMessage(text) {
 			if (!text) return false;
@@ -379,6 +385,7 @@
 			
 			// Validate that content between delimiters contains only invisible characters
 			// This prevents false positives from legitimate FEFF usage
+			// We filter out FEFF since it's the delimiter, not encoding content
 			const invisibleCharsOnly = HIDENLY_CHARS.filter(char => char !== '\uFEFF');
 			const hasOnlyInvisible = [...betweenDelimiters].every(char => 
 				invisibleCharsOnly.includes(char)
