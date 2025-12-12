@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X.com Deep Dive - Reveal Analysis</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        h1 {
+            color: #1da1f2;
+            border-bottom: 3px solid #1da1f2;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .success { background: #d1fae5 !important; border-left: 4px solid #10b981; }
+        .error { background: #fee2e2 !important; border-left: 4px solid #ef4444; }
+        .warning { background: #fef3c7 !important; border-left: 4px solid #f59e0b; }
+        button {
+            background: #1da1f2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover { background: #1a8cd8; }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 12px;
+        }
+        .test-case {
+            margin: 15px 0;
+            padding: 15px;
+            border: 2px solid #1da1f2;
+            border-radius: 8px;
+        }
+        .issue {
+            background: #fef2f2;
+            border-left: 4px solid #dc2626;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .solution {
+            background: #f0fdf4;
+            border-left: 4px solid #16a34a;
+            padding: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔬 X.com Deep Dive: Reveal Analysis</h1>
+    
+    <div class="test-section">
+        <h2>Analysis of X.com Reveal Issues</h2>
+        <p>This page analyzes why reveals fail on X.com and tests potential solutions.</p>
+        <button onclick="runAllTests()">▶️ Run All Tests</button>
+        <button onclick="runRealWorldTest()">🌐 Test Real-World X.com Structure</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Identified Issues</h2>
+        <div class="issue">
+            <h3>Issue #1: Detection vs Extraction Mismatch</h3>
+            <p><strong>Problem:</strong> Detection checks <code>isLikelyHidenlyMessage(node.data)</code> on the original text node, but then <code>extractCompleteText()</code> aggregates from parents. If the node itself doesn't have enough invisible chars to pass the detection threshold, it's never extracted even if the parent has the complete message.</p>
+            <p><strong>Impact:</strong> Messages split across many small nodes may not trigger detection.</p>
+        </div>
+        
+        <div class="issue">
+            <h3>Issue #2: TreeWalker Doesn't Guarantee Complete Message Collection</h3>
+            <p><strong>Problem:</strong> TreeWalker visits text nodes in document order. On X.com, the first delimiter might be in one subtree and the second in a completely different subtree that's visited later. By the time we find both parts, we've already processed and potentially missed the connection.</p>
+            <p><strong>Impact:</strong> Split messages across different DOM branches may never be properly assembled.</p>
+        </div>
+        
+        <div class="issue">
+            <h3>Issue #3: Parent Aggregation Assumptions</h3>
+            <p><strong>Problem:</strong> Current logic assumes walking up 5 levels and aggregating all text nodes will find the complete message. But X.com's structure might have:</p>
+            <ul>
+                <li>Visible text interspersed with invisible chars at the same level</li>
+                <li>Multiple separate text nodes that aren't direct descendants</li>
+                <li>Dynamic insertion of nodes that break the message apart</li>
+            </ul>
+            <p><strong>Impact:</strong> Aggregation may include too much visible text or miss parts of the message.</p>
+        </div>
+
+        <div class="issue">
+            <h3>Issue #4: No Delimiter Position Verification</h3>
+            <p><strong>Problem:</strong> <code>hasCompleteEncodedMessage()</code> just counts delimiters (>= 2), but doesn't verify they're in the correct positions. A tweet could legitimately have multiple FEFF characters for other purposes.</p>
+            <p><strong>Impact:</strong> False positives or extraction of wrong text between delimiters.</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Proposed Solutions</h2>
+        <div class="solution">
+            <h3>Solution #1: Aggressive Parent-Level Detection</h3>
+            <p>Instead of detecting at text node level, detect at element level by aggregating first, then checking. This ensures we don't miss messages split across multiple small nodes.</p>
+        </div>
+        
+        <div class="solution">
+            <h3>Solution #2: Better Delimiter Validation</h3>
+            <p>Verify that delimiters wrap a valid encoded sequence (only invisible chars between them, no visible text). This reduces false positives.</p>
+        </div>
+        
+        <div class="solution">
+            <h3>Solution #3: Smarter Text Aggregation</h3>
+            <p>When aggregating, separate text nodes into "visible" and "invisible" buckets, then only process invisible sequences.</p>
+        </div>
+
+        <div class="solution">
+            <h3>Solution #4: Cached Extraction</h3>
+            <p>Store the complete extracted text at detection time (already done) and ensure it's never re-extracted (current code does this for userscript but needs verification for extension).</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="test-results"></div>
+    </div>
+
+    <script>
+        // Test infrastructure
+        const INVISIBLE_CHARS = [
+            '\u200B', // Zero Width Space
+            '\u200C', // Zero Width Non-Joiner
+            '\u200D', // Zero Width Joiner
+            '\u200E', // Left-to-Right Mark
+            '\u200F', // Right-to-Left Mark
+            '\u202C', // Pop Directional Formatting
+            '\u202D', // Left-to-Right Override
+            '\u2060'  // Word Joiner
+        ];
+
+        const DELIMITER = '\uFEFF';
+
+        // Current implementation
+        function hasCompleteEncodedMessage_v1(text) {
+            if (!text) return false;
+            let count = 0;
+            let index = text.indexOf(DELIMITER);
+            while (index !== -1) {
+                count++;
+                if (count >= 2) return true;
+                index = text.indexOf(DELIMITER, index + 1);
+            }
+            return false;
+        }
+
+        // Improved implementation with delimiter validation
+        function hasCompleteEncodedMessage_v2(text) {
+            if (!text) return false;
+            
+            // Find first delimiter
+            const firstDelim = text.indexOf(DELIMITER);
+            if (firstDelim === -1) return false;
+            
+            // Find second delimiter after the first
+            const secondDelim = text.indexOf(DELIMITER, firstDelim + 1);
+            if (secondDelim === -1) return false;
+            
+            // Extract content between delimiters
+            const betweenDelimiters = text.substring(firstDelim + 1, secondDelim);
+            
+            // Verify it's not empty
+            if (betweenDelimiters.length === 0) return false;
+            
+            // Verify it contains only invisible characters (no visible text)
+            const hasOnlyInvisible = [...betweenDelimiters].every(char => 
+                INVISIBLE_CHARS.includes(char)
+            );
+            
+            return hasOnlyInvisible;
+        }
+
+        // Test case: Real X.com structure with split delimiters
+        function createXcomSplitStructure() {
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <div class="css-1jxf684 r-bcqeeo r-qvutc0">
+                    <span class="css-1qaijid">Visible tweet text goes here</span>
+                    <span class="css-hidden">${DELIMITER}</span>
+                    <span class="css-hidden">${INVISIBLE_CHARS[0]}${INVISIBLE_CHARS[1]}${INVISIBLE_CHARS[2]}</span>
+                    <span class="css-hidden">${INVISIBLE_CHARS[3]}${INVISIBLE_CHARS[4]}</span>
+                    <span class="css-hidden">${DELIMITER}</span>
+                </div>
+            `;
+            return container;
+        }
+
+        // Test case: Extreme nesting
+        function createExtremeNesting() {
+            const container = document.createElement('div');
+            let html = '<div>';
+            for (let i = 0; i < 10; i++) {
+                html += '<div><span>';
+            }
+            html += `Visible text ${DELIMITER}${INVISIBLE_CHARS[0]}${INVISIBLE_CHARS[1]}${DELIMITER}`;
+            for (let i = 0; i < 10; i++) {
+                html += '</span></div>';
+            }
+            html += '</div>';
+            container.innerHTML = html;
+            return container;
+        }
+
+        // Test case: Mixed visible and invisible at same level
+        function createMixedContent() {
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <div>
+                    Visible start
+                    ${DELIMITER}
+                    ${INVISIBLE_CHARS[0]}${INVISIBLE_CHARS[1]}
+                    Some more visible
+                    ${INVISIBLE_CHARS[2]}${INVISIBLE_CHARS[3]}
+                    ${DELIMITER}
+                    Visible end
+                </div>
+            `;
+            return container;
+        }
+
+        // Enhanced extraction function
+        function extractCompleteText_enhanced(node) {
+            const nodeText = node.data || node.nodeValue || '';
+            
+            // Try node itself first
+            if (nodeText && hasCompleteEncodedMessage_v2(nodeText)) {
+                return nodeText;
+            }
+            
+            // Walk up to find complete message
+            let currentElement = node.parentElement;
+            let levelsChecked = 0;
+            const MAX_PARENT_LEVELS = 10; // Increased from 5
+            
+            while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
+                // Get all text nodes
+                let combinedText = '';
+                const walker = document.createTreeWalker(
+                    currentElement,
+                    NodeFilter.SHOW_TEXT,
+                    null
+                );
+                let textNode;
+                while ((textNode = walker.nextNode())) {
+                    combinedText += textNode.data || textNode.nodeValue || '';
+                }
+                
+                // Check with improved validation
+                if (combinedText && hasCompleteEncodedMessage_v2(combinedText)) {
+                    return combinedText;
+                }
+                
+                currentElement = currentElement.parentElement;
+                levelsChecked++;
+            }
+            
+            return nodeText;
+        }
+
+        function runTest(name, testFn) {
+            const results = document.getElementById('test-results');
+            const testDiv = document.createElement('div');
+            testDiv.className = 'test-case';
+            
+            try {
+                const result = testFn();
+                testDiv.classList.add(result.success ? 'success' : (result.warning ? 'warning' : 'error'));
+                testDiv.innerHTML = `
+                    <h3>${result.success ? '✅' : (result.warning ? '⚠️' : '❌')} ${name}</h3>
+                    <div class="result">${result.message}</div>
+                `;
+            } catch (e) {
+                testDiv.classList.add('error');
+                testDiv.innerHTML = `
+                    <h3>❌ ${name}</h3>
+                    <div class="result">Error: ${e.message}\n${e.stack}</div>
+                `;
+            }
+            
+            results.appendChild(testDiv);
+        }
+
+        function runAllTests() {
+            document.getElementById('test-results').innerHTML = '';
+            
+            runTest('Delimiter Validation - Simple Case', () => {
+                const text = `Visible${DELIMITER}${INVISIBLE_CHARS[0]}${INVISIBLE_CHARS[1]}${DELIMITER}More visible`;
+                const v1 = hasCompleteEncodedMessage_v1(text);
+                const v2 = hasCompleteEncodedMessage_v2(text);
+                return {
+                    success: v1 && v2,
+                    message: `v1: ${v1}, v2: ${v2}\nBoth should detect complete message`
+                };
+            });
+
+            runTest('Delimiter Validation - False Positive Check', () => {
+                const text = `Visible${DELIMITER}Some visible text here${DELIMITER}More visible`;
+                const v1 = hasCompleteEncodedMessage_v1(text);
+                const v2 = hasCompleteEncodedMessage_v2(text);
+                return {
+                    success: !v2, // v2 should reject this
+                    warning: v1, // v1 might falsely accept
+                    message: `v1: ${v1} (incorrect if true), v2: ${v2} (correct as false)\nv2 correctly rejects visible text between delimiters`
+                };
+            });
+
+            runTest('X.com Split Structure Extraction', () => {
+                const container = createXcomSplitStructure();
+                document.body.appendChild(container);
+                
+                // Find any text node with invisible chars
+                const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+                let foundNode = null;
+                let node;
+                while ((node = walker.nextNode())) {
+                    const text = node.data || '';
+                    if (INVISIBLE_CHARS.some(char => text.includes(char)) || text.includes(DELIMITER)) {
+                        foundNode = node;
+                        break;
+                    }
+                }
+                
+                const extracted = foundNode ? extractCompleteText_enhanced(foundNode) : '';
+                const isComplete = hasCompleteEncodedMessage_v2(extracted);
+                
+                container.remove();
+                
+                return {
+                    success: isComplete,
+                    message: `Found node: ${!!foundNode}\nExtracted: ${extracted.length} chars\nComplete: ${isComplete}\n${extracted.substring(0, 100)}...`
+                };
+            });
+
+            runTest('Extreme Nesting (10 levels)', () => {
+                const container = createExtremeNesting();
+                document.body.appendChild(container);
+                
+                const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+                let foundNode = null;
+                let node;
+                while ((node = walker.nextNode())) {
+                    const text = node.data || '';
+                    if (text.includes(DELIMITER)) {
+                        foundNode = node;
+                        break;
+                    }
+                }
+                
+                const extracted = foundNode ? extractCompleteText_enhanced(foundNode) : '';
+                const isComplete = hasCompleteEncodedMessage_v2(extracted);
+                
+                container.remove();
+                
+                return {
+                    success: isComplete,
+                    message: `Extracted from 10-level nesting: ${isComplete}\nLength: ${extracted.length}`
+                };
+            });
+
+            runTest('Mixed Visible and Invisible Content', () => {
+                const container = createMixedContent();
+                document.body.appendChild(container);
+                
+                const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+                let foundNode = null;
+                let node;
+                while ((node = walker.nextNode())) {
+                    const text = node.data || '';
+                    if (text.includes(DELIMITER)) {
+                        foundNode = node;
+                        break;
+                    }
+                }
+                
+                const extracted = foundNode ? extractCompleteText_enhanced(foundNode) : '';
+                const isComplete = hasCompleteEncodedMessage_v2(extracted);
+                
+                container.remove();
+                
+                return {
+                    success: !isComplete, // Should reject because of visible text between delimiters
+                    message: `Correctly rejected mixed content: ${!isComplete}\nExtracted: ${extracted.substring(0, 100)}...`
+                };
+            });
+        }
+
+        function runRealWorldTest() {
+            alert('Real-world test would need actual X.com DOM structure. This demonstrates the testing methodology.');
+        }
+    </script>
+</body>
+</html>
