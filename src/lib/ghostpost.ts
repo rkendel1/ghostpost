@@ -167,7 +167,7 @@ async function resizeImageIfNeeded(
 			let width = img.width;
 			let height = img.height;
 
-			// Always resize to maxWidth/maxHeight if image is larger
+			// Resize to maxWidth/maxHeight if image dimensions exceed limits
 			if (width > maxWidth || height > maxHeight) {
 				const aspectRatio = width / height;
 				if (width > height) {
@@ -225,6 +225,16 @@ async function resizeImageIfNeeded(
 				});
 			};
 
+			// Helper function to create a JPEG file from a blob
+			const createJpegFile = (blob: Blob): File => {
+				// Replace file extension with .jpg, handling multiple dots correctly
+				const newFileName = file.name.replace(/\.[^.]*$/, '.jpg');
+				return new File([blob], newFileName, {
+					type: 'image/jpeg',
+					lastModified: Date.now()
+				});
+			};
+
 			// Try progressively lower quality and dimensions until we get under the size limit
 			(async () => {
 				try {
@@ -232,11 +242,7 @@ async function resizeImageIfNeeded(
 					for (const quality of QUALITY_LEVELS) {
 						const blob = await tryQuality(quality, 1.0);
 						if (blob) {
-							const newFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
-								type: 'image/jpeg',
-								lastModified: Date.now()
-							});
-							resolve(newFile);
+							resolve(createJpegFile(blob));
 							return;
 						}
 					}
@@ -246,11 +252,7 @@ async function resizeImageIfNeeded(
 					for (const scale of scaleFactors) {
 						const blob = await tryQuality(QUALITY_LEVELS[QUALITY_LEVELS.length - 1], scale);
 						if (blob) {
-							const newFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
-								type: 'image/jpeg',
-								lastModified: Date.now()
-							});
-							resolve(newFile);
+							resolve(createJpegFile(blob));
 							return;
 						}
 					}
