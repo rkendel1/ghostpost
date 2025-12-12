@@ -965,10 +965,13 @@
 				}
 
 				// Step 4: Check compression marker and decompress if needed
-				// First byte indicates compression: 0x00 = uncompressed, 0x01 = compressed
-				// Legacy messages (no marker) are handled by trying decompression
-				const MARKER_UNCOMPRESSED = 0x00;
-				const MARKER_COMPRESSED = 0x01;
+				// IMPORTANT: These marker values MUST match the Rust encoder (wasm/src/hidenly.rs)
+				// Compression format specification:
+				// - First byte = compression marker (0x00 = uncompressed, 0x01 = compressed)
+				// - Remaining bytes = actual data (compressed or uncompressed)
+				// - Legacy messages (no marker) are handled by trying decompression with fallback
+				const MARKER_UNCOMPRESSED = 0x00;  // Must match Rust: MARKER_UNCOMPRESSED
+				const MARKER_COMPRESSED = 0x01;     // Must match Rust: MARKER_COMPRESSED
 				
 				let finalBytes;
 				if (decodedBytes.length === 0) {

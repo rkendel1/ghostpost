@@ -4,6 +4,12 @@ use flate2::write::{DeflateEncoder, DeflateDecoder};
 use flate2::Compression;
 use std::io::Write;
 
+// Compression configuration constants
+// These values must match between Rust encoder and JavaScript decoder
+const COMPRESSION_THRESHOLD_BYTES: usize = 100;  // Compress only messages >= 100 bytes
+const MARKER_UNCOMPRESSED: u8 = 0x00;            // Prepended to uncompressed data
+const MARKER_COMPRESSED: u8 = 0x01;              // Prepended to compressed data
+
 lazy_static::lazy_static! {
     static ref BASE64_CHAR_MAP: BiMap<char, &'static str> = {
         let mut map = BiMap::new();
@@ -138,19 +144,13 @@ fn unwrap(input: &str) -> String {
 }
 
 pub fn encode(input: &str, secret: &str) -> String {
-    // Compression threshold: only compress messages above this size
+    // Compression threshold: only compress messages above COMPRESSION_THRESHOLD_BYTES
     // For small messages, DEFLATE compression overhead (headers/metadata)
     // results in larger output than uncompressed data
     // Testing shows:
     // - "bye" (3 bytes): 75% overhead with compression
     // - "bye" + UUID (51 bytes): 10% overhead with compression (152 vs 138 chars)
     // - 100+ bytes: compression provides clear benefits
-    // Threshold set to 100 bytes to ensure we only compress when beneficial
-    const COMPRESSION_THRESHOLD_BYTES: usize = 100;
-    
-    // Compression markers (1 byte prepended to data)
-    const MARKER_UNCOMPRESSED: u8 = 0x00;
-    const MARKER_COMPRESSED: u8 = 0x01;
     
     let secret_bytes = secret.as_bytes();
     let (data_to_encode, compression_marker) = if secret_bytes.len() >= COMPRESSION_THRESHOLD_BYTES {
@@ -196,10 +196,7 @@ pub fn decode(input: &str) -> Result<String, String> {
     let decoded_bytes = decode_base64(processed.as_str())?;
     
     // Check for compression marker (first byte)
-    // 0x00 = uncompressed, 0x01 = compressed, anything else = legacy (try decompression)
-    const MARKER_UNCOMPRESSED: u8 = 0x00;
-    const MARKER_COMPRESSED: u8 = 0x01;
-    
+    // Values defined at module level: MARKER_UNCOMPRESSED, MARKER_COMPRESSED
     let final_bytes = if decoded_bytes.is_empty() {
         return Err("Empty decoded content".to_string());
     } else if decoded_bytes[0] == MARKER_UNCOMPRESSED {
