@@ -438,9 +438,21 @@
 		 * See XCOM_API_BEHAVIOR.md for detailed explanation of X.com's behavior.
 		 */
 		const twitterAdapter = {
-			extractText: (node) => {
+			extractText: (tweetOrNode) => {
+				// If we are passed a tweet object with a 'full_text' property, use programmatic extraction
+				if (tweetOrNode && typeof tweetOrNode === 'object' && typeof tweetOrNode.full_text === 'string') {
+					const extracted = extractXComMessage(tweetOrNode);
+					if (extracted) {
+						if (DEBUG_MODE) {
+							console.log('[Ghostpost] [X.com] ✓ Decoded message from programmatic extraction (full_text)');
+						}
+						return extracted;
+					}
+					// fallback: continue to DOM node logic if extraction failed
+				}
+				// Fallback: treat as DOM node (legacy/DOM extraction)
 				// SIMPLE APPROACH #1: Try the text node itself first (works 90%+ of cases)
-				const nodeText = node.data || node.nodeValue || '';
+				const nodeText = tweetOrNode.data || tweetOrNode.nodeValue || '';
 				if (nodeText && hasCompleteEncodedMessage(nodeText)) {
 					if (DEBUG_MODE) {
 						console.log('[Ghostpost] [X.com] ✓ Complete message found in text node (simple)');
@@ -449,8 +461,8 @@
 				}
 
 				// SIMPLE APPROACH #2: Try parent element's textContent (fast and works for most splits)
-				if (node.parentElement) {
-					const parentText = node.parentElement.textContent || '';
+				if (tweetOrNode.parentElement) {
+					const parentText = tweetOrNode.parentElement.textContent || '';
 					if (parentText && hasCompleteEncodedMessage(parentText)) {
 						if (DEBUG_MODE) {
 							console.log('[Ghostpost] [X.com] ✓ Complete message found in parent.textContent (simple)');
@@ -461,7 +473,7 @@
 
 				// ADVANCED FALLBACK #1: Walk up DOM tree with TreeWalker (handles deep nesting)
 				// Only runs if simple approaches fail
-				let currentElement = node.parentElement;
+				let currentElement = tweetOrNode.parentElement;
 				let levelsChecked = 0;
 				const MAX_PARENT_LEVELS = 10;
 
@@ -489,9 +501,9 @@
 
 				// ADVANCED FALLBACK #2: Check sibling nodes (handles horizontal splits)
 				// Only runs if all previous approaches fail
-				if (node.parentElement) {
+				if (tweetOrNode.parentElement) {
 					let siblingText = '';
-					const parent = node.parentElement;
+					const parent = tweetOrNode.parentElement;
 					const children = parent.childNodes;
 					
 					for (let i = 0; i < children.length; i++) {
@@ -523,8 +535,38 @@
 				return nodeText || '';
 			},
 			description:
-				'SIMPLIFIED text extraction for X.com with advanced fallbacks. Tries simple approaches first (direct node, parent.textContent), then complex techniques (TreeWalker traversal, sibling aggregation) only when needed.'
+				'SIMPLIFIED text extraction for X.com with advanced fallbacks. Tries programmatic extraction (full_text) first, then DOM strategies (direct node, parent.textContent, TreeWalker traversal, sibling aggregation) as fallback.'
 		};
+
+		/**
+		 * Programmatic X.com extraction: Given a tweet JSON object (with full_text), extract the hidden message.
+		 * Returns the decoded message string for modal display, or null if not found.
+		 */
+		function extractXComMessage(tweetOrNode) {
+			if (!tweetOrNode || typeof tweetOrNode.full_text !== 'string') return null;
+			const fullText = tweetOrNode.full_text;
+			// Check for presence of complete encoded message
+			if (hasCompleteEncodedMessage(fullText)) {
+				return fullText;
+			}
+			return null;
+		}
+
+		/**
+		 * Detect hidden Ghostpost messages in an array of X.com tweet JSON objects.
+		 * Returns array of { node: tweetObj, encodedText } objects for modal display.
+		 */
+		function detectHiddenMessagesXCom(tweetsJsonArray) {
+			const results = [];
+			if (!Array.isArray(tweetsJsonArray)) return results;
+			for (const tweet of tweetsJsonArray) {
+				const text = extractXComMessage(tweet);
+				if (text && isLikelyHidenlyMessage(text)) {
+					results.push({ node: tweet, encodedText: text });
+				}
+			}
+			return results;
+		}
 
 		/**
 		 * Site-specific text extraction strategies
