@@ -1324,7 +1324,7 @@
 			// Calculate position above ghost button
 			const ghostButton = document.getElementById(BUTTON_ID);
 			const buttonRect = ghostButton.getBoundingClientRect();
-			const modalWidth = 400;
+			const modalWidth = Math.min(400, window.innerWidth - 40);
 			const modalMaxHeight = Math.min(500, window.innerHeight - 120);
 
 			// Position modal above the button, centered horizontally with it
