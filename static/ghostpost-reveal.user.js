@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.4.3
+// @version      2.4.4
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
