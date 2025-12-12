@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.4.2
+// @version      2.4.3
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -1265,10 +1265,35 @@
 
 			// Decode the message
 			setTimeout(async () => {
-				try {
-					const result = decodeHiddenMessage(encodedText);
-					const decodedMessage = result.message;
-					const postId = result.postId;
+			    try {
+			        let decodedMessage;
+			        let postId = null;
+			        
+			        if (DEBUG_MODE) {
+			            console.log('[Ghostpost] Attempting to decode message');
+			            console.log('[Ghostpost] Encoded text length:', encodedText.length);
+			            console.log('[Ghostpost] Has FEFF delimiter:', encodedText.indexOf('\uFEFF') !== -1);
+			            console.log('[Ghostpost] Zero-width char count:', (encodedText.match(/[\u200b\u200c\u200d\u2060]/g) || []).length);
+			        }
+			        
+			        // Try Ghostpost format first (with FEFF delimiters)
+			        if (encodedText.indexOf('\uFEFF') !== -1) {
+			            if (DEBUG_MODE) console.log('[Ghostpost] Using Ghostpost format decoder');
+			            const result = decodeHiddenMessage(encodedText);
+			            decodedMessage = result.message;
+			            postId = result.postId;
+			        } else {
+			            // Try zero-width character format (200b/200c encoding)
+			            if (DEBUG_MODE) console.log('[Ghostpost] Using zero-width decoder');
+			            decodedMessage = decodeFromZeroWidthString(encodedText);
+			            if (!decodedMessage) {
+			                throw new Error('No decodable content found');
+			            }
+			        }
+			        
+			        if (DEBUG_MODE) {
+			            console.log('[Ghostpost] Decoded successfully:', decodedMessage.substring(0, 50) + '...');
+			        }
 
 					// Track reveal if post_id is present
 					let revealData = null;
