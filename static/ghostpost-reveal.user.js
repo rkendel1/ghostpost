@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.3.5
-// @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
+// @version      2.3.6
+// @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
 // @exclude      *://*/login*
@@ -23,6 +23,16 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.3.6 (2025-12-12):
+ * - FEATURE: Enhanced limited reveal countdown display in overlay
+ * - Added visual progress bar showing reveal consumption
+ * - Enhanced urgency indicators with pulsing animation for low reveals
+ * - Better formatting and color coding for reveal stats (blue/yellow/red)
+ * - Added "SOLD OUT FOREVER" messaging when all reveals are used
+ * - Improved visual consistency with /decode page experience
+ * - Added countdown information: "Only X people can reveal before it's gone"
+ * - Enhanced reveal stats to match the web application interface
+ *
  * v2.3.5 (2025-12-12):
  * - CRITICAL FIX: Fixed X.com/Twitter decoding "No hidden content found" error
  * - Enhanced delimiter checking to ensure BOTH delimiters are present before extraction
@@ -144,7 +154,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.3.4';
+	const SCRIPT_VERSION = '2.3.6';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Function to initialize the userscript
@@ -918,6 +928,8 @@
 
 	// Constants for reveal display
 	const LOW_COUNT_THRESHOLD = 5;
+	const WARNING_COUNT_THRESHOLD = 20;
+	const URGENT_MESSAGE_THRESHOLD = 10;
 
 	// Helper function to generate reveal stats HTML
 	function generateRevealStatsHtml(revealData) {
@@ -941,20 +953,60 @@
 
 		const isLowCount = revealData.remaining !== null && revealData.remaining <= LOW_COUNT_THRESHOLD;
 		const isSoldOut = revealData.remaining === 0;
+		const percentage = revealData.total_reveals ? (revealData.reveal_number / revealData.total_reveals) * 100 : 0;
+		
+		// Determine progress bar color based on remaining count
+		let progressBarColor = '#3b82f6'; // blue for normal
+		if (isSoldOut) {
+			progressBarColor = '#ef4444'; // red for sold out
+		} else if (revealData.remaining !== null && revealData.remaining <= LOW_COUNT_THRESHOLD) {
+			progressBarColor = '#ef4444'; // red for critical
+		} else if (revealData.remaining !== null && revealData.remaining <= WARNING_COUNT_THRESHOLD) {
+			progressBarColor = '#f59e0b'; // orange/yellow for warning
+		}
+		
+		// Determine styling based on state
+		const bgColor = isSoldOut ? '#fef2f2' : isLowCount ? '#fef3c7' : '#eff6ff';
+		const borderColor = isSoldOut ? '#ef4444' : isLowCount ? '#f59e0b' : '#3b82f6';
+		const titleColor = isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af';
+		const textColor = isSoldOut ? '#991b1b' : isLowCount ? '#78350f' : '#1e3a8a';
+		const shouldPulse = revealData.remaining !== null && revealData.remaining <= WARNING_COUNT_THRESHOLD;
 		
 		return `
-			<div style="margin-top: 12px; padding: 10px; background: ${isSoldOut ? '#fef2f2' : isLowCount ? '#fef3c7' : '#eff6ff'}; border-radius: 6px; border: 1px solid ${isSoldOut ? '#ef4444' : isLowCount ? '#f59e0b' : '#3b82f6'};">
+			<div style="margin-top: 12px; padding: 12px; background: ${bgColor}; border-radius: 6px; border: 1px solid ${borderColor};">
 				<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-					<span style="font-size: 12px; font-weight: 600; color: ${isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af'};">
-						${isSoldOut ? '🔥 SOLD OUT!' : isLowCount ? `⚠️ ONLY ${revealData.remaining} LEFT!` : '👻 Limited Reveal'}
-					</span>
-					<span style="font-size: 16px; font-weight: 700; color: ${isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af'};">
-						#${revealData.reveal_number}/${revealData.total_reveals}
-					</span>
+					<div style="flex: 1;">
+						<div style="font-size: 13px; font-weight: 700; color: ${titleColor}; margin-bottom: 2px;">
+							${isSoldOut ? '🔥 SOLD OUT FOREVER! 🔥' : isLowCount ? `⚠️ ONLY ${revealData.remaining} LEFT! ⚠️` : '🎉 Limited Edition Reveal!'}
+						</div>
+						<div style="font-size: 11px; color: ${textColor};">
+							${revealData.message}
+						</div>
+					</div>
+					<div style="text-align: right; margin-left: 8px;">
+						<div style="font-size: 18px; font-weight: 700; color: ${titleColor}; ${shouldPulse ? 'animation: pulse 2s infinite;' : ''}">
+							${revealData.reveal_number}/${revealData.total_reveals}
+						</div>
+						<div style="font-size: 10px; opacity: 0.75;">
+							reveals
+						</div>
+					</div>
 				</div>
-				<div style="font-size: 11px; color: ${isSoldOut ? '#991b1b' : isLowCount ? '#78350f' : '#1e3a8a'};">
-					${revealData.message}
-				</div>
+				${revealData.total_reveals ? `
+					<div style="width: 100%; height: 12px; background: rgba(0, 0, 0, 0.1); border-radius: 6px; overflow: hidden; margin-top: 8px;">
+						<div style="height: 100%; background: ${progressBarColor}; width: ${percentage}%; transition: width 0.5s ease;"></div>
+					</div>
+				` : ''}
+				${revealData.remaining !== null && revealData.remaining > 0 && revealData.remaining <= URGENT_MESSAGE_THRESHOLD ? `
+					<div style="font-size: 10px; text-align: center; margin-top: 6px; opacity: 0.85; animation: pulse 2s infinite;">
+						⚡ Only ${revealData.remaining} ${revealData.remaining === 1 ? 'person' : 'people'} can reveal this secret before it's gone forever!
+					</div>
+				` : ''}
+				${isSoldOut ? `
+					<div style="font-size: 10px; text-align: center; margin-top: 6px; font-weight: 600;">
+						💎 You got the LAST reveal! This secret is now locked forever.
+					</div>
+				` : ''}
 			</div>
 		`;
 	}
@@ -1325,6 +1377,10 @@
 			@keyframes fadeOut {
 				from { opacity: 1; }
 				to { opacity: 0; }
+			}
+			@keyframes pulse {
+				0%, 100% { opacity: 1; }
+				50% { opacity: 0.7; }
 			}
 			#ghostpost-close-modal:hover {
 				background: rgba(255,255,255,0.3) !important;
