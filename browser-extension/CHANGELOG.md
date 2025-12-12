@@ -1,4 +1,6 @@
-# Changelog - Ghostpost Reveal Browser Extension
+# CHANGELOG
+
+# Ghostpost Reveal Browser Extension
 
 ## [1.2.0] - 2025-12-12
 

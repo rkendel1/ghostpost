@@ -194,7 +194,9 @@ function extractCompleteText(node) {
 		levelsChecked++;
 	}
 	
-	// Fallback to node text (even if incomplete, let decoder handle the error)
+	// Fallback to node text as last resort
+	// Note: If we reach here, the message may be incomplete (missing one or both delimiters)
+	// The decoder will handle this gracefully by returning an appropriate error
 	return nodeText;
 }
 
