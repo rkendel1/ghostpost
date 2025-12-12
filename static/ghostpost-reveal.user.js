@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.4.0
+// @version      2.4.1
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -23,6 +23,14 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.4.1 (2025-12-12):
+* - FEATURE: Added programmatic X.com hidden message extraction via full_text field
+* - Decoding no longer relies solely on DOM nodes; preserves all invisible Unicode characters reliably
+* - DetectHiddenMessagesXCom function added for batch tweet JSON decoding
+* - Legacy DOM extraction remains intact for other sites and fallback scenarios
+* - Improved stability and performance on X.com dynamic content and split text nodes
+* - Debug logs now show whether extraction used programmatic full_text or DOM fallbacks
+ * 
  * v2.4.0 (2025-12-12):
  * - OPTIMIZATION: Simplified X.com text extraction with advanced techniques as backups
  * - Tries simple approaches first: direct node access (90%+ success), then parent.textContent
