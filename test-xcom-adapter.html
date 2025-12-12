@@ -146,11 +146,29 @@
             return ENCODING_CONSTANTS.CONTENT_DELIMITER + invisibleString + ENCODING_CONSTANTS.CONTENT_DELIMITER;
         }
 
-        // Twitter adapter extraction logic (copy from userscript)
+        // Helper function to check if text contains a complete encoded message
+        function hasCompleteEncodedMessage(text) {
+            if (!text) return false;
+            
+            const delimiterChar = '\uFEFF';
+            let count = 0;
+            let index = text.indexOf(delimiterChar);
+            
+            while (index !== -1) {
+                count++;
+                if (count >= 2) return true;
+                index = text.indexOf(delimiterChar, index + 1);
+            }
+            
+            return false;
+        }
+
+        // Twitter adapter extraction logic (updated with fix)
         function twitterExtractText(node) {
             // First try the text node itself
             const nodeText = node.data || node.nodeValue || '';
-            if (nodeText && nodeText.indexOf('\uFEFF') !== -1) {
+            if (nodeText && hasCompleteEncodedMessage(nodeText)) {
+                // Has complete message (both delimiters), use it directly
                 return nodeText;
             }
             
@@ -171,7 +189,8 @@
                     combinedText += textNode.data || textNode.nodeValue || '';
                 }
                 
-                if (combinedText && combinedText.indexOf('\uFEFF') !== -1) {
+                // Check if combined text has complete message (both delimiters)
+                if (combinedText && hasCompleteEncodedMessage(combinedText)) {
                     return combinedText;
                 }
                 

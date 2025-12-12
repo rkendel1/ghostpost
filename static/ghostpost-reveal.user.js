@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.3.4
+// @version      2.3.5
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -23,6 +23,14 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.3.5 (2025-12-12):
+ * - CRITICAL FIX: Fixed X.com/Twitter decoding "No hidden content found" error
+ * - Enhanced delimiter checking to ensure BOTH delimiters are present before extraction
+ * - Added hasCompleteEncodedMessage() helper to validate complete message format
+ * - Previous version only checked for one delimiter, causing incomplete message extraction
+ * - Now properly aggregates split text nodes on X.com to get full encoded message
+ * - Format requires: \uFEFF + invisible_chars + \uFEFF (need both delimiters)
+ *
  * v2.3.4 (2025-12-12):
  * - CRITICAL FIX: Fixed X.com/Twitter decoding failures
  * - Enhanced Twitter adapter to aggregate text from parent elements (up to 5 levels)
@@ -318,6 +326,28 @@
 	const defaultTextExtraction = (node) => node.data || node.nodeValue || node.textContent || '';
 
 	/**
+	 * Helper function to check if text contains a complete encoded message
+	 * A complete message needs at least TWO delimiter characters (\uFEFF)
+	 * Format: \uFEFF + invisible_chars + \uFEFF
+	 */
+	function hasCompleteEncodedMessage(text) {
+		if (!text) return false;
+		
+		// Count occurrences of the delimiter
+		const delimiterChar = '\uFEFF';
+		let count = 0;
+		let index = text.indexOf(delimiterChar);
+		
+		while (index !== -1) {
+			count++;
+			if (count >= 2) return true; // Found at least 2 delimiters
+			index = text.indexOf(delimiterChar, index + 1);
+		}
+		
+		return false;
+	}
+
+	/**
 	 * Twitter/X.com specialized adapter
 	 * X.com's dynamic DOM often splits text nodes, so we need to aggregate from parent
 	 */
@@ -325,8 +355,8 @@
 		extractText: (node) => {
 			// First try the text node itself
 			const nodeText = node.data || node.nodeValue || '';
-			if (nodeText && nodeText.indexOf('\uFEFF') !== -1) {
-				// Has the delimiter, use it directly
+			if (nodeText && hasCompleteEncodedMessage(nodeText)) {
+				// Has complete message (both delimiters), use it directly
 				return nodeText;
 			}
 			
@@ -349,8 +379,8 @@
 					combinedText += textNode.data || textNode.nodeValue || '';
 				}
 				
-				// If combined text has the delimiter, we found the complete message
-				if (combinedText && combinedText.indexOf('\uFEFF') !== -1) {
+				// Check if combined text has complete message (both delimiters)
+				if (combinedText && hasCompleteEncodedMessage(combinedText)) {
 					return combinedText;
 				}
 				
@@ -359,7 +389,7 @@
 				levelsChecked++;
 			}
 			
-			// Fallback to node text
+			// Fallback to node text (even if incomplete, let decoder handle the error)
 			return nodeText;
 		},
 		description: 'Aggregates text from parent elements (up to 5 levels) to handle X.com DOM splitting'
