@@ -25,10 +25,10 @@
  * ==========
  * v2.3.4 (2025-12-12):
  * - CRITICAL FIX: Fixed X.com/Twitter decoding failures
- * - Enhanced Twitter adapter to aggregate text from parent element
+ * - Enhanced Twitter adapter to aggregate text from parent elements (up to 5 levels)
  * - X.com's dynamic DOM splits text nodes, now we reconstruct the full message
- * - Walks through all child text nodes of parent to find complete encoded message
- * - Preserves invisible Unicode characters while handling DOM splitting
+ * - Walks up the DOM tree to find the container with complete encoded message
+ * - Preserves invisible Unicode characters while handling complex nested structures
  * - Fixes "No hidden content found" error on X.com tweets
  *
  * v2.3.3 (2025-12-12):
@@ -330,15 +330,17 @@
 				return nodeText;
 			}
 			
-			// If not, check if parent element has the complete encoded message
-			// by aggregating all child text nodes
-			const parent = node.parentElement;
-			if (parent) {
-				// Get all text from parent element but preserve text node boundaries
-				// This is critical for X.com where content is split across nodes
+			// If not, walk up the DOM tree to find a parent that contains the complete message
+			// Try up to 5 levels of parent elements
+			let currentElement = node.parentElement;
+			let levelsChecked = 0;
+			const MAX_PARENT_LEVELS = 5;
+			
+			while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
+				// Get all text from this element by aggregating child text nodes
 				let combinedText = '';
 				const walker = document.createTreeWalker(
-					parent,
+					currentElement,
 					NodeFilter.SHOW_TEXT,
 					null
 				);
@@ -347,16 +349,20 @@
 					combinedText += textNode.data || textNode.nodeValue || '';
 				}
 				
-				// If combined text has the delimiter, use it
+				// If combined text has the delimiter, we found the complete message
 				if (combinedText && combinedText.indexOf('\uFEFF') !== -1) {
 					return combinedText;
 				}
+				
+				// Move up to parent
+				currentElement = currentElement.parentElement;
+				levelsChecked++;
 			}
 			
 			// Fallback to node text
 			return nodeText;
 		},
-		description: 'Aggregates text from parent element to handle X.com DOM splitting'
+		description: 'Aggregates text from parent elements (up to 5 levels) to handle X.com DOM splitting'
 	};
 
 	/**
