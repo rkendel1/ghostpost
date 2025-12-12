@@ -928,6 +928,8 @@
 
 	// Constants for reveal display
 	const LOW_COUNT_THRESHOLD = 5;
+	const WARNING_COUNT_THRESHOLD = 20;
+	const URGENT_MESSAGE_THRESHOLD = 10;
 
 	// Helper function to generate reveal stats HTML
 	function generateRevealStatsHtml(revealData) {
@@ -957,25 +959,32 @@
 		let progressBarColor = '#3b82f6'; // blue for normal
 		if (isSoldOut) {
 			progressBarColor = '#ef4444'; // red for sold out
-		} else if (revealData.remaining !== null && revealData.remaining <= 5) {
+		} else if (revealData.remaining !== null && revealData.remaining <= LOW_COUNT_THRESHOLD) {
 			progressBarColor = '#ef4444'; // red for critical
-		} else if (revealData.remaining !== null && revealData.remaining <= 20) {
+		} else if (revealData.remaining !== null && revealData.remaining <= WARNING_COUNT_THRESHOLD) {
 			progressBarColor = '#f59e0b'; // orange/yellow for warning
 		}
 		
+		// Determine styling based on state
+		const bgColor = isSoldOut ? '#fef2f2' : isLowCount ? '#fef3c7' : '#eff6ff';
+		const borderColor = isSoldOut ? '#ef4444' : isLowCount ? '#f59e0b' : '#3b82f6';
+		const titleColor = isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af';
+		const textColor = isSoldOut ? '#991b1b' : isLowCount ? '#78350f' : '#1e3a8a';
+		const shouldPulse = revealData.remaining !== null && revealData.remaining <= WARNING_COUNT_THRESHOLD;
+		
 		return `
-			<div style="margin-top: 12px; padding: 12px; background: ${isSoldOut ? '#fef2f2' : isLowCount ? '#fef3c7' : '#eff6ff'}; border-radius: 6px; border: 1px solid ${isSoldOut ? '#ef4444' : isLowCount ? '#f59e0b' : '#3b82f6'};">
+			<div style="margin-top: 12px; padding: 12px; background: ${bgColor}; border-radius: 6px; border: 1px solid ${borderColor};">
 				<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
 					<div style="flex: 1;">
-						<div style="font-size: 13px; font-weight: 700; color: ${isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af'}; margin-bottom: 2px;">
+						<div style="font-size: 13px; font-weight: 700; color: ${titleColor}; margin-bottom: 2px;">
 							${isSoldOut ? '🔥 SOLD OUT FOREVER! 🔥' : isLowCount ? `⚠️ ONLY ${revealData.remaining} LEFT! ⚠️` : '🎉 Limited Edition Reveal!'}
 						</div>
-						<div style="font-size: 11px; color: ${isSoldOut ? '#991b1b' : isLowCount ? '#78350f' : '#1e3a8a'};">
+						<div style="font-size: 11px; color: ${textColor};">
 							${revealData.message}
 						</div>
 					</div>
 					<div style="text-align: right; margin-left: 8px;">
-						<div style="font-size: 18px; font-weight: 700; color: ${isSoldOut ? '#b91c1c' : isLowCount ? '#92400e' : '#1e40af'}; ${revealData.remaining !== null && revealData.remaining <= 20 ? 'animation: pulse 2s infinite;' : ''}">
+						<div style="font-size: 18px; font-weight: 700; color: ${titleColor}; ${shouldPulse ? 'animation: pulse 2s infinite;' : ''}">
 							${revealData.reveal_number}/${revealData.total_reveals}
 						</div>
 						<div style="font-size: 10px; opacity: 0.75;">
@@ -988,7 +997,7 @@
 						<div style="height: 100%; background: ${progressBarColor}; width: ${percentage}%; transition: width 0.5s ease;"></div>
 					</div>
 				` : ''}
-				${revealData.remaining !== null && revealData.remaining > 0 && revealData.remaining <= 10 ? `
+				${revealData.remaining !== null && revealData.remaining > 0 && revealData.remaining <= URGENT_MESSAGE_THRESHOLD ? `
 					<div style="font-size: 10px; text-align: center; margin-top: 6px; opacity: 0.85; animation: pulse 2s infinite;">
 						⚡ Only ${revealData.remaining} ${revealData.remaining === 1 ? 'person' : 'people'} can reveal this secret before it's gone forever!
 					</div>
