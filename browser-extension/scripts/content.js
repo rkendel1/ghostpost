@@ -2,7 +2,15 @@
  * Content Script - Scans page for hidden content
  * Detects invisible Unicode characters used by Hidenly encoding
  *
- * ENHANCED FEATURES (v1.2.3):
+ * ENHANCED FEATURES (v1.2.4):
+ * - CRITICAL FIX: Improved X.com detection reliability with tweet-scoped scanning
+ * - Changed scanPageForHiddenContent() to scope detection to tweet articles on X.com
+ * - Targets article[data-testid="tweet"] containers first, then scans tweetText inside
+ * - Aggregates all text nodes under tweetText container during detection phase
+ * - Fixes "zero detection" issue caused by X.com's DOM structure changes in late 2025
+ * - More reliable detection by scoping to actual tweets instead of scanning entire page
+ * 
+ * v1.2.3:
  * - OPTIMIZATION: Simplified X.com text extraction with advanced techniques as backups
  * - Tries simple approaches first (90%+ success): direct node, parent.textContent
  * - Uses complex TreeWalker and sibling aggregation only when simple methods fail
@@ -17,7 +25,7 @@
  * X.COM CONTEXT:
  * X.com's GraphQL API preserves all invisible Unicode characters in the full_text field.
  * The frontend visually collapses them, but they're fully accessible in DOM/API responses.
- * This extension uses simplified extraction with advanced fallbacks for X.com's complex DOM.
+ * This extension uses tweet-scoped detection for X.com with fallbacks for other sites.
  * See XCOM_API_BEHAVIOR.md for detailed documentation on X.com's behavior and detection methods.
  */
 
@@ -64,6 +72,25 @@ const CLUSTER_RATIO_THRESHOLD = 0.6; // Minimum ratio of clustered chars to conf
 const PRIORITY_SCAN_MIN_DELAY = 300; // Minimum delay for priority feed scans (ms)
 const INCREMENTAL_SCAN_THRESHOLD = 50; // Max new nodes to scan incrementally vs full rescan
 const PERIODIC_SCAN_INTERVAL = 10000; // Periodic background scan interval for social media (ms)
+
+/**
+ * Quick pre-check using indexOf for performance
+ */
+function hasInvisibleChars(text) {
+	// Quick check for delimiter first (most reliable indicator)
+	if (text.indexOf('\uFEFF') !== -1) return true;
+	// Check for at least one of the common encoding chars
+	return (
+		text.indexOf('\u200B') !== -1 ||
+		text.indexOf('\u200C') !== -1 ||
+		text.indexOf('\u200D') !== -1 ||
+		text.indexOf('\u2060') !== -1 ||
+		text.indexOf('\u200E') !== -1 ||
+		text.indexOf('\u200F') !== -1 ||
+		text.indexOf('\u202C') !== -1 ||
+		text.indexOf('\u202D') !== -1
+	);
+}
 
 /**
  * Check if invisible characters appear clustered (indicating encoding)
@@ -288,11 +315,63 @@ function extractCompleteText(node) {
 
 /**
  * Scan the entire page for hidden content
+ * For X.com/Twitter: Uses tweet-scoped scanning for reliability
+ * For other sites: Uses standard page-wide text node scanning
  */
 function scanPageForHiddenContent() {
 	const detectedElements = [];
 	const processedElements = new Set(); // Track processed elements to avoid duplicates
+	
+	const hostname = window.location.hostname.toLowerCase();
+	const isXCom = hostname === 'x.com' || hostname === 'twitter.com' || 
+	               hostname.endsWith('.x.com') || hostname.endsWith('.twitter.com');
 
+	// X.com-specific detection: scope to tweet articles only
+	if (isXCom) {
+		// Scope to tweet articles only - this is critical for x.com reliability
+		const tweetArticles = document.querySelectorAll('article[data-testid="tweet"]');
+		if (tweetArticles.length === 0) {
+			console.log('[Hidenly] No tweet articles found - page may not be loaded yet');
+			return [];
+		}
+
+		tweetArticles.forEach(article => {
+			// Get the tweetText container inside this article
+			const tweetTextContainer = article.querySelector('[data-testid="tweetText"]');
+			if (!tweetTextContainer) return;
+
+			// Aggregate all text nodes under tweetText
+			const walker = document.createTreeWalker(tweetTextContainer, NodeFilter.SHOW_TEXT, null);
+			let textNode;
+			let combinedText = '';
+			while ((textNode = walker.nextNode())) {
+				combinedText += textNode.data || '';
+			}
+
+			// Quick pre-check
+			if (!hasInvisibleChars(combinedText)) return;
+
+			// Full validation
+			if (combinedText && hasCompleteEncodedMessage(combinedText) && isLikelyHidenlyMessage(combinedText)) {
+				// Use the tweetText container as the element
+				if (!processedElements.has(tweetTextContainer)) {
+					detectedElements.push({
+						element: tweetTextContainer,
+						text: combinedText, // Store full aggregated text
+						location: getElementLocation(tweetTextContainer)
+					});
+					
+					processedElements.add(tweetTextContainer);
+					console.log('[Hidenly] [X.com] ✓ Detected hidden message in tweet');
+				}
+			}
+		});
+
+		console.log(`[Hidenly] [X.com] Tweet-scoped scan complete. Found ${detectedElements.length} elements with hidden content`);
+		return detectedElements;
+	}
+
+	// Standard detection for non-X.com sites
 	// Get all text nodes in the document
 	const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
 
