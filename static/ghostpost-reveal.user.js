@@ -470,12 +470,12 @@
 				}
 				
 				// Find the closest tweet text container - this is x.com's standard for tweet content
-				const tweetTextContainer = tweetOrNode.closest && tweetOrNode.closest('[data-testid="tweetText"]');
+				const tweetTextContainer = tweetOrNode.closest?.('[data-testid="tweetText"]');
 				if (!tweetTextContainer) {
 					if (DEBUG_MODE) console.log('[Ghostpost] [X.com] ⚠️ No tweetText container found - falling back to parent traversal');
 					
 					// Fallback logic: parent traversal, TreeWalker up levels
-					let currentElement = tweetOrNode.parentElement;
+					let currentElement = tweetOrNode?.parentElement;
 					let levelsChecked = 0;
 					const MAX_PARENT_LEVELS = 15; // Increased from 10 for deeper nests
 					
@@ -506,8 +506,9 @@
 
 				if (DEBUG_MODE) {
 					console.log('[Ghostpost] [X.com] ✓ Extracted full text from tweetText container:', fullText.substring(0, 50) + '...');
-					// Debug invisible chars as hex
-					const invisibleHex = fullText.replace(/[\u2000-\u206F\uFEFF]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+					// Debug invisible chars as hex - uses exact HIDENLY_CHARS for precision
+					const invisibleCharsPattern = new RegExp('[' + HIDENLY_CHARS.map(c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')).join('') + ']', 'g');
+					const invisibleHex = fullText.replace(invisibleCharsPattern, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
 					console.log('[Ghostpost] [X.com] Invisible chars (hex):', invisibleHex);
 				}
 
