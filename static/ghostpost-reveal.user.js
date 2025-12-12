@@ -1538,6 +1538,10 @@
 
 	// Initial counter update (debounced to let page load and encode messages)
 	setTimeout(updateCounter, 2000);
+	
+	// Additional scan after more time to catch any late-loading encoded content
+	// This is especially useful for pages that encode messages asynchronously
+	setTimeout(updateCounter, 5000);
 
 	// Debounced update function to prevent excessive scanning
 	let debounceTimeout;
