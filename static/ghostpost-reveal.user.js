@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.3.8
+// @version      2.3.9
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -23,6 +23,15 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.3.9 (2025-12-12):
+ * - ENHANCEMENT: Added comprehensive X.com API behavior documentation (XCOM_API_BEHAVIOR.md)
+ * - Improved X.com adapter with multiple fallback extraction strategies
+ * - Added enhanced debug logging for X.com extraction process
+ * - Implemented sibling node aggregation as fallback for split delimiters
+ * - Better error messages that reference X.com-specific behavior
+ * - Added context about how X.com's tweet_text field preserves invisible characters
+ * - Ensures reliable decoding on X.com by trying multiple extraction approaches
+ *
  * v2.3.8 (2025-12-12):
  * - CRITICAL FIX: Enhanced X.com/Twitter reveal success with robust delimiter validation
  * - Improved hasCompleteEncodedMessage() to validate content between delimiters
@@ -404,22 +413,34 @@
 		/**
 		 * Twitter/X.com specialized adapter
 		 * X.com's dynamic DOM often splits text nodes, so we need to aggregate from parent
-		 * ENHANCED: Increased parent traversal to 10 levels for deeply nested structures
+		 * ENHANCED v2.3.9: Added multiple fallback strategies for reliable extraction
+		 * 
+		 * CONTEXT: X.com's GraphQL API preserves all invisible Unicode characters in the
+		 * tweet_text field. The characters are NOT truncated or removed. However, X.com's
+		 * frontend rendering engine splits text content across multiple nested DOM nodes,
+		 * which can separate delimiters from the encoded content. This adapter implements
+		 * multiple strategies to reconstruct the complete message:
+		 * 
+		 * 1. Check text node itself (fastest, works if not split)
+		 * 2. Walk up parent tree and aggregate (handles nested splits)
+		 * 3. Check sibling nodes (handles horizontal splits)
+		 * 4. Combination of parent + sibling aggregation (handles complex splits)
+		 * 
+		 * See XCOM_API_BEHAVIOR.md for detailed explanation of X.com's behavior.
 		 */
 		const twitterAdapter = {
 			extractText: (node) => {
-				// First try the text node itself
+				// Strategy 1: Try the text node itself first (fastest path)
 				const nodeText = node.data || node.nodeValue || '';
 				if (nodeText && hasCompleteEncodedMessage(nodeText)) {
-					// Has complete message (both delimiters), use it directly
 					if (DEBUG_MODE) {
-						console.log('[Ghostpost] Complete message found in text node');
+						console.log('[Ghostpost] [X.com] Complete message found in text node (Strategy 1)');
 					}
 					return nodeText;
 				}
 
-				// If not, walk up the DOM tree to find a parent that contains the complete message
-				// ENHANCED: Try up to 10 levels (increased from 5) for X.com's deep nesting
+				// Strategy 2: Walk up the DOM tree to find a parent that contains the complete message
+				// X.com can nest content up to 10+ levels deep, especially with media, quotes, etc.
 				let currentElement = node.parentElement;
 				let levelsChecked = 0;
 				const MAX_PARENT_LEVELS = 10;
@@ -436,7 +457,7 @@
 					// Check if combined text has complete message (both delimiters + valid content)
 					if (combinedText && hasCompleteEncodedMessage(combinedText)) {
 						if (DEBUG_MODE) {
-							console.log('[Ghostpost] Complete message found at level', levelsChecked + 1);
+							console.log('[Ghostpost] [X.com] Complete message found at parent level', levelsChecked + 1, '(Strategy 2)');
 						}
 						return combinedText;
 					}
@@ -446,16 +467,55 @@
 					levelsChecked++;
 				}
 
-				// Fallback to node text as last resort
-				// Note: If we reach here, the message may be incomplete (missing one or both delimiters)
-				// The decoder will handle this gracefully by returning an appropriate error
-				if (DEBUG_MODE) {
-					console.log('[Ghostpost] Warning: Could not find complete message after checking', MAX_PARENT_LEVELS, 'levels');
+				// Strategy 3: Check sibling nodes (horizontal splitting)
+				// Sometimes X.com splits delimiters and content across sibling <span> elements
+				if (node.parentElement) {
+					let siblingText = '';
+					const parent = node.parentElement;
+					const children = parent.childNodes;
+					
+					for (let i = 0; i < children.length; i++) {
+						const child = children[i];
+						if (child.nodeType === Node.TEXT_NODE) {
+							siblingText += child.data || child.nodeValue || '';
+						}
+					}
+					
+					if (siblingText && hasCompleteEncodedMessage(siblingText)) {
+						if (DEBUG_MODE) {
+							console.log('[Ghostpost] [X.com] Complete message found in sibling aggregation (Strategy 3)');
+						}
+						return siblingText;
+					}
 				}
+
+				// Strategy 4: Last resort - get textContent from parent element
+				// This is less reliable but can work in some edge cases
+				if (node.parentElement) {
+					const parentText = node.parentElement.textContent || '';
+					if (parentText && hasCompleteEncodedMessage(parentText)) {
+						if (DEBUG_MODE) {
+							console.log('[Ghostpost] [X.com] Complete message found via parent.textContent (Strategy 4)');
+						}
+						return parentText;
+					}
+				}
+
+				// All strategies exhausted - log detailed debug info
+				if (DEBUG_MODE) {
+					console.warn('[Ghostpost] [X.com] Could not find complete message after trying all strategies');
+					console.warn('[Ghostpost] [X.com] Node text preview:', nodeText.substring(0, 100));
+					console.warn('[Ghostpost] [X.com] Has FEFF delimiter:', nodeText.indexOf('\uFEFF') !== -1);
+					console.warn('[Ghostpost] [X.com] Checked', MAX_PARENT_LEVELS, 'parent levels');
+					console.warn('[Ghostpost] [X.com] NOTE: X.com preserves invisible chars in tweet_text field');
+					console.warn('[Ghostpost] [X.com] See XCOM_API_BEHAVIOR.md for troubleshooting guidance');
+				}
+				
+				// Return node text anyway - decoder will provide appropriate error message
 				return nodeText;
 			},
 			description:
-				'Aggregates text from parent elements (up to 10 levels) to handle X.com DOM splitting with content validation'
+				'Multi-strategy text aggregation for X.com: parent traversal (10 levels), sibling aggregation, and textContent fallback. Handles X.com\'s complex DOM splitting patterns.'
 		};
 
 		/**
