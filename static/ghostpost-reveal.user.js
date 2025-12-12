@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.4.1
+// @version      2.4.2
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -23,7 +23,8 @@
  *
  * CHANGELOG:
  * ==========
- * v2.4.1 (2025-12-12):
+ * v2.4.2 (2025-12-12):
+* - FEATURE: Added decodeFromZeroWidthString() helper to decode hidden messages directly from any zero-width character string (like "what...")
 * - FEATURE: Added programmatic X.com hidden message extraction via full_text field
 * - Decoding no longer relies solely on DOM nodes; preserves all invisible Unicode characters reliably
 * - DetectHiddenMessagesXCom function added for batch tweet JSON decoding
@@ -1054,6 +1055,32 @@
 				console.error('Decode error:', err);
 				throw new Error('Failed to decode: ' + err.message);
 			}
+		}
+
+				/**
+		 * Decode a hidden message directly from a string containing zero-width characters
+		 * 200b = 0, 200c = 1; ignores 200d and 2060
+		 * Returns the decoded text
+		 */
+		function decodeFromZeroWidthString(s) {
+			if (!s || typeof s !== 'string') return '';
+
+			// Keep only zero-width characters relevant for decoding
+			const zwChars = [...s].filter(c => ['\u200b','\u200c','\u200d','\u2060'].includes(c));
+
+			// Convert to binary: 200b=0, 200c=1
+			const binary = zwChars.map(c => {
+				if (c === '\u200b') return '0';
+				if (c === '\u200c') return '1';
+				return ''; // ignore 200d, 2060
+			}).join('');
+
+			// Split binary into bytes and convert to string
+			const bytes = binary.match(/.{1,8}/g);
+			if (!bytes) return '';
+
+			const text = bytes.map(b => String.fromCharCode(parseInt(b, 2))).join('');
+			return text;
 		}
 
 		// Generate a simple browser fingerprint for analytics
