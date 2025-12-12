@@ -13,6 +13,7 @@
 
 // List of invisible Unicode characters used for encoding
 // Based on the Hidenly encoding scheme which uses specific characters
+// Must include \uFEFF which is used as delimiter
 const HIDENLY_CHARS = [
 	'\u200B', // Zero Width Space
 	'\u200C', // Zero Width Non-Joiner
@@ -21,7 +22,8 @@ const HIDENLY_CHARS = [
 	'\u200F', // Right-to-Left Mark
 	'\u202C', // Pop Directional Formatting
 	'\u202D', // Left-to-Right Override
-	'\u2060' // Word Joiner
+	'\u2060', // Word Joiner
+	'\uFEFF' // Zero Width No-Break Space (delimiter)
 ];
 
 // Create regex pattern to detect invisible characters - escape each character
