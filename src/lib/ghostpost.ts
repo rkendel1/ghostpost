@@ -193,7 +193,7 @@ async function resizeImageIfNeeded(
 
 			// Try different quality settings and dimensions to get under the size limit
 			const tryQuality = async (quality: number, scaleFactor: number = 1.0): Promise<Blob | null> => {
-				return new Promise((resolve) => {
+				return new Promise((resolve, reject) => {
 					const scaledWidth = Math.floor(width * scaleFactor);
 					const scaledHeight = Math.floor(height * scaleFactor);
 					
@@ -203,9 +203,11 @@ async function resizeImageIfNeeded(
 						finalCanvas.width = scaledWidth;
 						finalCanvas.height = scaledHeight;
 						const finalCtx = finalCanvas.getContext('2d');
-						if (finalCtx) {
-							finalCtx.drawImage(canvas, 0, 0, scaledWidth, scaledHeight);
+						if (!finalCtx) {
+							reject(new Error('Failed to get canvas context for scaled image'));
+							return;
 						}
+						finalCtx.drawImage(canvas, 0, 0, scaledWidth, scaledHeight);
 					}
 					
 					// Always convert to JPEG for better compression
@@ -225,39 +227,43 @@ async function resizeImageIfNeeded(
 
 			// Try progressively lower quality and dimensions until we get under the size limit
 			(async () => {
-				// First try different quality levels at full resolution
-				for (const quality of QUALITY_LEVELS) {
-					const blob = await tryQuality(quality, 1.0);
-					if (blob) {
-						const newFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
-							type: 'image/jpeg',
-							lastModified: Date.now()
-						});
-						resolve(newFile);
-						return;
+				try {
+					// First try different quality levels at full resolution
+					for (const quality of QUALITY_LEVELS) {
+						const blob = await tryQuality(quality, 1.0);
+						if (blob) {
+							const newFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+								type: 'image/jpeg',
+								lastModified: Date.now()
+							});
+							resolve(newFile);
+							return;
+						}
 					}
-				}
-				
-				// If still too large, try reducing dimensions with lowest quality
-				const scaleFactors = [0.9, 0.8, 0.7, 0.6, 0.5];
-				for (const scale of scaleFactors) {
-					const blob = await tryQuality(QUALITY_LEVELS[QUALITY_LEVELS.length - 1], scale);
-					if (blob) {
-						const newFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
-							type: 'image/jpeg',
-							lastModified: Date.now()
-						});
-						resolve(newFile);
-						return;
+					
+					// If still too large, try reducing dimensions with lowest quality
+					const scaleFactors = [0.9, 0.8, 0.7, 0.6, 0.5];
+					for (const scale of scaleFactors) {
+						const blob = await tryQuality(QUALITY_LEVELS[QUALITY_LEVELS.length - 1], scale);
+						if (blob) {
+							const newFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+								type: 'image/jpeg',
+								lastModified: Date.now()
+							});
+							resolve(newFile);
+							return;
+						}
 					}
+					
+					// If still too large, reject with error
+					reject(
+						new Error(
+							`Image is too large to compress to ${maxSizeKB}KB. Please use a smaller or simpler image.`
+						)
+					);
+				} catch (err) {
+					reject(err);
 				}
-				
-				// If still too large, reject with error
-				reject(
-					new Error(
-						`Image is too large to compress to ${maxSizeKB}KB. Please use a smaller or simpler image.`
-					)
-				);
 			})();
 		};
 
