@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.3.2
+// @version      2.3.3
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding!
 // @author       Ghostpost
 // @match        *://*/*
@@ -22,6 +22,13 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.3.3 (2025-12-12):
+ * - CRITICAL FIX: Fixed overlay button not appearing on iPhone/mobile Safari
+ * - Added proper DOM ready check to wait for document.body before initialization
+ * - Wrapped initialization in function that runs after DOMContentLoaded if needed
+ * - Ensures button is created and appended only when DOM is fully ready
+ * - Fixes issue where userscript runs before body element exists on mobile
+ *
  * v2.3.2 (2025-12-11):
  * - CODE QUALITY: Addressed code review feedback
  * - Added error handling to fingerprinting with fallback methods
@@ -118,27 +125,29 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.3.2';
+	const SCRIPT_VERSION = '2.3.3';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
-	// Check if button already exists (might be from an old version)
-	const existingButton = document.getElementById(BUTTON_ID);
-	if (existingButton) {
-		// Check if this is an old version by looking for the data-version attribute
-		const existingVersion = existingButton.dataset.version;
-		if (existingVersion && existingVersion !== SCRIPT_VERSION) {
-			console.warn(
-				`[Ghostpost] Detected old version ${existingVersion}. Current version is ${SCRIPT_VERSION}. Please update your userscript.`
-			);
-			existingButton.remove(); // Remove old button
-		} else {
-			// Same version already running, don't load again
-			return;
+	// Function to initialize the userscript
+	function init() {
+		// Check if button already exists (might be from an old version)
+		const existingButton = document.getElementById(BUTTON_ID);
+		if (existingButton) {
+			// Check if this is an old version by looking for the data-version attribute
+			const existingVersion = existingButton.dataset.version;
+			if (existingVersion && existingVersion !== SCRIPT_VERSION) {
+				console.warn(
+					`[Ghostpost] Detected old version ${existingVersion}. Current version is ${SCRIPT_VERSION}. Please update your userscript.`
+				);
+				existingButton.remove(); // Remove old button
+			} else {
+				// Same version already running, don't load again
+				return;
+			}
 		}
-	}
 
-	// Create floating reveal button using DOM methods for security
-	const button = document.createElement('div');
+		// Create floating reveal button using DOM methods for security
+		const button = document.createElement('div');
 	button.id = BUTTON_ID;
 	button.dataset.version = SCRIPT_VERSION; // Store version for future compatibility checks
 
@@ -1379,4 +1388,15 @@
 	console.log(
 		'Ghostpost Reveal extension loaded! Click the 👻 button to reveal hidden messages. Scanning is optimized for performance.'
 	);
+	}
+
+	// Wait for DOM to be ready before initializing
+	// This is critical for mobile Safari where the script may run before body exists
+	if (document.readyState === 'loading') {
+		// DOM is still loading, wait for it
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		// DOM is already ready, initialize immediately
+		init();
+	}
 })();
