@@ -131,26 +131,100 @@ function isLikelyHidenlyMessage(text) {
 }
 
 /**
+ * Helper function to check if text contains a complete encoded message
+ * A complete message needs at least TWO delimiter characters (\uFEFF)
+ * Format: \uFEFF + invisible_chars + \uFEFF
+ */
+function hasCompleteEncodedMessage(text) {
+	if (!text) return false;
+	
+	// Count occurrences of the delimiter
+	const delimiterChar = '\uFEFF';
+	let count = 0;
+	let index = text.indexOf(delimiterChar);
+	
+	while (index !== -1) {
+		count++;
+		if (count >= 2) return true; // Found at least 2 delimiters
+		index = text.indexOf(delimiterChar, index + 1);
+	}
+	
+	return false;
+}
+
+/**
+ * Extract complete encoded text from a text node
+ * For X.com/Twitter and other sites that split text across nodes,
+ * this walks up the DOM to aggregate text from parent elements
+ */
+function extractCompleteText(node) {
+	// First try the text node itself
+	const nodeText = node.data || node.nodeValue || node.textContent || '';
+	if (nodeText && hasCompleteEncodedMessage(nodeText)) {
+		// Has complete message (both delimiters), use it directly
+		return nodeText;
+	}
+	
+	// If not, walk up the DOM tree to find a parent that contains the complete message
+	// Try up to 5 levels of parent elements
+	let currentElement = node.parentElement;
+	let levelsChecked = 0;
+	const MAX_PARENT_LEVELS = 5;
+	
+	while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
+		// Get all text from this element by aggregating child text nodes
+		let combinedText = '';
+		const walker = document.createTreeWalker(
+			currentElement,
+			NodeFilter.SHOW_TEXT,
+			null
+		);
+		let textNode;
+		while ((textNode = walker.nextNode())) {
+			combinedText += textNode.data || textNode.nodeValue || '';
+		}
+		
+		// Check if combined text has complete message (both delimiters)
+		if (combinedText && hasCompleteEncodedMessage(combinedText)) {
+			return combinedText;
+		}
+		
+		// Move up to parent
+		currentElement = currentElement.parentElement;
+		levelsChecked++;
+	}
+	
+	// Fallback to node text (even if incomplete, let decoder handle the error)
+	return nodeText;
+}
+
+/**
  * Scan the entire page for hidden content
  */
 function scanPageForHiddenContent() {
 	const detectedElements = [];
+	const processedElements = new Set(); // Track processed elements to avoid duplicates
 
 	// Get all text nodes in the document
 	const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
 
 	let node;
 	while ((node = walker.nextNode())) {
-		const text = node.textContent;
+		const text = node.data || node.nodeValue || '';
 		if (text && isLikelyHidenlyMessage(text)) {
 			// Found invisible characters that match Hidenly pattern
 			const element = node.parentElement;
-			if (element && !detectedElements.includes(element)) {
+			if (element && !processedElements.has(element)) {
+				// Extract complete text (may aggregate from parent elements)
+				const completeText = extractCompleteText(node);
+				
 				detectedElements.push({
 					element: element,
-					text: text,
+					text: completeText, // Use complete aggregated text
 					location: getElementLocation(element)
 				});
+				
+				processedElements.add(element);
 			}
 		}
 	}
@@ -320,18 +394,24 @@ function isInFeedContainer(node) {
  */
 function scanNewNodes(nodes) {
 	const detectedElements = [];
+	const processedElements = new Set(); // Track processed elements to avoid duplicates
 
 	for (const node of nodes) {
 		if (node.nodeType === Node.TEXT_NODE) {
-			const text = node.textContent;
+			const text = node.data || node.nodeValue || '';
 			if (text && isLikelyHidenlyMessage(text)) {
 				const element = node.parentElement;
-				if (element) {
+				if (element && !processedElements.has(element)) {
+					// Extract complete text (may aggregate from parent elements)
+					const completeText = extractCompleteText(node);
+					
 					detectedElements.push({
 						element: element,
-						text: text,
+						text: completeText, // Use complete aggregated text
 						location: getElementLocation(element)
 					});
+					
+					processedElements.add(element);
 				}
 			}
 		} else if (node.nodeType === Node.ELEMENT_NODE) {
@@ -340,15 +420,20 @@ function scanNewNodes(nodes) {
 
 			let textNode;
 			while ((textNode = walker.nextNode())) {
-				const text = textNode.textContent;
+				const text = textNode.data || textNode.nodeValue || '';
 				if (text && isLikelyHidenlyMessage(text)) {
 					const element = textNode.parentElement;
-					if (element && !detectedElements.some((d) => d.element === element)) {
+					if (element && !processedElements.has(element)) {
+						// Extract complete text (may aggregate from parent elements)
+						const completeText = extractCompleteText(textNode);
+						
 						detectedElements.push({
 							element: element,
-							text: text,
+							text: completeText, // Use complete aggregated text
 							location: getElementLocation(element)
 						});
+						
+						processedElements.add(element);
 					}
 				}
 			}
