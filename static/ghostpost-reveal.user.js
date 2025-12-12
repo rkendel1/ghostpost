@@ -254,7 +254,9 @@
 		const DEBOUNCE_DELAY = 2000; // Wait 2 seconds after last change before scanning
 		const MAX_TEXT_NODE_LENGTH = 50000; // Skip very large text nodes
 		const MAX_NODES_PER_SCAN = 1000; // Limit nodes scanned in one pass
-		const SCAN_TIMEOUT = 500; // Maximum time for a single scan in ms (increased from 100ms to ensure all messages are detected)
+		const SCAN_TIMEOUT = 500; // Maximum time for a single scan in ms
+		const INITIAL_SCAN_DELAY = 2000; // Delay before first scan to allow page load and encoding
+		const SECONDARY_SCAN_DELAY = 5000; // Delay for additional scan to catch late-loading content
 
 		// List of invisible Unicode characters used for encoding
 		// Must match the encoding scheme: \u2060, \u200B, \u200C, \u200D, \u200E, \u200F, \u202D, \u202C
@@ -1560,11 +1562,11 @@
 		}
 
 		// Initial counter update (debounced to let page load and encode messages)
-		setTimeout(updateCounter, 2000);
+		setTimeout(updateCounter, INITIAL_SCAN_DELAY);
 
 		// Additional scan after more time to catch any late-loading encoded content
 		// This is especially useful for pages that encode messages asynchronously
-		setTimeout(updateCounter, 5000);
+		setTimeout(updateCounter, SECONDARY_SCAN_DELAY);
 
 		// Debounced update function to prevent excessive scanning
 		let debounceTimeout;
