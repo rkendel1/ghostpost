@@ -335,8 +335,8 @@
 						<label class="label">
 							<span>Secret Image</span>
 							<p class="text-sm opacity-75 mb-2">
-								⚠️ For best results, use images under 100KB. Large images will be automatically
-								resized and compressed to prevent crashes on mobile devices.
+								⚠️ Images will be automatically compressed to ~25KB and resized to fit under 40,000 character platform limits.
+								Very large or complex images may take longer to compress.
 							</p>
 							<input type="file" accept="image/*" class="file-input" on:change={handleSecretFile} />
 							{#if imagePreview}
@@ -349,9 +349,9 @@
 									{#if secretImage}
 										<p class="text-xs opacity-75 mt-1">
 											Size: {(secretImage.size / 1024).toFixed(1)} KB
-											{#if secretImage.size > 100 * 1024}
+											{#if secretImage.size > 25 * 1024}
 												<span class="text-warning-500"
-													>(will be compressed to ~100KB for encoding)</span
+													>(will be compressed to ~25KB for encoding)</span
 												>
 											{/if}
 										</p>

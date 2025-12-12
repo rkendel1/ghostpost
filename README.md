@@ -423,7 +423,7 @@ Prepare message for posting (currently returns copy/paste instructions).
 
 ## ⚠️ Current Limitations
 
-- **Image size**: Images under 10-20KB work best. Larger images create very long strings
+- **Image size**: Images are automatically compressed to ~25KB to stay under 40,000 character platform limits. Very large or complex images may be significantly reduced in quality.
 - **Unicode support**: Some messengers may not support all invisible Unicode characters
 - **Manual posting**: Currently requires copy/paste; direct platform posting requires additional API setup and OAuth flows
 
