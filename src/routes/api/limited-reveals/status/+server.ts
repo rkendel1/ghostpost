@@ -10,12 +10,30 @@ import type { RequestHandler } from './$types';
 import { supabase } from '$lib/supabase';
 import type { RevealStatus } from '$lib/types/limited-reveals';
 
+// CORS headers for cross-origin requests from userscript
+const corsHeaders = {
+	'Access-Control-Allow-Origin': '*',
+	'Access-Control-Allow-Methods': 'GET, OPTIONS',
+	'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+// Handle OPTIONS preflight request
+export const OPTIONS: RequestHandler = async () => {
+	return new Response(null, {
+		status: 204,
+		headers: corsHeaders
+	});
+};
+
 export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const post_id = url.searchParams.get('post_id');
 
 		if (!post_id) {
-			return json({ success: false, error: 'Missing post_id parameter' }, { status: 400 });
+			return json(
+				{ success: false, error: 'Missing post_id parameter' }, 
+				{ status: 400, headers: corsHeaders }
+			);
 		}
 
 		// Get limited secret record
@@ -38,7 +56,7 @@ export const GET: RequestHandler = async ({ url }) => {
 					percentage_revealed: null,
 					can_reveal: true
 				} as RevealStatus
-			});
+			}, { headers: corsHeaders });
 		}
 
 		const remaining = limitedSecret.max_reveals
@@ -65,9 +83,12 @@ export const GET: RequestHandler = async ({ url }) => {
 		return json({
 			success: true,
 			status
-		});
+		}, { headers: corsHeaders });
 	} catch (error) {
 		console.error('Error getting reveal status:', error);
-		return json({ success: false, error: 'Internal server error' }, { status: 500 });
+		return json(
+			{ success: false, error: 'Internal server error' }, 
+			{ status: 500, headers: corsHeaders }
+		);
 	}
 };
