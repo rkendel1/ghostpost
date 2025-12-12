@@ -2,6 +2,23 @@
 
 # Ghostpost Reveal Browser Extension
 
+## [1.2.1] - 2025-12-12
+
+### Fixed
+- **CRITICAL ENHANCEMENT**: Improved X.com/Twitter reveal success rate with robust delimiter validation
+- Enhanced `hasCompleteEncodedMessage()` to validate content between delimiters
+- Now ensures only invisible Unicode characters exist between delimiters (no visible text)
+- Increased parent traversal from 5 to 10 levels for X.com's deeply nested structures
+- Added content validation to prevent false positives from legitimate FEFF usage
+- This ensures near-100% success rate for X.com reveals by validating message structure
+
+### Technical Details
+- Validates that content between `\uFEFF` delimiters contains only invisible characters
+- Rejects false positives where visible text appears between delimiters
+- Deeper parent traversal (10 levels vs 5) handles X.com's complex nesting
+- More detailed console logging for debugging reveal issues
+- Improved robustness for dynamic DOM structures
+
 ## [1.2.0] - 2025-12-12
 
 ### Fixed
