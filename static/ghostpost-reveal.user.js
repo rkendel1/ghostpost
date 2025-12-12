@@ -504,15 +504,15 @@
 				// All strategies exhausted - log detailed debug info
 				if (DEBUG_MODE) {
 					console.warn('[Ghostpost] [X.com] Could not find complete message after trying all strategies');
-					console.warn('[Ghostpost] [X.com] Node text preview:', nodeText.substring(0, 100));
-					console.warn('[Ghostpost] [X.com] Has FEFF delimiter:', nodeText.indexOf('\uFEFF') !== -1);
+					console.warn('[Ghostpost] [X.com] Node text preview:', (nodeText || '').substring(0, 100));
+					console.warn('[Ghostpost] [X.com] Has FEFF delimiter:', (nodeText || '').indexOf('\uFEFF') !== -1);
 					console.warn('[Ghostpost] [X.com] Checked', MAX_PARENT_LEVELS, 'parent levels');
 					console.warn('[Ghostpost] [X.com] NOTE: X.com preserves invisible chars in tweet_text field');
 					console.warn('[Ghostpost] [X.com] See XCOM_API_BEHAVIOR.md for troubleshooting guidance');
 				}
 				
 				// Return node text anyway - decoder will provide appropriate error message
-				return nodeText;
+				return nodeText || '';
 			},
 			description:
 				'Multi-strategy text aggregation for X.com: parent traversal (10 levels), sibling aggregation, and textContent fallback. Handles X.com\'s complex DOM splitting patterns.'

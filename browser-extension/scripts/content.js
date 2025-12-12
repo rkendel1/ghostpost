@@ -275,14 +275,14 @@ function extractCompleteText(node) {
 	
 	// All strategies exhausted - log detailed debug info
 	console.warn('[Hidenly] [X.com] Could not find complete message after trying all strategies');
-	console.warn('[Hidenly] [X.com] Node text preview:', nodeText.substring(0, 100));
-	console.warn('[Hidenly] [X.com] Has FEFF delimiter:', nodeText.indexOf('\uFEFF') !== -1);
+	console.warn('[Hidenly] [X.com] Node text preview:', (nodeText || '').substring(0, 100));
+	console.warn('[Hidenly] [X.com] Has FEFF delimiter:', (nodeText || '').indexOf('\uFEFF') !== -1);
 	console.warn('[Hidenly] [X.com] Checked', MAX_PARENT_LEVELS, 'parent levels');
 	console.warn('[Hidenly] [X.com] NOTE: X.com preserves invisible chars in tweet_text field');
 	console.warn('[Hidenly] [X.com] See XCOM_API_BEHAVIOR.md for troubleshooting guidance');
 	
 	// Return node text anyway - decoder will provide appropriate error message
-	return nodeText;
+	return nodeText || '';
 }
 
 /**
