@@ -114,7 +114,8 @@
 
         <div class="note">
             <strong>📝 Note:</strong> This test page simulates how the userscript calls the API from any domain. 
-            If you see CORS errors in the console, the fix hasn't been deployed yet.
+            If you see CORS errors in the console, the fix hasn't been deployed yet.<br><br>
+            <strong>Testing different environments:</strong> Add <code>?api=http://localhost:5173/api</code> to test locally.
         </div>
 
         <!-- Test 1: Status Endpoint -->
@@ -161,7 +162,9 @@
     </div>
 
     <script>
-        const API_BASE = 'https://ghostpost-six.vercel.app/api';
+        // Configurable API base URL - defaults to production
+        const API_BASE = new URLSearchParams(window.location.search).get('api') || 
+                         'https://ghostpost-six.vercel.app/api';
 
         // Helper to display results
         function showResult(elementId, message, type = 'info') {
@@ -327,6 +330,7 @@
         // Show initial info
         window.addEventListener('DOMContentLoaded', () => {
             console.log('👻 GhostPost CORS Test Page Loaded');
+            console.log(`API Base URL: ${API_BASE}`);
             console.log('This page tests cross-origin requests to the limited-reveals API');
             console.log('Watch this console for CORS-related errors');
         });
