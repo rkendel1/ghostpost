@@ -12,6 +12,7 @@
 // @exclude      *://*.bank.*/*
 // @exclude      *://*.paypal.*/*
 // @grant        none
+// @run-at       document-end
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js
 // @updateURL    https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
 // @downloadURL  https://ghostpost-six.vercel.app/ghostpost-reveal.user.js
@@ -26,8 +27,10 @@
  * - CRITICAL FIX: Fixed overlay button not appearing on iPhone/mobile Safari
  * - Added proper DOM ready check to wait for document.body before initialization
  * - Wrapped initialization in function that runs after DOMContentLoaded if needed
+ * - Added @run-at document-end directive for consistent behavior across userscript managers
  * - Ensures button is created and appended only when DOM is fully ready
  * - Fixes issue where userscript runs before body element exists on mobile
+ * - Preserves existing desktop Greasemonkey/Tampermonkey experience
  *
  * v2.3.2 (2025-12-11):
  * - CODE QUALITY: Addressed code review feedback
