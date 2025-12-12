@@ -1265,36 +1265,35 @@
 
 			// Decode the message
 			setTimeout(async () => {
-			    try {
-			        let decodedMessage;
-			        let postId = null;
-			        
-			        if (DEBUG_MODE) {
-			            console.log('[Ghostpost] Attempting to decode message');
-			            console.log('[Ghostpost] Encoded text length:', encodedText.length);
-			            console.log('[Ghostpost] Has FEFF delimiter:', encodedText.indexOf('\uFEFF') !== -1);
-			            console.log('[Ghostpost] Zero-width char count:', (encodedText.match(/[\u200b\u200c\u200d\u2060]/g) || []).length);
-			        }
-			        
-			        // Try Ghostpost format first (with FEFF delimiters)
-			        if (encodedText.indexOf('\uFEFF') !== -1) {
-			            if (DEBUG_MODE) console.log('[Ghostpost] Using Ghostpost format decoder');
-			            const result = decodeHiddenMessage(encodedText);
-			            decodedMessage = result.message;
-			            postId = result.postId;
-			        } else {
-			            // Try zero-width character format (200b/200c encoding)
-			            if (DEBUG_MODE) console.log('[Ghostpost] Using zero-width decoder');
-			            decodedMessage = decodeFromZeroWidthString(encodedText);
-			            if (!decodedMessage) {
-			                throw new Error('No decodable content found');
-			            }
-			        }
-			        
-			        if (DEBUG_MODE) {
-			            console.log('[Ghostpost] Decoded successfully:', decodedMessage.substring(0, 50) + '...');
-			        }
-
+				try {
+					let decodedMessage;
+					let postId = null;
+					
+					if (DEBUG_MODE) {
+						console.log('[Ghostpost] Attempting to decode message');
+						console.log('[Ghostpost] Encoded text length:', encodedText.length);
+						console.log('[Ghostpost] Has FEFF delimiter:', encodedText.indexOf('\uFEFF') !== -1);
+						console.log('[Ghostpost] Zero-width char count:', (encodedText.match(/[\u200b\u200c\u200d\u2060]/g) || []).length);
+					}
+					
+					// Try Ghostpost format first (with FEFF delimiters)
+					if (encodedText.indexOf('\uFEFF') !== -1) {
+						if (DEBUG_MODE) console.log('[Ghostpost] Using Ghostpost format decoder');
+						const result = decodeHiddenMessage(encodedText);
+						decodedMessage = result.message;
+						postId = result.postId;
+					} else {
+						// Try zero-width character format (200b/200c encoding)
+						if (DEBUG_MODE) console.log('[Ghostpost] Using zero-width decoder');
+						decodedMessage = decodeFromZeroWidthString(encodedText);
+						if (!decodedMessage) {
+							throw new Error('No decodable content found');
+						}
+					}
+					
+					if (DEBUG_MODE) {
+						console.log('[Ghostpost] Decoded successfully:', decodedMessage.substring(0, 50) + '...');
+					}
 					// Track reveal if post_id is present
 					let revealData = null;
 					if (postId) {
