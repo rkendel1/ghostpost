@@ -47,6 +47,7 @@ const MAX_IMAGE_SIZE_KB = 25;
 const MAX_IMAGE_WIDTH = 600;
 const MAX_IMAGE_HEIGHT = 600;
 const QUALITY_LEVELS = [0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2];
+const SCALE_FACTORS = [0.9, 0.8, 0.7, 0.6, 0.5];
 
 /**
  * Initialize the WASM module
@@ -248,8 +249,7 @@ async function resizeImageIfNeeded(
 					}
 					
 					// If still too large, try reducing dimensions with lowest quality
-					const scaleFactors = [0.9, 0.8, 0.7, 0.6, 0.5];
-					for (const scale of scaleFactors) {
+					for (const scale of SCALE_FACTORS) {
 						const blob = await tryQuality(QUALITY_LEVELS[QUALITY_LEVELS.length - 1], scale);
 						if (blob) {
 							resolve(createJpegFile(blob));
