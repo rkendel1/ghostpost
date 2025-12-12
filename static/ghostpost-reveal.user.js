@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.4.5
+// @version      2.4.6
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -23,6 +23,16 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.4.6 (2025-12-12):
+ * - CRITICAL FIX: Implemented groq recommended method for X.com text extraction
+ * - Now targets data-testid="tweetText" container for reliable full tweet content extraction
+ * - Aggregates all text nodes under tweetText container to get complete encoded message
+ * - Increased MAX_PARENT_LEVELS from 10 to 15 for deeper nested structures
+ * - Added hex debug logging for invisible characters to aid troubleshooting
+ * - Improved X.com decode reliability by using X.com's stable tweetText selector
+ * - Fixes "No hidden content found" and garbled character issues on X.com tweets
+ * - Future-proof solution using X.com's standard data-testid selectors
+ * 
  * v2.4.2 (2025-12-12):
 * - FEATURE: Added decodeFromZeroWidthString() helper to decode hidden messages directly from any zero-width character string (like "what...")
 * - FEATURE: Added programmatic X.com hidden message extraction via full_text field
@@ -196,7 +206,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.3.7';
+	const SCRIPT_VERSION = '2.4.6';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Function to initialize the userscript
@@ -429,20 +439,19 @@
 		}
 
 		/**
-		 * Twitter/X.com specialized adapter - SIMPLIFIED with advanced fallbacks
+		 * Twitter/X.com specialized adapter - Using groq recommended method
 		 * 
-		 * STRATEGY: Try simple approaches first, use complex techniques as backups only when needed
+		 * STRATEGY: Target the exact tweet text container via data-testid="tweetText" 
+		 * for reliable extraction of complete encoded messages
 		 * 
 		 * CONTEXT: X.com's GraphQL API preserves all invisible Unicode characters in the
-		 * full_text field. Most of the time (90%+), the complete encoded message is accessible
-		 * via simple text extraction. Only when X.com's DOM splits the content do we need
-		 * advanced aggregation techniques.
+		 * full_text field, and the DOM preserves them in the tweetText container.
+		 * data-testid="tweetText" is X.com's standard selector for tweet content (used in their tests).
 		 * 
-		 * Extraction order (from simplest to most complex):
-		 * 1. Direct text node access - works 90%+ of the time
-		 * 2. Parent element textContent - fast and works for most splits
-		 * 3. Parent traversal with TreeWalker - handles deep nesting (up to 10 levels)
-		 * 4. Sibling aggregation - handles horizontal splits across spans
+		 * Extraction order (from most reliable to fallback):
+		 * 1. Programmatic extraction from tweet JSON (full_text field)
+		 * 2. Extract from tweetText container via data-testid selector
+		 * 3. Parent traversal with TreeWalker - handles deep nesting (up to 15 levels)
 		 * 
 		 * See XCOM_API_BEHAVIOR.md for detailed explanation of X.com's behavior.
 		 */
@@ -459,92 +468,59 @@
 					}
 					// fallback: continue to DOM node logic if extraction failed
 				}
-				// Fallback: treat as DOM node (legacy/DOM extraction)
-				// SIMPLE APPROACH #1: Try the text node itself first (works 90%+ of cases)
-				const nodeText = tweetOrNode.data || tweetOrNode.nodeValue || '';
-				if (nodeText && hasCompleteEncodedMessage(nodeText)) {
-					if (DEBUG_MODE) {
-						console.log('[Ghostpost] [X.com] ✓ Complete message found in text node (simple)');
-					}
-					return nodeText;
-				}
-
-				// SIMPLE APPROACH #2: Try parent element's textContent (fast and works for most splits)
-				if (tweetOrNode.parentElement) {
-					const parentText = tweetOrNode.parentElement.textContent || '';
-					if (parentText && hasCompleteEncodedMessage(parentText)) {
-						if (DEBUG_MODE) {
-							console.log('[Ghostpost] [X.com] ✓ Complete message found in parent.textContent (simple)');
-						}
-						return parentText;
-					}
-				}
-
-				// ADVANCED FALLBACK #1: Walk up DOM tree with TreeWalker (handles deep nesting)
-				// Only runs if simple approaches fail
-				let currentElement = tweetOrNode.parentElement;
-				let levelsChecked = 0;
-				const MAX_PARENT_LEVELS = 10;
-
-				while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
-					// Get all text from this element by aggregating child text nodes
-					let combinedText = '';
-					const walker = document.createTreeWalker(currentElement, NodeFilter.SHOW_TEXT, null);
-					let textNode;
-					while ((textNode = walker.nextNode())) {
-						combinedText += textNode.data || textNode.nodeValue || '';
-					}
-
-					// Check if combined text has complete message (both delimiters + valid content)
-					if (combinedText && hasCompleteEncodedMessage(combinedText)) {
-						if (DEBUG_MODE) {
-							console.log('[Ghostpost] [X.com] ✓ Complete message found at parent level', levelsChecked + 1, '(advanced TreeWalker)');
-						}
-						return combinedText;
-					}
-
-					// Move up to parent
-					currentElement = currentElement.parentElement;
-					levelsChecked++;
-				}
-
-				// ADVANCED FALLBACK #2: Check sibling nodes (handles horizontal splits)
-				// Only runs if all previous approaches fail
-				if (tweetOrNode.parentElement) {
-					let siblingText = '';
-					const parent = tweetOrNode.parentElement;
-					const children = parent.childNodes;
-					
-					for (let i = 0; i < children.length; i++) {
-						const child = children[i];
-						if (child.nodeType === Node.TEXT_NODE) {
-							siblingText += child.data || child.nodeValue || '';
-						}
-					}
-					
-					if (siblingText && hasCompleteEncodedMessage(siblingText)) {
-						if (DEBUG_MODE) {
-							console.log('[Ghostpost] [X.com] ✓ Complete message found in sibling aggregation (advanced)');
-						}
-						return siblingText;
-					}
-				}
-
-				// All strategies exhausted - log debug info and return what we have
-				if (DEBUG_MODE) {
-					console.warn('[Ghostpost] [X.com] ⚠ Could not find complete message after trying all strategies');
-					console.warn('[Ghostpost] [X.com] Node text preview:', (nodeText || '').substring(0, 100));
-					console.warn('[Ghostpost] [X.com] Has FEFF delimiter:', (nodeText || '').indexOf('\uFEFF') !== -1);
-					console.warn('[Ghostpost] [X.com] Checked', MAX_PARENT_LEVELS, 'parent levels');
-					console.warn('[Ghostpost] [X.com] NOTE: X.com preserves invisible chars in full_text field');
-					console.warn('[Ghostpost] [X.com] See XCOM_API_BEHAVIOR.md for troubleshooting guidance');
-				}
 				
-				// Return node text anyway - decoder will provide appropriate error message
-				return nodeText || '';
+				// Find the closest tweet text container - this is x.com's standard for tweet content
+				const tweetTextContainer = tweetOrNode.closest && tweetOrNode.closest('[data-testid="tweetText"]');
+				if (!tweetTextContainer) {
+					if (DEBUG_MODE) console.log('[Ghostpost] [X.com] ⚠️ No tweetText container found - falling back to parent traversal');
+					
+					// Fallback logic: parent traversal, TreeWalker up levels
+					let currentElement = tweetOrNode.parentElement;
+					let levelsChecked = 0;
+					const MAX_PARENT_LEVELS = 15; // Increased from 10 for deeper nests
+					
+					while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
+						let combinedText = '';
+						const walker = document.createTreeWalker(currentElement, NodeFilter.SHOW_TEXT, null);
+						let textNode;
+						while ((textNode = walker.nextNode())) {
+							combinedText += textNode.data || '';
+						}
+						if (hasCompleteEncodedMessage(combinedText)) {
+							if (DEBUG_MODE) console.log('[Ghostpost] [X.com] ✓ Found in parent level', levelsChecked + 1);
+							return combinedText;
+						}
+						currentElement = currentElement.parentElement;
+						levelsChecked++;
+					}
+					return ''; // No complete message found
+				}
+
+				// Aggregate ALL text nodes under the tweetText container
+				let fullText = '';
+				const walker = document.createTreeWalker(tweetTextContainer, NodeFilter.SHOW_TEXT, null);
+				let textNode;
+				while ((textNode = walker.nextNode())) {
+					fullText += textNode.data || '';
+				}
+
+				if (DEBUG_MODE) {
+					console.log('[Ghostpost] [X.com] ✓ Extracted full text from tweetText container:', fullText.substring(0, 50) + '...');
+					// Debug invisible chars as hex
+					const invisibleHex = fullText.replace(/[\u2000-\u206F\uFEFF]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+					console.log('[Ghostpost] [X.com] Invisible chars (hex):', invisibleHex);
+				}
+
+				// Validate and return only if complete
+				if (hasCompleteEncodedMessage(fullText)) {
+					return fullText;
+				} else {
+					if (DEBUG_MODE) console.log('[Ghostpost] [X.com] ⚠️ Incomplete message in tweetText - check delimiters');
+					return '';
+				}
 			},
 			description:
-				'SIMPLIFIED text extraction for X.com with advanced fallbacks. Tries programmatic extraction (full_text) first, then DOM strategies (direct node, parent.textContent, TreeWalker traversal, sibling aggregation) as fallback.'
+				'Groq recommended text extraction for X.com. Targets data-testid="tweetText" container for reliable extraction. Uses programmatic extraction (full_text) when available, with parent traversal fallback.'
 		};
 
 		/**
