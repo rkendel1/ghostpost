@@ -951,11 +951,11 @@
 					throw new Error('Invalid encoded content');
 				}
 
-				// Step 3: Decode base64 to get compressed bytes
+				// Step 3: Decode base64 to get bytes with compression marker
 				let decodedBytes;
 				try {
 					const binaryString = atob(base64String);
-					// Convert binary string to Uint8Array for decompression
+					// Convert binary string to Uint8Array
 					decodedBytes = new Uint8Array(binaryString.length);
 					for (let i = 0; i < binaryString.length; i++) {
 						decodedBytes[i] = binaryString.charCodeAt(i);
@@ -964,32 +964,58 @@
 					throw new Error('Invalid base64 encoding');
 				}
 
-				// Step 4: Try to decompress the data using pako
-				// Note: Rust's DeflateEncoder produces RAW DEFLATE format (no zlib headers)
-				// We must use pako.inflateRaw() not pako.inflate()
+				// Step 4: Check compression marker and decompress if needed
+				// IMPORTANT: These marker values MUST match the Rust encoder (wasm/src/hidenly.rs)
+				// Compression format specification:
+				// - First byte = compression marker (0x00 = uncompressed, 0x01 = compressed)
+				// - Remaining bytes = actual data (compressed or uncompressed)
+				// - Legacy messages (no marker) are handled by trying decompression with fallback
+				const MARKER_UNCOMPRESSED = 0x00;  // Must match Rust: MARKER_UNCOMPRESSED
+				const MARKER_COMPRESSED = 0x01;     // Must match Rust: MARKER_COMPRESSED
+				
 				let finalBytes;
-				// Use pako to decompress RAW DEFLATE data
-				if (typeof pako?.inflateRaw === 'function') {
-					try {
-						finalBytes = pako.inflateRaw(decodedBytes);
-						if (DEBUG_MODE) {
-							console.log('[Ghostpost] Successfully decompressed with pako.inflateRaw');
+				if (decodedBytes.length === 0) {
+					throw new Error('Empty decoded content');
+				} else if (decodedBytes[0] === MARKER_UNCOMPRESSED) {
+					// Explicitly marked as uncompressed - skip decompression
+					finalBytes = decodedBytes.slice(1);
+					if (DEBUG_MODE) {
+						console.log('[Ghostpost] Data marked as uncompressed, skipping decompression');
+					}
+				} else if (decodedBytes[0] === MARKER_COMPRESSED) {
+					// Explicitly marked as compressed - decompress it
+					if (typeof pako?.inflateRaw === 'function') {
+						try {
+							finalBytes = pako.inflateRaw(decodedBytes.slice(1));
+							if (DEBUG_MODE) {
+								console.log('[Ghostpost] Successfully decompressed marked data');
+							}
+						} catch (decompressError) {
+							throw new Error('Failed to decompress marked compressed data: ' + decompressError.message);
 						}
-					} catch (decompressError) {
-						// Decompression failed - might be legacy uncompressed message
-						// Fall back to using original bytes
-						if (DEBUG_MODE) {
-							console.log(
-								'[Ghostpost] Decompression failed, trying uncompressed:',
-								decompressError
-							);
-						}
-						finalBytes = decodedBytes;
+					} else {
+						throw new Error('Data is compressed but pako library not available');
 					}
 				} else {
-					// Pako not available - use uncompressed bytes
-					console.warn('[Ghostpost] Pako library not available, assuming uncompressed message');
-					finalBytes = decodedBytes;
+					// Legacy message without marker - try decompression, fallback to uncompressed
+					if (typeof pako?.inflateRaw === 'function') {
+						try {
+							finalBytes = pako.inflateRaw(decodedBytes);
+							if (DEBUG_MODE) {
+								console.log('[Ghostpost] Successfully decompressed legacy message');
+							}
+						} catch (decompressError) {
+							// Decompression failed - treat as uncompressed legacy message
+							if (DEBUG_MODE) {
+								console.log('[Ghostpost] Legacy message decompression failed, using uncompressed');
+							}
+							finalBytes = decodedBytes;
+						}
+					} else {
+						// Pako not available - assume uncompressed
+						console.warn('[Ghostpost] Pako library not available, assuming uncompressed legacy message');
+						finalBytes = decodedBytes;
+					}
 				}
 
 				// Step 5: Convert bytes to UTF-8 string
