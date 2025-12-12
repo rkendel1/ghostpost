@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.4.6
+// @version      2.4.7
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -23,6 +23,17 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.4.7 (2025-12-12):
+ * - CRITICAL FIX: Improved X.com detection reliability with tweet-scoped scanning
+ * - Changed detectHiddenMessages() to only scan text nodes inside tweet articles
+ * - Targets article[data-testid="tweet"] containers first, then scans tweetText inside
+ * - Aggregates all text nodes under tweetText container during detection phase
+ * - Simplified twitterAdapter since detection now provides fully aggregated text
+ * - Increased INITIAL_SCAN_DELAY from 2000ms to 3000ms for X.com's heavy JS loading
+ * - Increased SECONDARY_SCAN_DELAY from 5000ms to 8000ms for late-loading content
+ * - Fixes "zero detection" issue caused by X.com's DOM structure changes in late 2025
+ * - More reliable detection by scoping to actual tweets instead of scanning entire page
+ * 
  * v2.4.6 (2025-12-12):
  * - CRITICAL FIX: Implemented groq recommended method for X.com text extraction
  * - Now targets data-testid="tweetText" container for reliable full tweet content extraction
@@ -206,7 +217,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.4.6';
+	const SCRIPT_VERSION = '2.4.7';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Function to initialize the userscript
@@ -300,8 +311,8 @@
 		const MAX_TEXT_NODE_LENGTH = 50000; // Skip very large text nodes
 		const MAX_NODES_PER_SCAN = 1000; // Limit nodes scanned in one pass
 		const SCAN_TIMEOUT = 500; // Maximum time for a single scan in ms
-		const INITIAL_SCAN_DELAY = 2000; // Delay before first scan to allow page load and encoding
-		const SECONDARY_SCAN_DELAY = 5000; // Delay for additional scan to catch late-loading content
+		const INITIAL_SCAN_DELAY = 3000; // Delay before first scan to allow page load and encoding (was 2000)
+		const SECONDARY_SCAN_DELAY = 8000; // Delay for additional scan to catch late-loading content (was 5000)
 
 		// List of invisible Unicode characters used for encoding
 		// Must match the encoding scheme: \u2060, \u200B, \u200C, \u200D, \u200E, \u200F, \u202D, \u202C
@@ -442,70 +453,24 @@
 		}
 
 		/**
-		 * Twitter/X.com specialized adapter - Using groq recommended method
+		 * Twitter/X.com specialized adapter - Simplified since detection aggregates
 		 * 
-		 * STRATEGY: Target the exact tweet text container via data-testid="tweetText" 
-		 * for reliable extraction of complete encoded messages
+		 * STRATEGY: Detection already provides fully aggregated text from tweetText container.
+		 * This adapter re-aggregates from the closest tweetText container to ensure consistency.
 		 * 
 		 * CONTEXT: X.com's GraphQL API preserves all invisible Unicode characters in the
 		 * full_text field, and the DOM preserves them in the tweetText container.
 		 * data-testid="tweetText" is X.com's standard selector for tweet content (used in their tests).
 		 * 
-		 * Extraction order (from most reliable to fallback):
-		 * 1. Programmatic extraction from tweet JSON (full_text field)
-		 * 2. Extract from tweetText container via data-testid selector
-		 * 3. Parent traversal with TreeWalker - handles deep nesting (up to 15 levels)
-		 * 
 		 * See XCOM_API_BEHAVIOR.md for detailed explanation of X.com's behavior.
 		 */
 		const twitterAdapter = {
-			extractText: (tweetOrNode) => {
-				// If we are passed a tweet object with a 'full_text' property, use programmatic extraction
-				if (tweetOrNode && typeof tweetOrNode === 'object' && typeof tweetOrNode.full_text === 'string') {
-					const extracted = extractXComMessage(tweetOrNode);
-					if (extracted) {
-						if (DEBUG_MODE) {
-							console.log('[Ghostpost] [X.com] ✓ Decoded message from programmatic extraction (full_text)');
-						}
-						return extracted;
-					}
-					// fallback: continue to DOM node logic if extraction failed
-				}
-				
-				// Safety check: ensure tweetOrNode is valid
-				if (!tweetOrNode) {
-					if (DEBUG_MODE) console.log('[Ghostpost] [X.com] ⚠️ Invalid tweetOrNode (null/undefined)');
-					return '';
-				}
-				
-				// Find the closest tweet text container - this is x.com's standard for tweet content
-				const tweetTextContainer = tweetOrNode.closest?.('[data-testid="tweetText"]');
-				if (!tweetTextContainer) {
-					if (DEBUG_MODE) console.log('[Ghostpost] [X.com] ⚠️ No tweetText container found - falling back to parent traversal');
-					
-					// Fallback logic: parent traversal, TreeWalker up levels
-					let currentElement = tweetOrNode?.parentElement;
-					let levelsChecked = 0;
-					const MAX_PARENT_LEVELS = 15; // Increased from 10 for deeper nests
-					
-					while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
-						let combinedText = '';
-						const walker = document.createTreeWalker(currentElement, NodeFilter.SHOW_TEXT, null);
-						let textNode;
-						while ((textNode = walker.nextNode())) {
-							combinedText += textNode.data || '';
-						}
-						if (hasCompleteEncodedMessage(combinedText)) {
-							if (DEBUG_MODE) console.log('[Ghostpost] [X.com] ✓ Found in parent level', levelsChecked + 1);
-							return combinedText;
-						}
-						currentElement = currentElement.parentElement;
-						levelsChecked++;
-					}
-					return ''; // No complete message found
-				}
+			extractText: (node) => {
+				// Re-aggregate from the closest tweetText for consistency with detection
+				const tweetTextContainer = node.closest('[data-testid="tweetText"]') || 
+										   node.closest('article[data-testid="tweet"]')?.querySelector('[data-testid="tweetText"]');
+				if (!tweetTextContainer) return '';
 
-				// Aggregate ALL text nodes under the tweetText container
 				let fullText = '';
 				const walker = document.createTreeWalker(tweetTextContainer, NodeFilter.SHOW_TEXT, null);
 				let textNode;
@@ -513,23 +478,10 @@
 					fullText += textNode.data || '';
 				}
 
-				if (DEBUG_MODE) {
-					console.log('[Ghostpost] [X.com] ✓ Extracted full text from tweetText container:', fullText.substring(0, 50) + '...');
-					// Debug invisible chars as hex - uses exact HIDENLY_CHARS for precision
-					const invisibleHex = fullText.replace(invisibleCharsHexPattern, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
-					console.log('[Ghostpost] [X.com] Invisible chars (hex):', invisibleHex);
-				}
-
-				// Validate and return only if complete
-				if (hasCompleteEncodedMessage(fullText)) {
-					return fullText;
-				} else {
-					if (DEBUG_MODE) console.log('[Ghostpost] [X.com] ⚠️ Incomplete message in tweetText - check delimiters');
-					return '';
-				}
+				return fullText;
 			},
 			description:
-				'Groq recommended text extraction for X.com. Targets data-testid="tweetText" container for reliable extraction. Uses programmatic extraction (full_text) when available, with parent traversal fallback.'
+				'Simplified text extraction for X.com. Re-aggregates from tweetText container since detection already provides complete text.'
 		};
 
 		/**
@@ -619,11 +571,68 @@
 		}
 
 		/**
-		 * Core detection function - site-agnostic
+		 * Core detection function - with X.com tweet-scoping for reliability
 		 * Returns array of objects: { node, encodedText }
+		 * 
+		 * For X.com/Twitter: Scopes detection to tweet articles only, avoiding false paths
+		 * For other sites: Uses standard page-wide text node scanning
 		 */
 		function detectHiddenMessages() {
 			const results = [];
+			const hostname = window.location.hostname.toLowerCase();
+			const isXCom = hostname === 'x.com' || hostname === 'twitter.com' || 
+			               hostname.endsWith('.x.com') || hostname.endsWith('.twitter.com');
+
+			// X.com-specific detection: scope to tweet articles only
+			if (isXCom) {
+				// Scope to tweet articles only - this is critical for x.com reliability
+				const tweetArticles = document.querySelectorAll('article[data-testid="tweet"]');
+				if (tweetArticles.length === 0) {
+					if (DEBUG_MODE) console.log('[Ghostpost] No tweet articles found - page may not be loaded yet');
+					return [];
+				}
+
+				tweetArticles.forEach(article => {
+					// Get the tweetText container inside this article
+					const tweetTextContainer = article.querySelector('[data-testid="tweetText"]');
+					if (!tweetTextContainer) return;
+
+					// Aggregate all text nodes under tweetText
+					const walker = document.createTreeWalker(tweetTextContainer, NodeFilter.SHOW_TEXT, null);
+					let textNode;
+					let combinedText = '';
+					while ((textNode = walker.nextNode())) {
+						combinedText += textNode.data || '';
+					}
+
+					// Quick pre-check
+					if (!hasInvisibleChars(combinedText)) return;
+
+					// Full validation
+					if (hasCompleteEncodedMessage(combinedText)) {
+						// Find a representative text node for highlighting (first one)
+						walker.currentNode = tweetTextContainer;
+						const firstTextNode = walker.nextNode();
+
+						results.push({
+							node: firstTextNode || tweetTextContainer, // fallback to container
+							encodedText: combinedText // Store full aggregated text here
+						});
+
+						if (DEBUG_MODE) {
+							console.log('[Ghostpost] [X.com] ✓ Detected hidden message in tweet:', combinedText.substring(0, 50) + '...');
+						}
+					}
+				});
+
+				if (DEBUG_MODE) {
+					console.log('[Ghostpost] [X.com] Tweet-scoped scan complete. Found', results.length, 'hidden messages');
+				}
+
+				return results;
+			}
+
+			// Standard detection for non-X.com sites
 			const startTime = Date.now();
 			let nodesChecked = 0;
 
