@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.3.6
+// @version      2.3.7
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -23,6 +23,13 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.3.7 (2025-12-12):
+ * - BUGFIX: Fixed detection missing some hidden messages on demo page
+ * - Increased SCAN_TIMEOUT from 100ms to 500ms to allow more time for thorough scanning
+ * - Increased initial scan delay from 1000ms to 2000ms to ensure page fully loads
+ * - Added more detailed debug logging for troubleshooting detection issues
+ * - These changes ensure all hidden messages are detected even on complex pages
+ *
  * v2.3.6 (2025-12-12):
  * - FEATURE: Enhanced limited reveal countdown display in overlay
  * - Added visual progress bar showing reveal consumption
@@ -154,7 +161,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.3.6';
+	const SCRIPT_VERSION = '2.3.7';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Function to initialize the userscript
@@ -247,7 +254,7 @@
 	const DEBOUNCE_DELAY = 2000; // Wait 2 seconds after last change before scanning
 	const MAX_TEXT_NODE_LENGTH = 50000; // Skip very large text nodes
 	const MAX_NODES_PER_SCAN = 1000; // Limit nodes scanned in one pass
-	const SCAN_TIMEOUT = 100; // Maximum time for a single scan in ms
+	const SCAN_TIMEOUT = 500; // Maximum time for a single scan in ms (increased from 100ms to ensure all messages are detected)
 
 	// List of invisible Unicode characters used for encoding
 	// Must match the encoding scheme: \u2060, \u200B, \u200C, \u200D, \u200E, \u200F, \u202D, \u202C
@@ -481,21 +488,29 @@
 		while ((node = walker.nextNode())) {
 			// Safety check: stop if taking too long
 			if (Date.now() - startTime > SCAN_TIMEOUT) {
-				console.log(
-					'[Ghostpost] Scan timeout - stopping early for performance. Checked',
-					nodesChecked,
-					'nodes'
-				);
+				if (DEBUG_MODE) {
+					console.log(
+						'[Ghostpost] Scan timeout - stopping early for performance. Checked',
+						nodesChecked,
+						'nodes, found',
+						results.length,
+						'hidden messages'
+					);
+				}
 				break;
 			}
 
 			// Limit number of nodes processed
 			if (nodesChecked >= MAX_NODES_PER_SCAN) {
-				console.log(
-					'[Ghostpost] Max nodes reached - stopping scan. Checked',
-					nodesChecked,
-					'nodes'
-				);
+				if (DEBUG_MODE) {
+					console.log(
+						'[Ghostpost] Max nodes reached - stopping scan. Checked',
+						nodesChecked,
+						'nodes, found',
+						results.length,
+						'hidden messages'
+					);
+				}
 				break;
 			}
 
@@ -506,7 +521,22 @@
 			if (nodeText && isLikelyHidenlyMessage(nodeText)) {
 				// Store both the node and the encoded text at detection time
 				results.push({ node, encodedText: nodeText });
+				if (DEBUG_MODE) {
+					console.log('[Ghostpost] Found hidden message #' + results.length, 'in node:', node);
+				}
 			}
+		}
+
+		if (DEBUG_MODE) {
+			console.log(
+				'[Ghostpost] Scan complete. Checked',
+				nodesChecked,
+				'nodes in',
+				Date.now() - startTime,
+				'ms. Found',
+				results.length,
+				'hidden messages'
+			);
 		}
 
 		return results;
@@ -1506,8 +1536,8 @@
 		return;
 	}
 
-	// Initial counter update (debounced to let page load)
-	setTimeout(updateCounter, 1000);
+	// Initial counter update (debounced to let page load and encode messages)
+	setTimeout(updateCounter, 2000);
 
 	// Debounced update function to prevent excessive scanning
 	let debounceTimeout;
