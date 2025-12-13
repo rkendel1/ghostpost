@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	
+
 	let step = $state(1);
 	let tampermonkeyInstalled = $state(false);
 	let userscriptInstalled = $state(false);
@@ -26,7 +26,8 @@
 	function installTampermonkey() {
 		let url = '';
 		if (browserType === 'chrome' || browserType === 'edge') {
-			url = 'https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo';
+			url =
+				'https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo';
 		} else if (browserType === 'firefox') {
 			url = 'https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/';
 		} else if (browserType === 'safari') {
@@ -34,7 +35,7 @@
 		} else {
 			url = 'https://www.tampermonkey.net/';
 		}
-		
+
 		window.open(url, '_blank');
 		step = 2;
 	}
@@ -70,7 +71,10 @@
 			<div>
 				<h3 class="h3 text-sm">On iPhone or iPad?</h3>
 				<p class="text-xs opacity-80 mt-1">
-					We have a special installation guide for iOS users. <a href="/install/iphone" class="anchor">Switch to iPhone guide →</a>
+					We have a special installation guide for iOS users. <a
+						href="/install/iphone"
+						class="anchor">Switch to iPhone guide →</a
+					>
 				</p>
 			</div>
 		</div>
@@ -88,21 +92,33 @@
 	<!-- Progress Indicator -->
 	<div class="flex justify-center items-center gap-4">
 		<div class="flex items-center gap-2">
-			<div class="badge {step >= 1 ? 'variant-filled-primary' : 'variant-soft-surface'} text-lg px-4 py-2">
+			<div
+				class="badge {step >= 1
+					? 'variant-filled-primary'
+					: 'variant-soft-surface'} text-lg px-4 py-2"
+			>
 				{step >= 2 ? '✓' : '1'}
 			</div>
 			<span class="text-sm font-semibold">Install Tampermonkey</span>
 		</div>
 		<div class="text-2xl opacity-30">→</div>
 		<div class="flex items-center gap-2">
-			<div class="badge {step >= 2 ? 'variant-filled-primary' : 'variant-soft-surface'} text-lg px-4 py-2">
+			<div
+				class="badge {step >= 2
+					? 'variant-filled-primary'
+					: 'variant-soft-surface'} text-lg px-4 py-2"
+			>
 				{step >= 3 ? '✓' : '2'}
 			</div>
 			<span class="text-sm font-semibold">Install Userscript</span>
 		</div>
 		<div class="text-2xl opacity-30">→</div>
 		<div class="flex items-center gap-2">
-			<div class="badge {step >= 4 ? 'variant-filled-success' : 'variant-soft-surface'} text-lg px-4 py-2">
+			<div
+				class="badge {step >= 4
+					? 'variant-filled-success'
+					: 'variant-soft-surface'} text-lg px-4 py-2"
+			>
 				{step >= 4 ? '✓' : '3'}
 			</div>
 			<span class="text-sm font-semibold">Done!</span>
@@ -114,15 +130,13 @@
 		<div class="card p-8 space-y-6">
 			<div class="text-center">
 				<h2 class="h2 mb-4">Step 1: Install Tampermonkey</h2>
-				<p class="text-lg mb-6">
-					Tampermonkey lets you run userscripts. It's a one-time install.
-				</p>
+				<p class="text-lg mb-6">Tampermonkey lets you run userscripts. It's a one-time install.</p>
 			</div>
 
 			<div class="card p-6 variant-ghost-primary space-y-4">
 				<div class="text-center text-6xl">🐒</div>
 				<h3 class="h3 text-center">Install Tampermonkey</h3>
-				
+
 				<ul class="space-y-2 text-sm">
 					<li class="flex items-center gap-2">
 						<span class="text-success-500">✓</span>
@@ -142,16 +156,13 @@
 					</li>
 				</ul>
 
-				<button 
-					class="btn variant-filled-primary w-full btn-xl"
-					on:click={installTampermonkey}
-				>
+				<button class="btn variant-filled-primary w-full btn-xl" on:click={installTampermonkey}>
 					<span class="text-2xl">⚡</span>
 					<span class="text-xl">Install Tampermonkey</span>
 				</button>
 
 				<p class="text-xs text-center opacity-70">
-					This will open the 
+					This will open the
 					{#if browserType === 'chrome'}
 						Chrome Web Store
 					{:else if browserType === 'firefox'}
@@ -168,7 +179,7 @@
 
 			<div class="card p-4 variant-ghost-surface text-center text-sm">
 				<p class="mb-2">Already have Tampermonkey installed?</p>
-				<button class="btn btn-sm variant-soft-primary" on:click={() => step = 2}>
+				<button class="btn btn-sm variant-soft-primary" on:click={() => (step = 2)}>
 					Skip to Step 2 →
 				</button>
 			</div>
@@ -187,7 +198,7 @@
 
 			<div class="card p-6 variant-ghost-success space-y-4">
 				<div class="text-center text-6xl">👻</div>
-				
+
 				<div class="space-y-3">
 					<p class="text-sm font-semibold">What happens when you click:</p>
 					<ol class="list-decimal list-inside space-y-2 text-sm ml-4">
@@ -198,10 +209,7 @@
 					</ol>
 				</div>
 
-				<button 
-					class="btn variant-filled-success w-full btn-xl"
-					on:click={installUserscript}
-				>
+				<button class="btn variant-filled-success w-full btn-xl" on:click={installUserscript}>
 					<span class="text-2xl">🚀</span>
 					<span class="text-xl">Install Ghostpost Reveal</span>
 				</button>
@@ -218,7 +226,7 @@
 			</div>
 
 			<div class="text-center">
-				<button class="btn btn-sm variant-ghost-surface" on:click={() => step = 1}>
+				<button class="btn btn-sm variant-ghost-surface" on:click={() => (step = 1)}>
 					← Back to Step 1
 				</button>
 			</div>
@@ -239,19 +247,13 @@
 			<div class="card p-6 variant-ghost-success space-y-4">
 				<h3 class="h3">✅ Verify Installation</h3>
 				<p class="text-sm">Did you see Tampermonkey's installation dialog and click "Install"?</p>
-				
+
 				<div class="flex gap-4">
-					<button 
-						class="btn variant-filled-success flex-1"
-						on:click={() => step = 4}
-					>
+					<button class="btn variant-filled-success flex-1" on:click={() => (step = 4)}>
 						<span>✓</span>
 						<span>Yes, installed successfully!</span>
 					</button>
-					<button 
-						class="btn variant-soft-error flex-1"
-						on:click={() => step = 2}
-					>
+					<button class="btn variant-soft-error flex-1" on:click={() => (step = 2)}>
 						<span>↺</span>
 						<span>No, try again</span>
 					</button>
@@ -262,12 +264,15 @@
 			<div class="card p-6 variant-ghost-primary space-y-4">
 				<h3 class="h3">🔒 Optional: Enable Incognito Mode (Recommended)</h3>
 				<p class="text-sm">
-					To use Ghostpost Reveal in incognito/private windows, you need to enable Tampermonkey in incognito mode.
+					To use Ghostpost Reveal in incognito/private windows, you need to enable Tampermonkey in
+					incognito mode.
 				</p>
 
 				<details class="space-y-3">
-					<summary class="cursor-pointer font-semibold text-sm">Show instructions for {browserType} →</summary>
-					
+					<summary class="cursor-pointer font-semibold text-sm"
+						>Show instructions for {browserType} →</summary
+					>
+
 					<div class="mt-3 p-4 bg-surface-100-900 rounded space-y-3 text-sm">
 						{#if browserType === 'chrome'}
 							<p class="font-semibold">Chrome:</p>
@@ -294,10 +299,15 @@
 								<li>Scroll to "Run in Private Windows" and select "Allow"</li>
 							</ol>
 						{:else}
-							<p>Open your browser's extensions page and enable Tampermonkey to run in private/incognito windows.</p>
+							<p>
+								Open your browser's extensions page and enable Tampermonkey to run in
+								private/incognito windows.
+							</p>
 						{/if}
 
-						<p class="text-xs opacity-70 mt-3">This is optional but recommended for full functionality.</p>
+						<p class="text-xs opacity-70 mt-3">
+							This is optional but recommended for full functionality.
+						</p>
 					</div>
 				</details>
 			</div>
@@ -310,9 +320,7 @@
 			<div class="card p-8 variant-ghost-success space-y-6 text-center">
 				<div class="text-8xl">🎉</div>
 				<h2 class="h2">Installation Complete!</h2>
-				<p class="text-lg">
-					The Ghostpost Reveal userscript is now installed and ready to use.
-				</p>
+				<p class="text-lg">The Ghostpost Reveal userscript is now installed and ready to use.</p>
 
 				<div class="card p-6 variant-soft-success space-y-4">
 					<h3 class="h3 text-sm">What to expect:</h3>
@@ -339,7 +347,7 @@
 			<!-- Troubleshooting Card -->
 			<div class="card p-6 space-y-4">
 				<h3 class="h3">❓ Quick Troubleshooting</h3>
-				
+
 				<details>
 					<summary class="cursor-pointer font-semibold text-sm">Button not appearing?</summary>
 					<div class="mt-2 ml-4 text-sm space-y-2">
@@ -351,9 +359,13 @@
 				</details>
 
 				<details>
-					<summary class="cursor-pointer font-semibold text-sm">Need to configure settings?</summary>
+					<summary class="cursor-pointer font-semibold text-sm">Need to configure settings?</summary
+					>
 					<div class="mt-2 ml-4 text-sm space-y-2">
-						<p>The userscript is pre-configured with optimal settings. If you need to change anything:</p>
+						<p>
+							The userscript is pre-configured with optimal settings. If you need to change
+							anything:
+						</p>
 						<p>1. Click the Tampermonkey icon in your browser toolbar</p>
 						<p>2. Click "Dashboard"</p>
 						<p>3. Find "Ghostpost Reveal" and click the name to edit</p>
@@ -388,33 +400,25 @@
 			<div class="space-y-2">
 				<div class="text-4xl text-center">🔄</div>
 				<h3 class="h3 text-center text-sm">Auto-Update</h3>
-				<p class="text-xs text-center opacity-80">
-					Always stays current with automatic updates
-				</p>
+				<p class="text-xs text-center opacity-80">Always stays current with automatic updates</p>
 			</div>
 
 			<div class="space-y-2">
 				<div class="text-4xl text-center">🔒</div>
 				<h3 class="h3 text-center text-sm">Privacy-First</h3>
-				<p class="text-xs text-center opacity-80">
-					All processing happens locally in your browser
-				</p>
+				<p class="text-xs text-center opacity-80">All processing happens locally in your browser</p>
 			</div>
 
 			<div class="space-y-2">
 				<div class="text-4xl text-center">⚡</div>
 				<h3 class="h3 text-center text-sm">One-Click Reveal</h3>
-				<p class="text-xs text-center opacity-80">
-					Instantly decode messages with a single click
-				</p>
+				<p class="text-xs text-center opacity-80">Instantly decode messages with a single click</p>
 			</div>
 
 			<div class="space-y-2">
 				<div class="text-4xl text-center">🌐</div>
 				<h3 class="h3 text-center text-sm">Works Everywhere</h3>
-				<p class="text-xs text-center opacity-80">
-					Compatible with all websites and platforms
-				</p>
+				<p class="text-xs text-center opacity-80">Compatible with all websites and platforms</p>
 			</div>
 
 			<div class="space-y-2">

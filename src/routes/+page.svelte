@@ -3,15 +3,15 @@
 	import { decodeMessage, encodeMessage, initWasm } from '$lib/ghostpost';
 
 	// Demo state
-	let demoVisibleMessage = 'Just shipped our latest feature! 🚀';
-	let demoSecretMessage = 'Beta access code: GHOST2024';
-	let demoEncodedMessage = '';
-	let demoDecodedSecret = '';
-	let isEncoding = false;
-	let isDecoding = false;
-	let showEncoded = false;
-	let showDecoded = false;
-	let errorMessage = '';
+	let demoVisibleMessage = $state('Just shipped our latest feature! 🚀');
+	let demoSecretMessage = $state('Beta access code: GHOST2024');
+	let demoEncodedMessage = $state('');
+	let demoDecodedSecret = $state('');
+	let isEncoding = $state(false);
+	let isDecoding = $state(false);
+	let showEncoded = $state(false);
+	let showDecoded = $state(false);
+	let errorMessage = $state('');
 	let installUrl = $state('/install');
 
 	onMount(async () => {
@@ -189,7 +189,10 @@
 						<div class="text-center space-y-2">
 							<h2 class="h2 text-2xl md:text-3xl font-bold">Try It Now</h2>
 							<p class="text-sm opacity-75">
-								Enter your message and secret, then see the magic happen
+								Live demo - encode, decode, and see auto-detection in action!
+							</p>
+							<p class="text-xs opacity-60">
+								No installation required • Works right in your browser
 							</p>
 						</div>
 
@@ -306,10 +309,17 @@
 
 					<!-- Overlay Detection Info -->
 					<div class="card p-4 variant-ghost-primary text-center text-sm">
-						<p class="font-semibold mb-2">💡 Live Demo!</p>
+						<p class="font-semibold mb-2">💡 Complete Live Demo!</p>
 						<p class="opacity-90">
-							The 👻 reveal button in the bottom-right corner will automatically detect your encoded
-							message! Watch the counter update when you encode.
+							This page demonstrates the full GhostPost experience. Try encoding a message above,
+							then watch two things happen:
+						</p>
+						<ul class="text-left mt-2 space-y-1 opacity-90 mx-auto max-w-sm">
+							<li>1️⃣ Click "Reveal Secret" to manually decode your message</li>
+							<li>2️⃣ See the 👻 reveal button (bottom-right) automatically detect it!</li>
+						</ul>
+						<p class="text-xs mt-2 opacity-75">
+							No installation needed - this demo loads everything for you to try!
 						</p>
 					</div>
 				</div>

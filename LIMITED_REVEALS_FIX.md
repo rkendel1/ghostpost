@@ -3,6 +3,7 @@
 ## Issue Summary
 
 Limited reveals feature was not tracking reveals properly:
+
 1. Reveal API returned "Unlimited reveals - no tracking" despite status showing max_reveals=3
 2. No records were being inserted into the `reveal_events` table
 3. Userscript overlay did not display "fomo number" (reveal #X of Y)
@@ -24,6 +25,7 @@ The `increment_reveal_count` database function was executing with anonymous user
 **Migration: `supabase/migrations/20241211_fix_increment_reveal_security.sql`**
 
 Added `SECURITY DEFINER` to the `increment_reveal_count` function:
+
 ```sql
 CREATE OR REPLACE FUNCTION increment_reveal_count(...)
 RETURNS JSON
@@ -34,6 +36,7 @@ AS $$
 ```
 
 This allows the function to:
+
 - Access `limited_secrets` records regardless of caller's permissions
 - Lock rows with `FOR UPDATE` for atomic operations
 - Insert into `reveal_events` table
@@ -42,17 +45,20 @@ This allows the function to:
 ## How to Apply the Fix
 
 ### Option 1: Supabase Dashboard (Recommended)
+
 1. Open your Supabase project dashboard
 2. Go to SQL Editor
 3. Copy contents of `supabase/migrations/20241211_fix_increment_reveal_security.sql`
 4. Paste and run in SQL Editor
 
 ### Option 2: Supabase CLI
+
 ```bash
 supabase db push
 ```
 
 ### Option 3: Direct SQL
+
 ```bash
 psql "postgresql://..." < supabase/migrations/20241211_fix_increment_reveal_security.sql
 ```
@@ -60,14 +66,17 @@ psql "postgresql://..." < supabase/migrations/20241211_fix_increment_reveal_secu
 ## Verification Steps
 
 1. **Verify function has SECURITY DEFINER:**
+
 ```sql
-SELECT proname, prosecdef 
-FROM pg_proc 
+SELECT proname, prosecdef
+FROM pg_proc
 WHERE proname = 'increment_reveal_count';
 ```
+
 Should return `prosecdef = true`
 
 2. **Test the reveal endpoint:**
+
 ```bash
 # First, create a limited reveal post via the app UI
 
@@ -87,12 +96,15 @@ curl -X POST https://your-app.vercel.app/api/limited-reveals/reveal \
 ```
 
 3. **Check reveal_events table:**
+
 ```sql
 SELECT * FROM reveal_events ORDER BY created_at DESC LIMIT 10;
 ```
+
 Should show new reveal events being created.
 
 4. **Test in userscript:**
+
 - Open a page with a limited reveal GhostPost
 - Click the ghost button to reveal
 - Should see "Limited Reveal" stats displayed with reveal number and remaining count
@@ -136,9 +148,11 @@ The issue report mentioned seeing calls to `/api/analytics/track` but no reveal_
 - **`/api/limited-reveals/reveal`**: Limited reveal tracking in PostgreSQL (only limited posts)
 
 These are two separate systems:
+
 - Analytics tracks ALL decodes for metrics/dashboards
 - Limited reveals tracks ONLY posts with reveal limits for the "fomo" feature
 
 The userscript correctly calls BOTH endpoints:
+
 1. First calls `/api/limited-reveals/reveal` (if post has a post_id)
 2. Separately tracks general analytics (not shown in the issue report)

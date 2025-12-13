@@ -1,339 +1,349 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test CORS - Limited Reveals API</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #667eea;
-            margin-bottom: 10px;
-        }
-        .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-        }
-        .test-section {
-            margin: 20px 0;
-            padding: 20px;
-            background: #f9fafb;
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
-        }
-        button {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            margin-right: 10px;
-            margin-top: 10px;
-        }
-        button:hover {
-            background: #5568d3;
-        }
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        .result {
-            margin-top: 15px;
-            padding: 15px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 12px;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-        .success {
-            background: #f0fdf4;
-            border: 1px solid #10b981;
-            color: #065f46;
-        }
-        .error {
-            background: #fef2f2;
-            border: 1px solid #ef4444;
-            color: #991b1b;
-        }
-        .info {
-            background: #eff6ff;
-            border: 1px solid #3b82f6;
-            color: #1e3a8a;
-        }
-        .input-group {
-            margin: 15px 0;
-        }
-        label {
-            display: block;
-            font-weight: 500;
-            margin-bottom: 5px;
-            color: #374151;
-        }
-        input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .note {
-            background: #fef3c7;
-            border: 1px solid #f59e0b;
-            color: #78350f;
-            padding: 12px;
-            border-radius: 6px;
-            margin-top: 20px;
-            font-size: 14px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>👻 GhostPost CORS Test</h1>
-        <p class="subtitle">Test cross-origin requests to limited-reveals API endpoints</p>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Test CORS - Limited Reveals API</title>
+		<style>
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+				max-width: 800px;
+				margin: 50px auto;
+				padding: 20px;
+				background: #f5f5f5;
+			}
+			.container {
+				background: white;
+				border-radius: 12px;
+				padding: 30px;
+				box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+			}
+			h1 {
+				color: #667eea;
+				margin-bottom: 10px;
+			}
+			.subtitle {
+				color: #666;
+				margin-bottom: 30px;
+			}
+			.test-section {
+				margin: 20px 0;
+				padding: 20px;
+				background: #f9fafb;
+				border-radius: 8px;
+				border: 1px solid #e5e7eb;
+			}
+			button {
+				background: #667eea;
+				color: white;
+				border: none;
+				padding: 12px 24px;
+				border-radius: 6px;
+				cursor: pointer;
+				font-size: 14px;
+				font-weight: 500;
+				margin-right: 10px;
+				margin-top: 10px;
+			}
+			button:hover {
+				background: #5568d3;
+			}
+			button:disabled {
+				background: #ccc;
+				cursor: not-allowed;
+			}
+			.result {
+				margin-top: 15px;
+				padding: 15px;
+				border-radius: 6px;
+				font-family: monospace;
+				font-size: 12px;
+				white-space: pre-wrap;
+				word-break: break-all;
+			}
+			.success {
+				background: #f0fdf4;
+				border: 1px solid #10b981;
+				color: #065f46;
+			}
+			.error {
+				background: #fef2f2;
+				border: 1px solid #ef4444;
+				color: #991b1b;
+			}
+			.info {
+				background: #eff6ff;
+				border: 1px solid #3b82f6;
+				color: #1e3a8a;
+			}
+			.input-group {
+				margin: 15px 0;
+			}
+			label {
+				display: block;
+				font-weight: 500;
+				margin-bottom: 5px;
+				color: #374151;
+			}
+			input {
+				width: 100%;
+				padding: 10px;
+				border: 1px solid #d1d5db;
+				border-radius: 6px;
+				font-size: 14px;
+			}
+			input:focus {
+				outline: none;
+				border-color: #667eea;
+			}
+			.note {
+				background: #fef3c7;
+				border: 1px solid #f59e0b;
+				color: #78350f;
+				padding: 12px;
+				border-radius: 6px;
+				margin-top: 20px;
+				font-size: 14px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>👻 GhostPost CORS Test</h1>
+			<p class="subtitle">Test cross-origin requests to limited-reveals API endpoints</p>
 
-        <div class="note">
-            <strong>📝 Note:</strong> This test page simulates how the userscript calls the API from any domain. 
-            If you see CORS errors in the console, the fix hasn't been deployed yet.<br><br>
-            <strong>Testing different environments:</strong> Add <code>?api=http://localhost:5173/api</code> to test locally.
-        </div>
+			<div class="note">
+				<strong>📝 Note:</strong> This test page simulates how the userscript calls the API from any
+				domain. If you see CORS errors in the console, the fix hasn't been deployed yet.<br /><br />
+				<strong>Testing different environments:</strong> Add
+				<code>?api=http://localhost:5173/api</code> to test locally.
+			</div>
 
-        <!-- Test 1: Status Endpoint -->
-        <div class="test-section">
-            <h3>🔍 Test 1: Check Reveal Status (GET)</h3>
-            <p>Tests the <code>GET /api/limited-reveals/status</code> endpoint</p>
-            
-            <div class="input-group">
-                <label>Post ID:</label>
-                <input type="text" id="statusPostId" placeholder="Enter a post ID (e.g., 7cb1e5a9-7853-4204-8da8-3f7af0fcc06c)" />
-            </div>
-            
-            <button onclick="testStatus()">Test Status Endpoint</button>
-            <button onclick="testStatusWithFakeId()">Test with Fake ID</button>
-            
-            <div id="statusResult"></div>
-        </div>
+			<!-- Test 1: Status Endpoint -->
+			<div class="test-section">
+				<h3>🔍 Test 1: Check Reveal Status (GET)</h3>
+				<p>Tests the <code>GET /api/limited-reveals/status</code> endpoint</p>
 
-        <!-- Test 2: Reveal Endpoint -->
-        <div class="test-section">
-            <h3>🎯 Test 2: Record Reveal (POST)</h3>
-            <p>Tests the <code>POST /api/limited-reveals/reveal</code> endpoint</p>
-            
-            <div class="input-group">
-                <label>Post ID:</label>
-                <input type="text" id="revealPostId" placeholder="Enter a post ID (e.g., 7cb1e5a9-7853-4204-8da8-3f7af0fcc06c)" />
-            </div>
-            
-            <button onclick="testReveal()">Test Reveal Endpoint</button>
-            <button onclick="testRevealWithoutId()">Test without Post ID</button>
-            
-            <div id="revealResult"></div>
-        </div>
+				<div class="input-group">
+					<label>Post ID:</label>
+					<input
+						type="text"
+						id="statusPostId"
+						placeholder="Enter a post ID (e.g., 7cb1e5a9-7853-4204-8da8-3f7af0fcc06c)"
+					/>
+				</div>
 
-        <!-- Test 3: CORS Headers Check -->
-        <div class="test-section">
-            <h3>🔐 Test 3: Verify CORS Headers</h3>
-            <p>Checks if the API returns proper CORS headers</p>
-            
-            <button onclick="checkCorsHeaders()">Check CORS Headers</button>
-            
-            <div id="corsResult"></div>
-        </div>
-    </div>
+				<button onclick="testStatus()">Test Status Endpoint</button>
+				<button onclick="testStatusWithFakeId()">Test with Fake ID</button>
 
-    <script>
-        // Configurable API base URL - defaults to production
-        const API_BASE = new URLSearchParams(window.location.search).get('api') || 
-                         'https://ghostpost-six.vercel.app/api';
+				<div id="statusResult"></div>
+			</div>
 
-        // Helper to display results
-        function showResult(elementId, message, type = 'info') {
-            const element = document.getElementById(elementId);
-            element.innerHTML = `<div class="result ${type}">${message}</div>`;
-        }
+			<!-- Test 2: Reveal Endpoint -->
+			<div class="test-section">
+				<h3>🎯 Test 2: Record Reveal (POST)</h3>
+				<p>Tests the <code>POST /api/limited-reveals/reveal</code> endpoint</p>
 
-        // Helper to format JSON
-        function formatJson(obj) {
-            return JSON.stringify(obj, null, 2);
-        }
+				<div class="input-group">
+					<label>Post ID:</label>
+					<input
+						type="text"
+						id="revealPostId"
+						placeholder="Enter a post ID (e.g., 7cb1e5a9-7853-4204-8da8-3f7af0fcc06c)"
+					/>
+				</div>
 
-        // Test 1: Status Endpoint
-        async function testStatus() {
-            const postId = document.getElementById('statusPostId').value.trim();
-            
-            if (!postId) {
-                showResult('statusResult', 'Please enter a post ID', 'error');
-                return;
-            }
+				<button onclick="testReveal()">Test Reveal Endpoint</button>
+				<button onclick="testRevealWithoutId()">Test without Post ID</button>
 
-            showResult('statusResult', 'Testing... ⏳', 'info');
+				<div id="revealResult"></div>
+			</div>
 
-            try {
-                const response = await fetch(`${API_BASE}/limited-reveals/status?post_id=${postId}`);
-                const data = await response.json();
-                
-                const headers = {
-                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
-                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
-                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
-                };
+			<!-- Test 3: CORS Headers Check -->
+			<div class="test-section">
+				<h3>🔐 Test 3: Verify CORS Headers</h3>
+				<p>Checks if the API returns proper CORS headers</p>
 
-                const result = `✅ SUCCESS!\n\nResponse:\n${formatJson(data)}\n\nCORS Headers:\n${formatJson(headers)}`;
-                showResult('statusResult', result, 'success');
-            } catch (error) {
-                const result = `❌ ERROR!\n\n${error.message}\n\nThis usually means CORS is blocking the request.\nCheck the browser console for details.`;
-                showResult('statusResult', result, 'error');
-            }
-        }
+				<button onclick="checkCorsHeaders()">Check CORS Headers</button>
 
-        async function testStatusWithFakeId() {
-            document.getElementById('statusPostId').value = 'fake-test-id-12345';
-            await testStatus();
-        }
+				<div id="corsResult"></div>
+			</div>
+		</div>
 
-        // Test 2: Reveal Endpoint
-        async function testReveal() {
-            const postId = document.getElementById('revealPostId').value.trim();
-            
-            if (!postId) {
-                showResult('revealResult', 'Please enter a post ID', 'error');
-                return;
-            }
+		<script>
+			// Configurable API base URL - defaults to production
+			const API_BASE =
+				new URLSearchParams(window.location.search).get('api') ||
+				'https://ghostpost-six.vercel.app/api';
 
-            showResult('revealResult', 'Testing... ⏳', 'info');
+			// Helper to display results
+			function showResult(elementId, message, type = 'info') {
+				const element = document.getElementById(elementId);
+				element.innerHTML = `<div class="result ${type}">${message}</div>`;
+			}
 
-            try {
-                const response = await fetch(`${API_BASE}/limited-reveals/reveal`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        post_id: postId,
-                        user_fingerprint: 'test_fingerprint_' + Date.now()
-                    })
-                });
+			// Helper to format JSON
+			function formatJson(obj) {
+				return JSON.stringify(obj, null, 2);
+			}
 
-                const data = await response.json();
-                
-                const headers = {
-                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
-                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
-                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
-                };
+			// Test 1: Status Endpoint
+			async function testStatus() {
+				const postId = document.getElementById('statusPostId').value.trim();
 
-                const result = `✅ SUCCESS!\n\nResponse:\n${formatJson(data)}\n\nCORS Headers:\n${formatJson(headers)}`;
-                showResult('revealResult', result, 'success');
-            } catch (error) {
-                const result = `❌ ERROR!\n\n${error.message}\n\nThis usually means CORS is blocking the request.\nCheck the browser console for details.`;
-                showResult('revealResult', result, 'error');
-            }
-        }
+				if (!postId) {
+					showResult('statusResult', 'Please enter a post ID', 'error');
+					return;
+				}
 
-        async function testRevealWithoutId() {
-            showResult('revealResult', 'Testing... ⏳', 'info');
+				showResult('statusResult', 'Testing... ⏳', 'info');
 
-            try {
-                const response = await fetch(`${API_BASE}/limited-reveals/reveal`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        user_fingerprint: 'test_fingerprint'
-                    })
-                });
+				try {
+					const response = await fetch(`${API_BASE}/limited-reveals/status?post_id=${postId}`);
+					const data = await response.json();
 
-                const data = await response.json();
-                
-                const result = `✅ Got response (should be error about missing post_id):\n\n${formatJson(data)}`;
-                showResult('revealResult', result, response.ok ? 'success' : 'info');
-            } catch (error) {
-                const result = `❌ ERROR!\n\n${error.message}\n\nThis usually means CORS is blocking the request.\nCheck the browser console for details.`;
-                showResult('revealResult', result, 'error');
-            }
-        }
+					const headers = {
+						'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+						'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+						'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers')
+					};
 
-        // Test 3: CORS Headers
-        async function checkCorsHeaders() {
-            showResult('corsResult', 'Checking CORS headers... ⏳', 'info');
+					const result = `✅ SUCCESS!\n\nResponse:\n${formatJson(data)}\n\nCORS Headers:\n${formatJson(headers)}`;
+					showResult('statusResult', result, 'success');
+				} catch (error) {
+					const result = `❌ ERROR!\n\n${error.message}\n\nThis usually means CORS is blocking the request.\nCheck the browser console for details.`;
+					showResult('statusResult', result, 'error');
+				}
+			}
 
-            const tests = [];
+			async function testStatusWithFakeId() {
+				document.getElementById('statusPostId').value = 'fake-test-id-12345';
+				await testStatus();
+			}
 
-            // Test OPTIONS for status endpoint
-            try {
-                const response = await fetch(`${API_BASE}/limited-reveals/status`, {
-                    method: 'OPTIONS'
-                });
-                tests.push({
-                    name: 'OPTIONS /status',
-                    status: response.status,
-                    headers: {
-                        'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
-                        'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
-                        'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
-                    }
-                });
-            } catch (error) {
-                tests.push({
-                    name: 'OPTIONS /status',
-                    error: error.message
-                });
-            }
+			// Test 2: Reveal Endpoint
+			async function testReveal() {
+				const postId = document.getElementById('revealPostId').value.trim();
 
-            // Test OPTIONS for reveal endpoint
-            try {
-                const response = await fetch(`${API_BASE}/limited-reveals/reveal`, {
-                    method: 'OPTIONS'
-                });
-                tests.push({
-                    name: 'OPTIONS /reveal',
-                    status: response.status,
-                    headers: {
-                        'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
-                        'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
-                        'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
-                    }
-                });
-            } catch (error) {
-                tests.push({
-                    name: 'OPTIONS /reveal',
-                    error: error.message
-                });
-            }
+				if (!postId) {
+					showResult('revealResult', 'Please enter a post ID', 'error');
+					return;
+				}
 
-            const result = `CORS Headers Test Results:\n\n${formatJson(tests)}`;
-            const hasErrors = tests.some(t => t.error);
-            showResult('corsResult', result, hasErrors ? 'error' : 'success');
-        }
+				showResult('revealResult', 'Testing... ⏳', 'info');
 
-        // Show initial info
-        window.addEventListener('DOMContentLoaded', () => {
-            console.log('👻 GhostPost CORS Test Page Loaded');
-            console.log(`API Base URL: ${API_BASE}`);
-            console.log('This page tests cross-origin requests to the limited-reveals API');
-            console.log('Watch this console for CORS-related errors');
-        });
-    </script>
-</body>
+				try {
+					const response = await fetch(`${API_BASE}/limited-reveals/reveal`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							post_id: postId,
+							user_fingerprint: 'test_fingerprint_' + Date.now()
+						})
+					});
+
+					const data = await response.json();
+
+					const headers = {
+						'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+						'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+						'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers')
+					};
+
+					const result = `✅ SUCCESS!\n\nResponse:\n${formatJson(data)}\n\nCORS Headers:\n${formatJson(headers)}`;
+					showResult('revealResult', result, 'success');
+				} catch (error) {
+					const result = `❌ ERROR!\n\n${error.message}\n\nThis usually means CORS is blocking the request.\nCheck the browser console for details.`;
+					showResult('revealResult', result, 'error');
+				}
+			}
+
+			async function testRevealWithoutId() {
+				showResult('revealResult', 'Testing... ⏳', 'info');
+
+				try {
+					const response = await fetch(`${API_BASE}/limited-reveals/reveal`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							user_fingerprint: 'test_fingerprint'
+						})
+					});
+
+					const data = await response.json();
+
+					const result = `✅ Got response (should be error about missing post_id):\n\n${formatJson(data)}`;
+					showResult('revealResult', result, response.ok ? 'success' : 'info');
+				} catch (error) {
+					const result = `❌ ERROR!\n\n${error.message}\n\nThis usually means CORS is blocking the request.\nCheck the browser console for details.`;
+					showResult('revealResult', result, 'error');
+				}
+			}
+
+			// Test 3: CORS Headers
+			async function checkCorsHeaders() {
+				showResult('corsResult', 'Checking CORS headers... ⏳', 'info');
+
+				const tests = [];
+
+				// Test OPTIONS for status endpoint
+				try {
+					const response = await fetch(`${API_BASE}/limited-reveals/status`, {
+						method: 'OPTIONS'
+					});
+					tests.push({
+						name: 'OPTIONS /status',
+						status: response.status,
+						headers: {
+							'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+							'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+							'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers')
+						}
+					});
+				} catch (error) {
+					tests.push({
+						name: 'OPTIONS /status',
+						error: error.message
+					});
+				}
+
+				// Test OPTIONS for reveal endpoint
+				try {
+					const response = await fetch(`${API_BASE}/limited-reveals/reveal`, {
+						method: 'OPTIONS'
+					});
+					tests.push({
+						name: 'OPTIONS /reveal',
+						status: response.status,
+						headers: {
+							'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+							'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+							'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers')
+						}
+					});
+				} catch (error) {
+					tests.push({
+						name: 'OPTIONS /reveal',
+						error: error.message
+					});
+				}
+
+				const result = `CORS Headers Test Results:\n\n${formatJson(tests)}`;
+				const hasErrors = tests.some((t) => t.error);
+				showResult('corsResult', result, hasErrors ? 'error' : 'success');
+			}
+
+			// Show initial info
+			window.addEventListener('DOMContentLoaded', () => {
+				console.log('👻 GhostPost CORS Test Page Loaded');
+				console.log(`API Base URL: ${API_BASE}`);
+				console.log('This page tests cross-origin requests to the limited-reveals API');
+				console.log('Watch this console for CORS-related errors');
+			});
+		</script>
+	</body>
 </html>

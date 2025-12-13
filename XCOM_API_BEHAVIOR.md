@@ -19,6 +19,7 @@ The **entire text including all invisible Unicode characters** is preserved in X
 ### API Example
 
 **Request to X.com GraphQL API:**
+
 ```
 POST https://x.com/i/api/graphql/TAJw1rBsjAtdNgTdlo2oeg/CreateTweet
 
@@ -31,19 +32,20 @@ Payload:
 ```
 
 **Response:**
+
 ```json
 {
-  "data": {
-    "create_tweet": {
-      "tweet_results": {
-        "result": {
-          "legacy": {
-            "full_text": "testi‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍ng123"
-          }
-        }
-      }
-    }
-  }
+	"data": {
+		"create_tweet": {
+			"tweet_results": {
+				"result": {
+					"legacy": {
+						"full_text": "testi‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍ng123"
+					}
+				}
+			}
+		}
+	}
 }
 ```
 
@@ -62,6 +64,7 @@ Payload:
 ### What This Means
 
 The invisible characters used by Ghostpost are **technically visible** to anyone who:
+
 - Accesses the tweet data via X.com's API
 - Uses browser developer tools to inspect the DOM
 - Copies and pastes the tweet text
@@ -70,6 +73,7 @@ The invisible characters used by Ghostpost are **technically visible** to anyone
 ### The "Hidden" Part
 
 The content appears "hidden" because:
+
 1. **Visual rendering** - X.com's frontend CSS collapses zero-width characters
 2. **User perception** - Most users don't see invisible Unicode characters
 3. **Default behavior** - Standard tweet viewing doesn't reveal the encoded data
@@ -77,6 +81,7 @@ The content appears "hidden" because:
 ### Not a Bug, By Design
 
 This is **intentional behavior** and part of Ghostpost's design:
+
 - Ghostpost uses Unicode steganography (hiding data in plain sight)
 - The encoding is meant to be **selectively revealed**, not cryptographically secure
 - Anyone with the right tools CAN detect and decode the message
@@ -103,13 +108,13 @@ A browser extension can detect Ghostpost content by:
 3. **Validating the format**:
    ```javascript
    function hasGhostpostContent(text) {
-     // Look for delimiter characters
-     const delimiterChar = '\uFEFF';
-     const firstDelim = text.indexOf(delimiterChar);
-     const secondDelim = text.indexOf(delimiterChar, firstDelim + 1);
-     
-     // Need at least 2 delimiters for valid encoding
-     return firstDelim !== -1 && secondDelim !== -1;
+   	// Look for delimiter characters
+   	const delimiterChar = '\uFEFF';
+   	const firstDelim = text.indexOf(delimiterChar);
+   	const secondDelim = text.indexOf(delimiterChar, firstDelim + 1);
+
+   	// Need at least 2 delimiters for valid encoding
+   	return firstDelim !== -1 && secondDelim !== -1;
    }
    ```
 
@@ -122,27 +127,27 @@ const matches = text.match(invisibleCharRegex);
 
 // Step 2: Check if enough characters present
 if (matches && matches.length >= 8) {
-  // Likely contains encoded content
-  
-  // Step 3: Validate delimiter structure
-  if (hasCompleteDelimiters(text)) {
-    // Valid Ghostpost encoding found
-    return true;
-  }
+	// Likely contains encoded content
+
+	// Step 3: Validate delimiter structure
+	if (hasCompleteDelimiters(text)) {
+		// Valid Ghostpost encoding found
+		return true;
+	}
 }
 
 function hasCompleteDelimiters(text) {
-  const delimiterChar = '\uFEFF';
-  let count = 0;
-  let index = text.indexOf(delimiterChar);
-  
-  while (index !== -1) {
-    count++;
-    if (count >= 2) return true;
-    index = text.indexOf(delimiterChar, index + 1);
-  }
-  
-  return false;
+	const delimiterChar = '\uFEFF';
+	let count = 0;
+	let index = text.indexOf(delimiterChar);
+
+	while (index !== -1) {
+		count++;
+		if (count >= 2) return true;
+		index = text.indexOf(delimiterChar, index + 1);
+	}
+
+	return false;
 }
 ```
 
@@ -172,50 +177,52 @@ Using the `full_text` field (or aggregated DOM text) is the **correct and only a
 ### Code Reference (Simplified Approach)
 
 **Userscript**: `/static/ghostpost-reveal.user.js` (v2.4.0+)
+
 ```javascript
 const twitterAdapter = {
-  extractText: (node) => {
-    // SIMPLE APPROACH #1: Try text node first (90%+ success)
-    const nodeText = node.data || node.nodeValue || '';
-    if (nodeText && hasCompleteEncodedMessage(nodeText)) {
-      return nodeText;
-    }
-    
-    // SIMPLE APPROACH #2: Try parent.textContent (fast fallback)
-    if (node.parentElement) {
-      const parentText = node.parentElement.textContent || '';
-      if (parentText && hasCompleteEncodedMessage(parentText)) {
-        return parentText;
-      }
-    }
-    
-    // ADVANCED FALLBACK #1: TreeWalker for deep nesting (only if needed)
-    // ADVANCED FALLBACK #2: Sibling aggregation (only if needed)
-    // ... (see full implementation in file)
-  }
+	extractText: (node) => {
+		// SIMPLE APPROACH #1: Try text node first (90%+ success)
+		const nodeText = node.data || node.nodeValue || '';
+		if (nodeText && hasCompleteEncodedMessage(nodeText)) {
+			return nodeText;
+		}
+
+		// SIMPLE APPROACH #2: Try parent.textContent (fast fallback)
+		if (node.parentElement) {
+			const parentText = node.parentElement.textContent || '';
+			if (parentText && hasCompleteEncodedMessage(parentText)) {
+				return parentText;
+			}
+		}
+
+		// ADVANCED FALLBACK #1: TreeWalker for deep nesting (only if needed)
+		// ADVANCED FALLBACK #2: Sibling aggregation (only if needed)
+		// ... (see full implementation in file)
+	}
 };
 ```
 
 **Browser Extension**: `/browser-extension/scripts/content.js` (v1.2.3+)
+
 ```javascript
 function extractCompleteText(node) {
-  // SIMPLE APPROACH #1: Try text node first (90%+ success)
-  const nodeText = node.data || node.nodeValue || '';
-  if (nodeText && hasCompleteEncodedMessage(nodeText)) {
-    return nodeText;
-  }
-  
-  // SIMPLE APPROACH #2: Try parent.textContent (fast fallback)
-  if (node.parentElement) {
-    const parentText = node.parentElement.textContent || '';
-    if (parentText && hasCompleteEncodedMessage(parentText)) {
-      return parentText;
-    }
-  }
-  
-  // ADVANCED FALLBACK #1: TreeWalker for deep nesting (only if needed)
-  // ADVANCED FALLBACK #2: Sibling aggregation (only if needed)
-  // ... (see full implementation in file)
+	// SIMPLE APPROACH #1: Try text node first (90%+ success)
+	const nodeText = node.data || node.nodeValue || '';
+	if (nodeText && hasCompleteEncodedMessage(nodeText)) {
+		return nodeText;
+	}
+
+	// SIMPLE APPROACH #2: Try parent.textContent (fast fallback)
+	if (node.parentElement) {
+		const parentText = node.parentElement.textContent || '';
+		if (parentText && hasCompleteEncodedMessage(parentText)) {
+			return parentText;
+		}
+	}
+
+	// ADVANCED FALLBACK #1: TreeWalker for deep nesting (only if needed)
+	// ADVANCED FALLBACK #2: Sibling aggregation (only if needed)
+	// ... (see full implementation in file)
 }
 ```
 
@@ -256,10 +263,11 @@ function extractCompleteText(node) {
 ### Q: Will my hidden message be visible to everyone?
 
 **A:** The message appears as normal text to most users. Only those with:
+
 - Ghostpost browser extension
 - Ghostpost userscript
 - Technical knowledge to inspect the text
-...can detect and decode the hidden content.
+  ...can detect and decode the hidden content.
 
 ### Q: What if X.com changes their API?
 
@@ -267,7 +275,8 @@ function extractCompleteText(node) {
 
 ### Q: How is this different from encryption?
 
-**A:** 
+**A:**
+
 - **Encryption**: Mathematically transforms data to be unreadable without a key
 - **Ghostpost**: Hides data using invisible characters (steganography + obfuscation)
 - Ghostpost is easier to detect if someone knows what to look for
@@ -286,6 +295,7 @@ function extractCompleteText(node) {
 X.com's API behavior is **compatible with Ghostpost** and the current implementation approach is **optimized and correct**. Both `tweet_text` (input) and `full_text` (output) fields preserve all invisible Unicode characters, making detection and decoding possible through simplified DOM scanning with advanced fallbacks.
 
 The key to successful detection on X.com is:
+
 1. **Try simple approaches first** - Direct node access works 90%+ of cases
 2. **Use fast fallbacks** - parent.textContent for most splits
 3. **Scanning for zero-width characters**
@@ -294,6 +304,7 @@ The key to successful detection on X.com is:
 6. **Understanding that "hidden" means visually obscured, not cryptographically secure**
 
 This approach has been tested and validated in:
+
 - Ghostpost Reveal userscript (v2.4.0+) - Optimized with simple-first strategy
 - Ghostpost browser extension (v1.2.3+) - Optimized with simple-first strategy
 - Multiple test scenarios and real-world usage

@@ -100,12 +100,12 @@ function generateFingerprint() {
 	components.push(canvasData);
 
 	const fingerprint = components.join('|');
-	
+
 	// Create a simple hash
 	let hash = 0;
 	for (let i = 0; i < fingerprint.length; i++) {
 		const char = fingerprint.charCodeAt(i);
-		hash = ((hash << 5) - hash) + char;
+		hash = (hash << 5) - hash + char;
 		hash = hash & hash;
 	}
 	return Math.abs(hash).toString(36);
@@ -397,7 +397,7 @@ class DetectionPanel {
 
 					// Record the reveal
 					revealResult = await recordReveal(decoded.postId);
-					
+
 					if (!revealResult?.success) {
 						alert('❌ Failed to reveal secret: ' + (revealResult?.message || 'Unknown error'));
 						return;
@@ -417,7 +417,7 @@ class DetectionPanel {
 			if (revealResult && revealResult.reveal_number !== null) {
 				const revealInfo = document.createElement('div');
 				revealInfo.className = 'reveal-info';
-				
+
 				// Determine styling based on remaining reveals
 				let styleClass = 'primary';
 				if (revealResult.remaining !== null) {
@@ -429,16 +429,16 @@ class DetectionPanel {
 						styleClass = 'warning';
 					}
 				}
-				
+
 				revealInfo.className = `reveal-info ${styleClass}`;
-				
+
 				let headerText = '🎉 Limited Edition Reveal!';
 				if (revealResult.remaining === 0) {
 					headerText = '🔥 SOLD OUT FOREVER! 🔥';
 				} else if (revealResult.remaining !== null && revealResult.remaining <= 5) {
 					headerText = `⚠️ ONLY ${revealResult.remaining} LEFT! ⚠️`;
 				}
-				
+
 				let progressHTML = '';
 				if (revealResult.total_reveals) {
 					const percentage = (revealResult.reveal_number / revealResult.total_reveals) * 100;
@@ -448,7 +448,7 @@ class DetectionPanel {
 						</div>
 					`;
 				}
-				
+
 				revealInfo.innerHTML = `
 					<div class="reveal-header">
 						<span class="reveal-title">${headerText}</span>
@@ -457,14 +457,14 @@ class DetectionPanel {
 					<p class="reveal-message">${revealResult.message}</p>
 					${progressHTML}
 				`;
-				
+
 				decodedOutput.appendChild(revealInfo);
 			}
 
 			// Add the actual decoded content
 			const contentDiv = document.createElement('div');
 			contentDiv.className = 'decoded-message';
-			
+
 			// Check if it's an image
 			if (decoded.message.startsWith('data:image')) {
 				// Create image element safely
@@ -476,7 +476,7 @@ class DetectionPanel {
 				// Use textContent for text to prevent XSS
 				contentDiv.textContent = decoded.message;
 			}
-			
+
 			decodedOutput.appendChild(contentDiv);
 		} catch (error) {
 			alert('Error decoding message: ' + error.message);

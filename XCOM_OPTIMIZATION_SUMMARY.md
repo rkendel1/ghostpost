@@ -5,6 +5,7 @@
 **Title**: "can we decode full_text on x.com"
 
 **Requirements**:
+
 1. Need to be able to decode on x.com in the overlay using userscript.js
 2. Simplify and use advanced techniques as backups
 
@@ -25,6 +26,7 @@ Previously, the code used a complex multi-strategy approach that always performe
 ### Files Changed
 
 #### 1. `/static/ghostpost-reveal.user.js` (v2.3.9 → v2.4.0)
+
 - Reordered `twitterAdapter.extractText()` strategies
 - Added clear comments: "SIMPLE APPROACH" vs "ADVANCED FALLBACK"
 - Updated `full_text` field references (X.com API output)
@@ -32,14 +34,17 @@ Previously, the code used a complex multi-strategy approach that always performe
 - Updated version and changelog
 
 #### 2. `/browser-extension/scripts/content.js` (v1.2.2 → v1.2.3)
+
 - Applied same optimization to `extractCompleteText()`
 - Consistent approach with userscript
 - Updated header comments and version
 
 #### 3. `/browser-extension/manifest.json`
+
 - Version bump: 1.2.2 → 1.2.3
 
 #### 4. `/XCOM_API_BEHAVIOR.md`
+
 - Updated documentation to reflect simplified approach
 - Clarified both `tweet_text` (input) and `full_text` (output) fields
 - Added version history entry
@@ -50,6 +55,7 @@ Previously, the code used a complex multi-strategy approach that always performe
 ### Extraction Order (Optimized)
 
 **Before (v2.3.9/v1.2.2)**:
+
 ```
 1. Try text node
 2. Walk up DOM tree with TreeWalker (always)
@@ -58,6 +64,7 @@ Previously, the code used a complex multi-strategy approach that always performe
 ```
 
 **After (v2.4.0/v1.2.3)**:
+
 ```
 1. Try text node (SIMPLE - 90%+ success)
 2. Try parent.textContent (SIMPLE - fast fallback)
@@ -83,12 +90,14 @@ Previously, the code used a complex multi-strategy approach that always performe
 ## Testing
 
 ### Automated Tests
+
 - ✅ Syntax validation (Node.js `-c` flag)
 - ✅ Logic validation (custom test script)
 - ✅ Code review (no issues found)
 - ✅ Security scan (CodeQL - no vulnerabilities)
 
 ### Test Results
+
 ```
 Test 1 - Complete message in text node: ✓ PASS
 Test 2 - Only one delimiter: ✓ PASS
@@ -99,23 +108,27 @@ Test 6 - No hidden message: ✓ PASS
 ```
 
 ### Manual Testing Required
+
 - ⏳ Real X.com tweets with hidden messages
 - ⏳ Performance benchmarking (optional)
 
 ## Expected Impact
 
 ### Performance
+
 - **90%+ of cases**: Single operation (direct node access)
 - **Most splits**: Two operations (node + parent.textContent)
 - **Complex cases**: Falls back to full traversal (maintains compatibility)
 
 ### Compatibility
+
 - ✅ Maintains 100% detection success rate
 - ✅ Handles all X.com DOM splitting patterns
 - ✅ Works with deeply nested structures (up to 10 levels)
 - ✅ Backward compatible with existing encoded messages
 
 ### User Experience
+
 - Faster detection and decoding on X.com
 - More efficient resource usage
 - Same reliability as before
@@ -125,6 +138,7 @@ Test 6 - No hidden message: ✓ PASS
 **CodeQL Scan Results**: 0 alerts
 
 No security vulnerabilities introduced by these changes. The optimization:
+
 - Does not change the encoding/decoding logic
 - Does not introduce new attack vectors
 - Maintains input validation (delimiter checks)
@@ -133,10 +147,12 @@ No security vulnerabilities introduced by these changes. The optimization:
 ## Deployment
 
 ### Userscript (v2.4.0)
+
 - Auto-updates via `@updateURL` directive
 - Users can manually reinstall from Ghostpost site
 
 ### Browser Extension (v1.2.3)
+
 - Requires extension update
 - Users should reload X.com tabs after updating
 
@@ -149,6 +165,7 @@ No security vulnerabilities introduced by these changes. The optimization:
 ## Conclusion
 
 This optimization successfully addresses the requirements:
+
 1. ✅ Decoding on X.com works (via simplified extraction)
 2. ✅ Simplified approach with advanced techniques as backups
 3. ✅ Updated full_text field references
@@ -158,6 +175,7 @@ This optimization successfully addresses the requirements:
 The changes are production-ready and recommended for deployment.
 
 ---
+
 **Date**: 2025-12-12
 **Versions**: Userscript v2.4.0, Extension v1.2.3
 **Author**: GitHub Copilot

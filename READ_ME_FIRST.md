@@ -7,6 +7,7 @@ Your limited reveals feature is broken because of a database permissions issue. 
 ### 1️⃣ Apply the Database Migration
 
 **Option A: Supabase Dashboard (Easiest)** ⭐
+
 1. Open [Supabase Dashboard](https://supabase.com) → Your Project
 2. Click **SQL Editor** in sidebar
 3. Copy this file's contents: `supabase/migrations/20241211_fix_increment_reveal_security.sql`
@@ -15,6 +16,7 @@ Your limited reveals feature is broken because of a database permissions issue. 
 6. ✅ Done!
 
 **Option B: Supabase CLI**
+
 ```bash
 supabase db push
 ```
@@ -22,7 +24,8 @@ supabase db push
 ### 2️⃣ Test It Works
 
 Create a new GhostPost with limited reveals (max_reveals = 3), then reveal it:
-- ✅ Should see: **"#1/3 — only 2 left!"** 
+
+- ✅ Should see: **"#1/3 — only 2 left!"**
 - ❌ Before: "Unlimited reveals - no tracking"
 
 ### 3️⃣ Verify Database
@@ -30,6 +33,7 @@ Create a new GhostPost with limited reveals (max_reveals = 3), then reveal it:
 ```sql
 SELECT * FROM reveal_events ORDER BY created_at DESC LIMIT 5;
 ```
+
 Should show new reveal records! 🎊
 
 ---
@@ -47,16 +51,17 @@ The `increment_reveal_count` database function couldn't access records when call
 
 ## ✅ What This Fixes
 
-| Before | After |
-|--------|-------|
-| ❌ "Unlimited reveals" returned | ✅ Proper reveal numbers |
-| ❌ No reveal_events tracking | ✅ Full tracking in database |
-| ❌ No "#1/3" display | ✅ FOMO stats in overlay |
-| ❌ No "SOLD OUT" messaging | ✅ Color-coded urgency |
+| Before                          | After                        |
+| ------------------------------- | ---------------------------- |
+| ❌ "Unlimited reveals" returned | ✅ Proper reveal numbers     |
+| ❌ No reveal_events tracking    | ✅ Full tracking in database |
+| ❌ No "#1/3" display            | ✅ FOMO stats in overlay     |
+| ❌ No "SOLD OUT" messaging      | ✅ Color-coded urgency       |
 
 ## 🔒 Is This Safe?
 
 Yes! The fix uses `SECURITY DEFINER` which is safe because:
+
 - No SQL injection (parameterized inputs)
 - Limited scope (2 tables only)
 - Search path protection

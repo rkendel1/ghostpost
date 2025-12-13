@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	
+
 	let step = $state(1);
 	let userscriptsInstalled = $state(false);
 	let userscriptInstalled = $state(false);
@@ -10,11 +10,11 @@
 
 	// Check if user is on iOS
 	let isIOS = $state(false);
-	
+
 	onMount(() => {
 		const ua = navigator.userAgent.toLowerCase();
 		isIOS = /iphone|ipad|ipod/.test(ua);
-		
+
 		// Get the site's base URL
 		siteUrl = window.location.origin;
 	});
@@ -58,7 +58,10 @@
 				<div>
 					<h3 class="h3 text-sm">Not on iPhone?</h3>
 					<p class="text-xs opacity-80 mt-1">
-						This installation guide is for iPhone users. For desktop browsers, use <a href="/install-easy" class="anchor">our desktop guide</a>.
+						This installation guide is for iPhone users. For desktop browsers, use <a
+							href="/install-easy"
+							class="anchor">our desktop guide</a
+						>.
 					</p>
 				</div>
 			</div>
@@ -68,28 +71,44 @@
 	<!-- Progress Indicator -->
 	<div class="flex justify-center items-center gap-4">
 		<div class="flex items-center gap-2">
-			<div class="badge {step >= 1 ? 'variant-filled-primary' : 'variant-soft-surface'} text-lg px-4 py-2">
+			<div
+				class="badge {step >= 1
+					? 'variant-filled-primary'
+					: 'variant-soft-surface'} text-lg px-4 py-2"
+			>
 				{step >= 2 ? '✓' : '1'}
 			</div>
 			<span class="text-sm font-semibold">Get App</span>
 		</div>
 		<div class="text-2xl opacity-30">→</div>
 		<div class="flex items-center gap-2">
-			<div class="badge {step >= 2 ? 'variant-filled-primary' : 'variant-soft-surface'} text-lg px-4 py-2">
+			<div
+				class="badge {step >= 2
+					? 'variant-filled-primary'
+					: 'variant-soft-surface'} text-lg px-4 py-2"
+			>
 				{step >= 3 ? '✓' : '2'}
 			</div>
 			<span class="text-sm font-semibold">Enable Extension</span>
 		</div>
 		<div class="text-2xl opacity-30">→</div>
 		<div class="flex items-center gap-2">
-			<div class="badge {step >= 3 ? 'variant-filled-primary' : 'variant-soft-surface'} text-lg px-4 py-2">
+			<div
+				class="badge {step >= 3
+					? 'variant-filled-primary'
+					: 'variant-soft-surface'} text-lg px-4 py-2"
+			>
 				{step >= 4 ? '✓' : '3'}
 			</div>
 			<span class="text-sm font-semibold">Install Script</span>
 		</div>
 		<div class="text-2xl opacity-30">→</div>
 		<div class="flex items-center gap-2">
-			<div class="badge {step >= 4 ? 'variant-filled-success' : 'variant-soft-surface'} text-lg px-4 py-2">
+			<div
+				class="badge {step >= 4
+					? 'variant-filled-success'
+					: 'variant-soft-surface'} text-lg px-4 py-2"
+			>
 				{step >= 4 ? '✓' : '🎉'}
 			</div>
 			<span class="text-sm font-semibold">Done!</span>
@@ -109,7 +128,7 @@
 			<div class="card p-6 variant-ghost-primary space-y-4">
 				<div class="text-center text-6xl">📲</div>
 				<h3 class="h3 text-center">Userscripts App</h3>
-				
+
 				<ul class="space-y-2 text-sm">
 					<li class="flex items-center gap-2">
 						<span class="text-success-500">✓</span>
@@ -129,22 +148,17 @@
 					</li>
 				</ul>
 
-				<button 
-					class="btn variant-filled-primary w-full btn-xl"
-					on:click={installUserscriptsApp}
-				>
+				<button class="btn variant-filled-primary w-full btn-xl" on:click={installUserscriptsApp}>
 					<span class="text-2xl">🚀</span>
 					<span class="text-xl">Get Userscripts App</span>
 				</button>
 
-				<p class="text-xs text-center opacity-70">
-					Opens the App Store - tap "Get" to download
-				</p>
+				<p class="text-xs text-center opacity-70">Opens the App Store - tap "Get" to download</p>
 			</div>
 
 			<div class="card p-4 variant-ghost-surface text-center text-sm">
 				<p class="mb-2">Already have Userscripts installed?</p>
-				<button class="btn btn-sm variant-soft-primary" on:click={() => step = 2}>
+				<button class="btn btn-sm variant-soft-primary" on:click={() => (step = 2)}>
 					Skip to Step 2 →
 				</button>
 			</div>
@@ -156,15 +170,13 @@
 		<div class="card p-8 space-y-6">
 			<div class="text-center">
 				<h2 class="h2 mb-4">Step 2: Enable in Safari Settings</h2>
-				<p class="text-lg mb-6">
-					Quick setup - takes about 15 seconds. Follow these steps:
-				</p>
+				<p class="text-lg mb-6">Quick setup - takes about 15 seconds. Follow these steps:</p>
 			</div>
 
 			<div class="card p-6 variant-ghost-success space-y-5">
 				<div class="text-center text-6xl">⚙️</div>
 				<h3 class="h3 text-center text-sm">Enable Userscripts Extension</h3>
-				
+
 				<ol class="list-decimal list-inside space-y-3 text-sm ml-4">
 					<li class="pl-2">
 						<strong>Open Settings app</strong> on your iPhone
@@ -185,14 +197,14 @@
 
 				<div class="card p-4 variant-ghost-warning text-xs">
 					<p class="font-semibold mb-2">💡 Quick Tip:</p>
-					<p>The Userscripts app should have auto-opened after install. If not, find it on your home screen.</p>
+					<p>
+						The Userscripts app should have auto-opened after install. If not, find it on your home
+						screen.
+					</p>
 				</div>
 
 				<div class="flex gap-3">
-					<button 
-						class="btn variant-filled-success flex-1"
-						on:click={() => step = 3}
-					>
+					<button class="btn variant-filled-success flex-1" on:click={() => (step = 3)}>
 						<span>✓</span>
 						<span>Extension Enabled!</span>
 					</button>
@@ -200,7 +212,7 @@
 			</div>
 
 			<div class="text-center">
-				<button class="btn btn-sm variant-ghost-surface" on:click={() => step = 1}>
+				<button class="btn btn-sm variant-ghost-surface" on:click={() => (step = 1)}>
 					← Back to Step 1
 				</button>
 			</div>
@@ -220,7 +232,7 @@
 			<div class="card p-6 variant-ghost-primary space-y-4">
 				<div class="text-center text-6xl">👻</div>
 				<h3 class="h3 text-center">One-Click Install</h3>
-				
+
 				<div class="space-y-3">
 					<p class="text-sm font-semibold">What happens when you tap:</p>
 					<ol class="list-decimal list-inside space-y-2 text-sm ml-4">
@@ -231,10 +243,7 @@
 					</ol>
 				</div>
 
-				<button 
-					class="btn variant-filled-primary w-full btn-xl"
-					on:click={installUserscript}
-				>
+				<button class="btn variant-filled-primary w-full btn-xl" on:click={installUserscript}>
 					<span class="text-2xl">✨</span>
 					<span class="text-xl">Install Ghostpost Reveal</span>
 				</button>
@@ -252,26 +261,23 @@
 
 			<div class="card p-4 variant-ghost-warning text-sm">
 				<p class="font-semibold mb-2">⚠️ Important:</p>
-				<p class="text-xs">Make sure you're viewing this page in <strong>Safari</strong> for the one-click install to work. If you're in another browser, copy this URL and open it in Safari.</p>
+				<p class="text-xs">
+					Make sure you're viewing this page in <strong>Safari</strong> for the one-click install to work.
+					If you're in another browser, copy this URL and open it in Safari.
+				</p>
 			</div>
 
 			<!-- Verification -->
 			<div class="card p-6 variant-ghost-success space-y-4">
 				<h3 class="h3">✅ Verify Installation</h3>
 				<p class="text-sm">Did you tap "Install" in the Userscripts popup?</p>
-				
+
 				<div class="flex gap-4">
-					<button 
-						class="btn variant-filled-success flex-1"
-						on:click={() => step = 4}
-					>
+					<button class="btn variant-filled-success flex-1" on:click={() => (step = 4)}>
 						<span>✓</span>
 						<span>Yes, installed successfully!</span>
 					</button>
-					<button 
-						class="btn variant-soft-surface flex-1"
-						on:click={installUserscript}
-					>
+					<button class="btn variant-soft-surface flex-1" on:click={installUserscript}>
 						<span>↺</span>
 						<span>Try again</span>
 					</button>
@@ -279,7 +285,7 @@
 			</div>
 
 			<div class="text-center">
-				<button class="btn btn-sm variant-ghost-surface" on:click={() => step = 2}>
+				<button class="btn btn-sm variant-ghost-surface" on:click={() => (step = 2)}>
 					← Back to Step 2
 				</button>
 			</div>
@@ -335,7 +341,7 @@
 				<p class="text-sm opacity-80">
 					Help your friends discover hidden messages too! Share this easy install link:
 				</p>
-				
+
 				<div class="card p-4 variant-ghost-surface">
 					<code class="text-xs break-all">
 						{siteUrl}/install/iphone
@@ -343,10 +349,10 @@
 				</div>
 
 				<p class="text-xs opacity-70 text-center">
-					Or send them this message: "Ghostpost on iPhone: Tap 
-					<a href="https://apps.apple.com/app/userscripts/id1463298887" class="anchor">this</a> 
-					to install the free app, enable in Safari Settings → Extensions. Then tap 
-					<a href="{siteUrl}/ghostpost-reveal.user.js" class="anchor">this</a> 
+					Or send them this message: "Ghostpost on iPhone: Tap
+					<a href="https://apps.apple.com/app/userscripts/id1463298887" class="anchor">this</a>
+					to install the free app, enable in Safari Settings → Extensions. Then tap
+					<a href="{siteUrl}/ghostpost-reveal.user.js" class="anchor">this</a>
 					to add the 👻 button. Boom—reveal secrets anywhere!"
 				</p>
 			</div>
@@ -354,7 +360,7 @@
 			<!-- Troubleshooting Card -->
 			<div class="card p-6 space-y-4">
 				<h3 class="h3">❓ Troubleshooting</h3>
-				
+
 				<details>
 					<summary class="cursor-pointer font-semibold text-sm">👻 Button not appearing?</summary>
 					<div class="mt-2 ml-4 text-sm space-y-2">
@@ -371,7 +377,13 @@
 						<p>1. Make sure you completed Step 2 (enabled extension in Settings)</p>
 						<p>2. Open the Userscripts app and check if the script is there</p>
 						<p>3. Try tapping the install button again</p>
-						<p>4. If still having issues, visit the <a href="https://github.com/quoid/userscripts" class="anchor" target="_blank">Userscripts GitHub</a> for help</p>
+						<p>
+							4. If still having issues, visit the <a
+								href="https://github.com/quoid/userscripts"
+								class="anchor"
+								target="_blank">Userscripts GitHub</a
+							> for help
+						</p>
 					</div>
 				</details>
 
@@ -396,41 +408,31 @@
 			<div class="space-y-2">
 				<div class="text-4xl text-center">📱</div>
 				<h3 class="h3 text-center text-sm">Mobile-Optimized</h3>
-				<p class="text-xs text-center opacity-80">
-					Designed specifically for iPhone and Safari
-				</p>
+				<p class="text-xs text-center opacity-80">Designed specifically for iPhone and Safari</p>
 			</div>
 
 			<div class="space-y-2">
 				<div class="text-4xl text-center">🔄</div>
 				<h3 class="h3 text-center text-sm">Auto-Update</h3>
-				<p class="text-xs text-center opacity-80">
-					Always stays current with automatic updates
-				</p>
+				<p class="text-xs text-center opacity-80">Always stays current with automatic updates</p>
 			</div>
 
 			<div class="space-y-2">
 				<div class="text-4xl text-center">🔒</div>
 				<h3 class="h3 text-center text-sm">Privacy-First</h3>
-				<p class="text-xs text-center opacity-80">
-					All processing happens locally on your iPhone
-				</p>
+				<p class="text-xs text-center opacity-80">All processing happens locally on your iPhone</p>
 			</div>
 
 			<div class="space-y-2">
 				<div class="text-4xl text-center">⚡</div>
 				<h3 class="h3 text-center text-sm">One-Tap Reveal</h3>
-				<p class="text-xs text-center opacity-80">
-					Instantly decode messages with a single tap
-				</p>
+				<p class="text-xs text-center opacity-80">Instantly decode messages with a single tap</p>
 			</div>
 
 			<div class="space-y-2">
 				<div class="text-4xl text-center">🌐</div>
 				<h3 class="h3 text-center text-sm">Works Everywhere</h3>
-				<p class="text-xs text-center opacity-80">
-					Compatible with all websites in Safari
-				</p>
+				<p class="text-xs text-center opacity-80">Compatible with all websites in Safari</p>
 			</div>
 
 			<div class="space-y-2">

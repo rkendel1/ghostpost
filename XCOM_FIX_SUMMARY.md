@@ -1,9 +1,11 @@
 # X.com Decoding Fix Summary
 
 ## Problem
+
 Users reported that the Ghostpost Reveal userscript was unable to decode hidden messages on X.com (Twitter). The error message was "Failed to decode: No hidden content found".
 
 ## Root Cause
+
 X.com's dynamic DOM structure splits text content across multiple nested elements and text nodes. When the userscript detected invisible Unicode characters in a text node, it would store that node's text. However, on X.com:
 
 1. The visible text (e.g., "You suck") might be in one `<span>` element
@@ -13,58 +15,57 @@ X.com's dynamic DOM structure splits text content across multiple nested element
 When the decoder tried to extract the complete encoded message from a single text node, it would only get part of the message - missing the delimiter characters (`\uFEFF`) that wrap the hidden content.
 
 ## Solution
+
 Enhanced the Twitter/X.com adapter to walk up the DOM tree and aggregate text from parent elements:
 
 ### Before (v2.3.3)
+
 ```javascript
 const twitterAdapter = {
-    extractText: defaultTextExtraction,  // Just node.data
-    description: 'Uses node.data to preserve invisible Unicode characters'
+	extractText: defaultTextExtraction, // Just node.data
+	description: 'Uses node.data to preserve invisible Unicode characters'
 };
 ```
 
 ### After (v2.3.4)
+
 ```javascript
 const twitterAdapter = {
-    extractText: (node) => {
-        // First try the text node itself
-        const nodeText = node.data || node.nodeValue || '';
-        if (nodeText && nodeText.indexOf('\uFEFF') !== -1) {
-            return nodeText;
-        }
-        
-        // Walk up DOM tree (up to 5 levels) to find complete message
-        let currentElement = node.parentElement;
-        let levelsChecked = 0;
-        const MAX_PARENT_LEVELS = 5;
-        
-        while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
-            // Aggregate all text nodes within this element
-            let combinedText = '';
-            const walker = document.createTreeWalker(
-                currentElement,
-                NodeFilter.SHOW_TEXT,
-                null
-            );
-            let textNode;
-            while ((textNode = walker.nextNode())) {
-                combinedText += textNode.data || textNode.nodeValue || '';
-            }
-            
-            // If we found the delimiter, we have the complete message
-            if (combinedText && combinedText.indexOf('\uFEFF') !== -1) {
-                return combinedText;
-            }
-            
-            // Move up to parent
-            currentElement = currentElement.parentElement;
-            levelsChecked++;
-        }
-        
-        // Fallback
-        return nodeText;
-    },
-    description: 'Aggregates text from parent elements (up to 5 levels) to handle X.com DOM splitting'
+	extractText: (node) => {
+		// First try the text node itself
+		const nodeText = node.data || node.nodeValue || '';
+		if (nodeText && nodeText.indexOf('\uFEFF') !== -1) {
+			return nodeText;
+		}
+
+		// Walk up DOM tree (up to 5 levels) to find complete message
+		let currentElement = node.parentElement;
+		let levelsChecked = 0;
+		const MAX_PARENT_LEVELS = 5;
+
+		while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
+			// Aggregate all text nodes within this element
+			let combinedText = '';
+			const walker = document.createTreeWalker(currentElement, NodeFilter.SHOW_TEXT, null);
+			let textNode;
+			while ((textNode = walker.nextNode())) {
+				combinedText += textNode.data || textNode.nodeValue || '';
+			}
+
+			// If we found the delimiter, we have the complete message
+			if (combinedText && combinedText.indexOf('\uFEFF') !== -1) {
+				return combinedText;
+			}
+
+			// Move up to parent
+			currentElement = currentElement.parentElement;
+			levelsChecked++;
+		}
+
+		// Fallback
+		return nodeText;
+	},
+	description: 'Aggregates text from parent elements (up to 5 levels) to handle X.com DOM splitting'
 };
 ```
 
@@ -83,6 +84,7 @@ const twitterAdapter = {
 4. **Decoding Phase**: The stored complete text is decoded, which now includes all delimiters
 
 ## Testing
+
 - Created comprehensive test suite (`test-xcom-adapter.html`) that simulates X.com DOM structures
 - Tested with 4 different scenarios:
   - Simple sibling splits
@@ -92,6 +94,7 @@ const twitterAdapter = {
 - Validated the logic with unit tests
 
 ## Impact
+
 - ✅ Fixes "No hidden content found" error on X.com
 - ✅ Preserves backward compatibility with other sites
 - ✅ Handles complex nested DOM structures
@@ -99,4 +102,5 @@ const twitterAdapter = {
 - ✅ No performance regression (early exit when delimiter found)
 
 ## Version
+
 Updated from v2.3.3 to v2.3.4

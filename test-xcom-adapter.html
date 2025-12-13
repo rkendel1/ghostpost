@@ -1,331 +1,380 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>X.com DOM Structure Test</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" 
-            integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb" 
-            crossorigin="anonymous"></script>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 900px;
-            margin: 40px auto;
-            padding: 20px;
-            background: #f8f9fa;
-        }
-        h1 {
-            color: #667eea;
-            border-bottom: 3px solid #667eea;
-            padding-bottom: 10px;
-        }
-        .test-section {
-            background: white;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .tweet-container {
-            border: 1px solid #e1e8ed;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 8px;
-            background: white;
-        }
-        .success {
-            background: #f0fdf4 !important;
-            border-color: #10b981 !important;
-        }
-        .error {
-            background: #fef2f2 !important;
-            border-color: #ef4444 !important;
-        }
-        button {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin: 5px;
-        }
-        button:hover {
-            background: #5568d3;
-        }
-        .result {
-            margin-top: 10px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 4px;
-            font-family: monospace;
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-size: 12px;
-        }
-        .test-case {
-            margin: 15px 0;
-            padding: 15px;
-            border: 2px solid #667eea;
-            border-radius: 8px;
-        }
-    </style>
-</head>
-<body>
-    <h1>🐦 X.com DOM Structure Test</h1>
-    
-    <div class="test-section">
-        <h2>Test Purpose</h2>
-        <p>This page simulates X.com's complex DOM structure to test the enhanced Twitter adapter.</p>
-        <p>X.com splits text across multiple nested elements, and the adapter must reconstruct the complete message.</p>
-        <button onclick="runAllTests()">▶️ Run All Tests</button>
-    </div>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>X.com DOM Structure Test</title>
+		<script
+			src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"
+			integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb"
+			crossorigin="anonymous"
+		></script>
+		<style>
+			body {
+				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+				max-width: 900px;
+				margin: 40px auto;
+				padding: 20px;
+				background: #f8f9fa;
+			}
+			h1 {
+				color: #667eea;
+				border-bottom: 3px solid #667eea;
+				padding-bottom: 10px;
+			}
+			.test-section {
+				background: white;
+				padding: 20px;
+				margin: 20px 0;
+				border-radius: 8px;
+				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+			}
+			.tweet-container {
+				border: 1px solid #e1e8ed;
+				padding: 15px;
+				margin: 10px 0;
+				border-radius: 8px;
+				background: white;
+			}
+			.success {
+				background: #f0fdf4 !important;
+				border-color: #10b981 !important;
+			}
+			.error {
+				background: #fef2f2 !important;
+				border-color: #ef4444 !important;
+			}
+			button {
+				background: #667eea;
+				color: white;
+				border: none;
+				padding: 10px 20px;
+				border-radius: 4px;
+				cursor: pointer;
+				font-size: 14px;
+				margin: 5px;
+			}
+			button:hover {
+				background: #5568d3;
+			}
+			.result {
+				margin-top: 10px;
+				padding: 10px;
+				background: #f8f9fa;
+				border-radius: 4px;
+				font-family: monospace;
+				white-space: pre-wrap;
+				word-break: break-word;
+				font-size: 12px;
+			}
+			.test-case {
+				margin: 15px 0;
+				padding: 15px;
+				border: 2px solid #667eea;
+				border-radius: 8px;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>🐦 X.com DOM Structure Test</h1>
 
-    <div class="test-section">
-        <h2>Test Cases</h2>
-        <div id="test-results"></div>
-    </div>
+		<div class="test-section">
+			<h2>Test Purpose</h2>
+			<p>This page simulates X.com's complex DOM structure to test the enhanced Twitter adapter.</p>
+			<p>
+				X.com splits text across multiple nested elements, and the adapter must reconstruct the
+				complete message.
+			</p>
+			<button onclick="runAllTests()">▶️ Run All Tests</button>
+		</div>
 
-    <script>
-        // Encoding constants
-        const ENCODING_CONSTANTS = Object.freeze({
-            BASE64_CHAR_MAP: Object.freeze({
-                '\u2060\u2060': 'A', '\u2060\u200B': 'B', '\u2060\u200C': 'C', '\u2060\u200D': 'D',
-                '\u2060\u200E': 'E', '\u2060\u200F': 'F', '\u2060\u202D': 'G', '\u2060\u202C': 'H',
-                '\u200B\u2060': 'I', '\u200B\u200B': 'J', '\u200B\u200C': 'K', '\u200B\u200D': 'L',
-                '\u200B\u200E': 'M', '\u200B\u200F': 'N', '\u200B\u202D': 'O', '\u200B\u202C': 'P',
-                '\u200C\u2060': 'Q', '\u200C\u200B': 'R', '\u200C\u200C': 'S', '\u200C\u200D': 'T',
-                '\u200C\u200E': 'U', '\u200C\u200F': 'V', '\u200C\u202D': 'W', '\u200C\u202C': 'X',
-                '\u200D\u2060': 'Y', '\u200D\u200B': 'Z', '\u200D\u200C': 'a', '\u200D\u200D': 'b',
-                '\u200D\u200E': 'c', '\u200D\u200F': 'd', '\u200D\u202D': 'e', '\u200D\u202C': 'f',
-                '\u200E\u2060': 'g', '\u200E\u200B': 'h', '\u200E\u200C': 'i', '\u200E\u200D': 'j',
-                '\u200E\u200E': 'k', '\u200E\u200F': 'l', '\u200E\u202D': 'm', '\u200E\u202C': 'n',
-                '\u200F\u2060': 'o', '\u200F\u200B': 'p', '\u200F\u200C': 'q', '\u200F\u200D': 'r',
-                '\u200F\u200E': 's', '\u200F\u200F': 't', '\u200F\u202D': 'u', '\u200F\u202C': 'v',
-                '\u202D\u2060': 'w', '\u202D\u200B': 'x', '\u202D\u200C': 'y', '\u202D\u200D': 'z',
-                '\u202D\u200E': '0', '\u202D\u200F': '1', '\u202D\u202D': '2', '\u202D\u202C': '3',
-                '\u202C\u2060': '4', '\u202C\u200B': '5', '\u202C\u200C': '6', '\u202C\u200D': '7',
-                '\u202C\u200E': '8', '\u202C\u200F': '9', '\u202C\u202D': '+', '\u202C\u202C': '/'
-            }),
-            POST_ID_DELIMITER: '||ghostid:',
-            POST_ID_END: '||',
-            CONTENT_DELIMITER: '\uFEFF'
-        });
+		<div class="test-section">
+			<h2>Test Cases</h2>
+			<div id="test-results"></div>
+		</div>
 
-        // Simple encode function for testing
-        function encodeMessage(secret) {
-            const textEncoder = new TextEncoder();
-            const secretBytes = textEncoder.encode(secret);
-            
-            // Compress with pako
-            const compressed = pako.deflateRaw(secretBytes);
-            
-            // Convert to base64
-            let binary = '';
-            for (let i = 0; i < compressed.length; i++) {
-                binary += String.fromCharCode(compressed[i]);
-            }
-            const base64 = btoa(binary);
-            
-            // Convert base64 to invisible Unicode
-            const reverseMap = {};
-            for (const [unicode, base64Char] of Object.entries(ENCODING_CONSTANTS.BASE64_CHAR_MAP)) {
-                reverseMap[base64Char] = unicode;
-            }
-            
-            let invisibleString = '';
-            for (const char of base64) {
-                if (reverseMap[char]) {
-                    invisibleString += reverseMap[char];
-                }
-            }
-            
-            // Return encoded with delimiters
-            return ENCODING_CONSTANTS.CONTENT_DELIMITER + invisibleString + ENCODING_CONSTANTS.CONTENT_DELIMITER;
-        }
+		<script>
+			// Encoding constants
+			const ENCODING_CONSTANTS = Object.freeze({
+				BASE64_CHAR_MAP: Object.freeze({
+					'\u2060\u2060': 'A',
+					'\u2060\u200B': 'B',
+					'\u2060\u200C': 'C',
+					'\u2060\u200D': 'D',
+					'\u2060\u200E': 'E',
+					'\u2060\u200F': 'F',
+					'\u2060\u202D': 'G',
+					'\u2060\u202C': 'H',
+					'\u200B\u2060': 'I',
+					'\u200B\u200B': 'J',
+					'\u200B\u200C': 'K',
+					'\u200B\u200D': 'L',
+					'\u200B\u200E': 'M',
+					'\u200B\u200F': 'N',
+					'\u200B\u202D': 'O',
+					'\u200B\u202C': 'P',
+					'\u200C\u2060': 'Q',
+					'\u200C\u200B': 'R',
+					'\u200C\u200C': 'S',
+					'\u200C\u200D': 'T',
+					'\u200C\u200E': 'U',
+					'\u200C\u200F': 'V',
+					'\u200C\u202D': 'W',
+					'\u200C\u202C': 'X',
+					'\u200D\u2060': 'Y',
+					'\u200D\u200B': 'Z',
+					'\u200D\u200C': 'a',
+					'\u200D\u200D': 'b',
+					'\u200D\u200E': 'c',
+					'\u200D\u200F': 'd',
+					'\u200D\u202D': 'e',
+					'\u200D\u202C': 'f',
+					'\u200E\u2060': 'g',
+					'\u200E\u200B': 'h',
+					'\u200E\u200C': 'i',
+					'\u200E\u200D': 'j',
+					'\u200E\u200E': 'k',
+					'\u200E\u200F': 'l',
+					'\u200E\u202D': 'm',
+					'\u200E\u202C': 'n',
+					'\u200F\u2060': 'o',
+					'\u200F\u200B': 'p',
+					'\u200F\u200C': 'q',
+					'\u200F\u200D': 'r',
+					'\u200F\u200E': 's',
+					'\u200F\u200F': 't',
+					'\u200F\u202D': 'u',
+					'\u200F\u202C': 'v',
+					'\u202D\u2060': 'w',
+					'\u202D\u200B': 'x',
+					'\u202D\u200C': 'y',
+					'\u202D\u200D': 'z',
+					'\u202D\u200E': '0',
+					'\u202D\u200F': '1',
+					'\u202D\u202D': '2',
+					'\u202D\u202C': '3',
+					'\u202C\u2060': '4',
+					'\u202C\u200B': '5',
+					'\u202C\u200C': '6',
+					'\u202C\u200D': '7',
+					'\u202C\u200E': '8',
+					'\u202C\u200F': '9',
+					'\u202C\u202D': '+',
+					'\u202C\u202C': '/'
+				}),
+				POST_ID_DELIMITER: '||ghostid:',
+				POST_ID_END: '||',
+				CONTENT_DELIMITER: '\uFEFF'
+			});
 
-        // Helper function to check if text contains a complete encoded message
-        function hasCompleteEncodedMessage(text) {
-            if (!text) return false;
-            
-            const delimiterChar = '\uFEFF';
-            let count = 0;
-            let index = text.indexOf(delimiterChar);
-            
-            while (index !== -1) {
-                count++;
-                if (count >= 2) return true;
-                index = text.indexOf(delimiterChar, index + 1);
-            }
-            
-            return false;
-        }
+			// Simple encode function for testing
+			function encodeMessage(secret) {
+				const textEncoder = new TextEncoder();
+				const secretBytes = textEncoder.encode(secret);
 
-        // Twitter adapter extraction logic (updated with fix)
-        function twitterExtractText(node) {
-            // First try the text node itself
-            const nodeText = node.data || node.nodeValue || '';
-            if (nodeText && hasCompleteEncodedMessage(nodeText)) {
-                // Has complete message (both delimiters), use it directly
-                return nodeText;
-            }
-            
-            // Walk up the DOM tree to find complete message
-            let currentElement = node.parentElement;
-            let levelsChecked = 0;
-            const MAX_PARENT_LEVELS = 5;
-            
-            while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
-                let combinedText = '';
-                const walker = document.createTreeWalker(
-                    currentElement,
-                    NodeFilter.SHOW_TEXT,
-                    null
-                );
-                let textNode;
-                while ((textNode = walker.nextNode())) {
-                    combinedText += textNode.data || textNode.nodeValue || '';
-                }
-                
-                // Check if combined text has complete message (both delimiters)
-                if (combinedText && hasCompleteEncodedMessage(combinedText)) {
-                    return combinedText;
-                }
-                
-                currentElement = currentElement.parentElement;
-                levelsChecked++;
-            }
-            
-            return nodeText;
-        }
+				// Compress with pako
+				const compressed = pako.deflateRaw(secretBytes);
 
-        // Test cases
-        const tests = [
-            {
-                name: 'Test 1: Simple split - visible in span, invisible in sibling',
-                secret: 'Hidden message 1',
-                setupDOM: (container, encoded) => {
-                    container.innerHTML = '';
-                    const span1 = document.createElement('span');
-                    span1.appendChild(document.createTextNode('You suck'));
-                    const span2 = document.createElement('span');
-                    span2.appendChild(document.createTextNode(encoded));
-                    container.appendChild(span1);
-                    container.appendChild(span2);
-                }
-            },
-            {
-                name: 'Test 2: Deeply nested - 3 levels deep',
-                secret: 'Hidden message 2',
-                setupDOM: (container, encoded) => {
-                    container.innerHTML = '';
-                    const div1 = document.createElement('div');
-                    const div2 = document.createElement('div');
-                    const span = document.createElement('span');
-                    span.appendChild(document.createTextNode('Visible text'));
-                    div2.appendChild(span);
-                    const span2 = document.createElement('span');
-                    span2.appendChild(document.createTextNode(encoded));
-                    div2.appendChild(span2);
-                    div1.appendChild(div2);
-                    container.appendChild(div1);
-                }
-            },
-            {
-                name: 'Test 3: Very deeply nested - 5 levels deep',
-                secret: 'Hidden message 3',
-                setupDOM: (container, encoded) => {
-                    container.innerHTML = '';
-                    let current = container;
-                    for (let i = 0; i < 5; i++) {
-                        const div = document.createElement('div');
-                        current.appendChild(div);
-                        current = div;
-                    }
-                    current.appendChild(document.createTextNode('Text'));
-                    const span = document.createElement('span');
-                    span.appendChild(document.createTextNode(encoded));
-                    current.appendChild(span);
-                }
-            },
-            {
-                name: 'Test 4: Multiple text nodes scattered',
-                secret: 'Hidden message 4',
-                setupDOM: (container, encoded) => {
-                    container.innerHTML = '';
-                    container.appendChild(document.createTextNode('Part 1 '));
-                    const span1 = document.createElement('span');
-                    span1.appendChild(document.createTextNode('Part 2'));
-                    container.appendChild(span1);
-                    container.appendChild(document.createTextNode(' Part 3'));
-                    const span2 = document.createElement('span');
-                    span2.appendChild(document.createTextNode(encoded));
-                    container.appendChild(span2);
-                }
-            }
-        ];
+				// Convert to base64
+				let binary = '';
+				for (let i = 0; i < compressed.length; i++) {
+					binary += String.fromCharCode(compressed[i]);
+				}
+				const base64 = btoa(binary);
 
-        function runAllTests() {
-            const resultsDiv = document.getElementById('test-results');
-            let html = '';
-            let passed = 0;
-            let failed = 0;
+				// Convert base64 to invisible Unicode
+				const reverseMap = {};
+				for (const [unicode, base64Char] of Object.entries(ENCODING_CONSTANTS.BASE64_CHAR_MAP)) {
+					reverseMap[base64Char] = unicode;
+				}
 
-            tests.forEach((test, index) => {
-                const testId = `test-${index}`;
-                const container = document.createElement('div');
-                container.className = 'tweet-container';
-                container.id = testId;
-                
-                // Encode the secret
-                const encoded = encodeMessage(test.secret);
-                
-                // Set up DOM structure
-                test.setupDOM(container, encoded);
-                
-                // Find text node with invisible chars
-                const walker = document.createTreeWalker(
-                    container,
-                    NodeFilter.SHOW_TEXT,
-                    null
-                );
-                
-                let foundNode = null;
-                let textNode;
-                while ((textNode = walker.nextNode())) {
-                    const text = textNode.data || textNode.nodeValue || '';
-                    if (text && text.indexOf('\uFEFF') !== -1) {
-                        foundNode = textNode;
-                        break;
-                    }
-                }
-                
-                // Test extraction
-                let extractedText = '';
-                let success = false;
-                let error = '';
-                
-                if (foundNode) {
-                    extractedText = twitterExtractText(foundNode);
-                    success = extractedText.indexOf('\uFEFF') !== -1;
-                    if (!success) {
-                        error = 'Extracted text does not contain delimiter';
-                    }
-                } else {
-                    error = 'Could not find text node with delimiter';
-                }
-                
-                if (success) {
-                    passed++;
-                    container.className += ' success';
-                } else {
-                    failed++;
-                    container.className += ' error';
-                }
-                
-                html += `
+				let invisibleString = '';
+				for (const char of base64) {
+					if (reverseMap[char]) {
+						invisibleString += reverseMap[char];
+					}
+				}
+
+				// Return encoded with delimiters
+				return (
+					ENCODING_CONSTANTS.CONTENT_DELIMITER +
+					invisibleString +
+					ENCODING_CONSTANTS.CONTENT_DELIMITER
+				);
+			}
+
+			// Helper function to check if text contains a complete encoded message
+			function hasCompleteEncodedMessage(text) {
+				if (!text) return false;
+
+				const delimiterChar = '\uFEFF';
+				let count = 0;
+				let index = text.indexOf(delimiterChar);
+
+				while (index !== -1) {
+					count++;
+					if (count >= 2) return true;
+					index = text.indexOf(delimiterChar, index + 1);
+				}
+
+				return false;
+			}
+
+			// Twitter adapter extraction logic (updated with fix)
+			function twitterExtractText(node) {
+				// First try the text node itself
+				const nodeText = node.data || node.nodeValue || '';
+				if (nodeText && hasCompleteEncodedMessage(nodeText)) {
+					// Has complete message (both delimiters), use it directly
+					return nodeText;
+				}
+
+				// Walk up the DOM tree to find complete message
+				let currentElement = node.parentElement;
+				let levelsChecked = 0;
+				const MAX_PARENT_LEVELS = 5;
+
+				while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
+					let combinedText = '';
+					const walker = document.createTreeWalker(currentElement, NodeFilter.SHOW_TEXT, null);
+					let textNode;
+					while ((textNode = walker.nextNode())) {
+						combinedText += textNode.data || textNode.nodeValue || '';
+					}
+
+					// Check if combined text has complete message (both delimiters)
+					if (combinedText && hasCompleteEncodedMessage(combinedText)) {
+						return combinedText;
+					}
+
+					currentElement = currentElement.parentElement;
+					levelsChecked++;
+				}
+
+				return nodeText;
+			}
+
+			// Test cases
+			const tests = [
+				{
+					name: 'Test 1: Simple split - visible in span, invisible in sibling',
+					secret: 'Hidden message 1',
+					setupDOM: (container, encoded) => {
+						container.innerHTML = '';
+						const span1 = document.createElement('span');
+						span1.appendChild(document.createTextNode('You suck'));
+						const span2 = document.createElement('span');
+						span2.appendChild(document.createTextNode(encoded));
+						container.appendChild(span1);
+						container.appendChild(span2);
+					}
+				},
+				{
+					name: 'Test 2: Deeply nested - 3 levels deep',
+					secret: 'Hidden message 2',
+					setupDOM: (container, encoded) => {
+						container.innerHTML = '';
+						const div1 = document.createElement('div');
+						const div2 = document.createElement('div');
+						const span = document.createElement('span');
+						span.appendChild(document.createTextNode('Visible text'));
+						div2.appendChild(span);
+						const span2 = document.createElement('span');
+						span2.appendChild(document.createTextNode(encoded));
+						div2.appendChild(span2);
+						div1.appendChild(div2);
+						container.appendChild(div1);
+					}
+				},
+				{
+					name: 'Test 3: Very deeply nested - 5 levels deep',
+					secret: 'Hidden message 3',
+					setupDOM: (container, encoded) => {
+						container.innerHTML = '';
+						let current = container;
+						for (let i = 0; i < 5; i++) {
+							const div = document.createElement('div');
+							current.appendChild(div);
+							current = div;
+						}
+						current.appendChild(document.createTextNode('Text'));
+						const span = document.createElement('span');
+						span.appendChild(document.createTextNode(encoded));
+						current.appendChild(span);
+					}
+				},
+				{
+					name: 'Test 4: Multiple text nodes scattered',
+					secret: 'Hidden message 4',
+					setupDOM: (container, encoded) => {
+						container.innerHTML = '';
+						container.appendChild(document.createTextNode('Part 1 '));
+						const span1 = document.createElement('span');
+						span1.appendChild(document.createTextNode('Part 2'));
+						container.appendChild(span1);
+						container.appendChild(document.createTextNode(' Part 3'));
+						const span2 = document.createElement('span');
+						span2.appendChild(document.createTextNode(encoded));
+						container.appendChild(span2);
+					}
+				}
+			];
+
+			function runAllTests() {
+				const resultsDiv = document.getElementById('test-results');
+				let html = '';
+				let passed = 0;
+				let failed = 0;
+
+				tests.forEach((test, index) => {
+					const testId = `test-${index}`;
+					const container = document.createElement('div');
+					container.className = 'tweet-container';
+					container.id = testId;
+
+					// Encode the secret
+					const encoded = encodeMessage(test.secret);
+
+					// Set up DOM structure
+					test.setupDOM(container, encoded);
+
+					// Find text node with invisible chars
+					const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+
+					let foundNode = null;
+					let textNode;
+					while ((textNode = walker.nextNode())) {
+						const text = textNode.data || textNode.nodeValue || '';
+						if (text && text.indexOf('\uFEFF') !== -1) {
+							foundNode = textNode;
+							break;
+						}
+					}
+
+					// Test extraction
+					let extractedText = '';
+					let success = false;
+					let error = '';
+
+					if (foundNode) {
+						extractedText = twitterExtractText(foundNode);
+						success = extractedText.indexOf('\uFEFF') !== -1;
+						if (!success) {
+							error = 'Extracted text does not contain delimiter';
+						}
+					} else {
+						error = 'Could not find text node with delimiter';
+					}
+
+					if (success) {
+						passed++;
+						container.className += ' success';
+					} else {
+						failed++;
+						container.className += ' error';
+					}
+
+					html += `
                     <div class="test-case ${success ? 'success' : 'error'}">
                         <h3>${success ? '✅' : '❌'} ${test.name}</h3>
                         <p><strong>Secret:</strong> "${test.secret}"</p>
@@ -341,25 +390,25 @@
                         </div>
                     </div>
                 `;
-            });
+				});
 
-            html += `
+				html += `
                 <div class="test-case ${failed === 0 ? 'success' : 'error'}">
                     <h3>📊 Summary</h3>
                     <div class="result">
                         <strong>Total Tests:</strong> ${tests.length}
                         <strong>Passed:</strong> ${passed}
                         <strong>Failed:</strong> ${failed}
-                        <strong>Success Rate:</strong> ${(passed / tests.length * 100).toFixed(1)}%
+                        <strong>Success Rate:</strong> ${((passed / tests.length) * 100).toFixed(1)}%
                     </div>
                 </div>
             `;
 
-            resultsDiv.innerHTML = html;
-        }
+				resultsDiv.innerHTML = html;
+			}
 
-        // Auto-run on load
-        window.addEventListener('DOMContentLoaded', runAllTests);
-    </script>
-</body>
+			// Auto-run on load
+			window.addEventListener('DOMContentLoaded', runAllTests);
+		</script>
+	</body>
 </html>
