@@ -231,22 +231,23 @@ function hasCompleteEncodedMessage(text) {
 }
 
 /**
- * Extract complete encoded text from a text node - SIMPLIFIED with advanced fallbacks
+ * Extract complete encoded text from a text node - Parent tree walking approach (pre-PR115)
  * 
- * STRATEGY: Try simple approaches first, use complex techniques as backups only when needed
+ * STRATEGY: Walk up DOM tree and aggregate text at each parent level
  * 
  * CONTEXT: X.com's GraphQL API preserves all invisible Unicode characters in the
- * full_text field. Most of the time (90%+), the complete encoded message is accessible
- * via simple text extraction. Only when X.com's DOM splits the content do we need
- * advanced aggregation techniques.
+ * full_text field, but the DOM can split them across nested elements.
+ * Walking up the parent tree and aggregating all text nodes at each level
+ * ensures we capture the complete encoded message even when split.
  * 
- * Extraction order (from simplest to most complex):
- * 1. Direct text node access - works 90%+ of the time
- * 2. Parent element textContent - fast and works for most splits
- * 3. Parent traversal with TreeWalker - handles deep nesting (up to 10 levels)
- * 4. Sibling aggregation - handles horizontal splits across spans
+ * Extraction steps:
+ * 1. Check text node itself for complete message (both delimiters)
+ * 2. Walk up parent elements (max 10 levels)
+ * 3. At each level, aggregate all text nodes using TreeWalker
+ * 4. Return first complete message found
+ * 5. Fall back to original node text if nothing found
  * 
- * See XCOM_API_BEHAVIOR.md for detailed explanation of X.com's behavior.
+ * See XCOM_DECODING_FIX.md for detailed explanation of this approach.
  */
 function extractCompleteText(node) {
 	// Parent tree walking approach (pre-PR115)
