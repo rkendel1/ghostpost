@@ -326,6 +326,11 @@ function scanPageForHiddenContent() {
 	const detectedElements = [];
 	const processedElements = new Set(); // Track processed elements to avoid duplicates
 	const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+	
+	// Check if we're on X.com
+	const hostname = window.location.hostname.toLowerCase();
+	const isXCom = hostname === 'x.com' || hostname === 'twitter.com' || 
+	               hostname.endsWith('.x.com') || hostname.endsWith('.twitter.com');
 
 	let textNode;
 	while ((textNode = walker.nextNode())) {
@@ -336,6 +341,11 @@ function scanPageForHiddenContent() {
 
 		// For x.com: only consider text inside a tweetText container
 		const tweetContainer = textNode.parentElement?.closest('[data-testid="tweetText"]');
+		if (isXCom && !tweetContainer) {
+			// Skip non-tweet text on X.com
+			continue;
+		}
+		
 		if (tweetContainer) {
 			// Aggregate full tweet text to handle splits
 			let fullText = '';
@@ -530,6 +540,11 @@ function isInFeedContainer(node) {
 function scanNewNodes(nodes) {
 	const detectedElements = [];
 	const processedElements = new Set(); // Track processed elements to avoid duplicates
+	
+	// Check if we're on X.com
+	const hostname = window.location.hostname.toLowerCase();
+	const isXCom = hostname === 'x.com' || hostname === 'twitter.com' || 
+	               hostname.endsWith('.x.com') || hostname.endsWith('.twitter.com');
 
 	for (const node of nodes) {
 		if (node.nodeType === Node.TEXT_NODE) {
@@ -540,6 +555,11 @@ function scanNewNodes(nodes) {
 
 			// For x.com: only consider text inside a tweetText container
 			const tweetContainer = node.parentElement?.closest('[data-testid="tweetText"]');
+			if (isXCom && !tweetContainer) {
+				// Skip non-tweet text on X.com
+				continue;
+			}
+			
 			if (tweetContainer) {
 				// Aggregate full tweet text to handle splits
 				let fullText = '';
@@ -576,6 +596,11 @@ function scanNewNodes(nodes) {
 
 				// For x.com: only consider text inside a tweetText container
 				const tweetContainer = textNode.parentElement?.closest('[data-testid="tweetText"]');
+				if (isXCom && !tweetContainer) {
+					// Skip non-tweet text on X.com
+					continue;
+				}
+				
 				if (tweetContainer) {
 					// Aggregate full tweet text to handle splits
 					let fullText = '';
