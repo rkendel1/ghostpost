@@ -1,7 +1,7 @@
 {
 	"manifest_version": 3,
 	"name": "Ghostpost Reveal - Hidden Message Detector",
-	"version": "1.2.6",
+	"version": "1.2.4",
 	"description": "Automatically detect and reveal hidden Ghostpost messages on any webpage with one click",
 	"permissions": ["activeTab", "sidePanel", "storage"],
 	"optional_permissions": ["incognito"],

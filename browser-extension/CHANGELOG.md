@@ -2,7 +2,7 @@
 
 # Ghostpost Reveal Browser Extension
 
-## [1.2.6] - 2025-12-13
+## [1.2.4] - 2025-12-13
 
 ### Reverted
 - **REVERT TO PRE-PR115**: Restored x.com reveal approach to parent tree walking method

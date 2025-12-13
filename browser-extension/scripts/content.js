@@ -2,7 +2,7 @@
  * Content Script - Scans page for hidden content
  * Detects invisible Unicode characters used by Hidenly encoding
  *
- * ENHANCED FEATURES (v1.2.6):
+ * ENHANCED FEATURES (v1.2.4):
  * - REVERT: Restored pre-PR115 x.com reveal approach with parent tree walking
  * - Changed extractCompleteText() back to simple parent traversal method (up to 10 levels)
  * - Removed extra "simple approaches" that were added after PR115
@@ -249,7 +249,7 @@ function hasCompleteEncodedMessage(text) {
  * See XCOM_API_BEHAVIOR.md for detailed explanation of X.com's behavior.
  */
 function extractCompleteText(node) {
-	// Parent tree walking approach (Pre-PR115)
+	// Parent tree walking approach (pre-PR115)
 	// This approach provides better identification of hidden text on x.com
 	const nodeText = node.data || node.nodeValue || '';
 	

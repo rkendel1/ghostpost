@@ -471,7 +471,7 @@
 		}
 
 		/**
-		 * Twitter/X.com specialized adapter - Parent tree walking approach (Pre-PR115)
+		 * Twitter/X.com specialized adapter - Parent tree walking approach (pre-PR115)
 		 * 
 		 * STRATEGY: Walk up DOM tree and aggregate text at each parent level
 		 * This approach provides better identification of hidden text on x.com
@@ -531,7 +531,7 @@
 				return nodeText;
 			},
 			description:
-				'Parent tree walking extraction for X.com (up to 10 levels) - Pre-PR115 approach'
+				'Parent tree walking extraction for X.com (up to 10 levels) - pre-PR115 approach'
 		};
 
 		/**
