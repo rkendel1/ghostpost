@@ -196,7 +196,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.3.7';
+	const SCRIPT_VERSION = '2.4.4';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Function to initialize the userscript
@@ -1579,7 +1579,7 @@
 			header.innerHTML = `
 			<div>
 				<h2 style="margin: 0; font-size: 18px; font-weight: 600; color: white;">
-					<span style="font-size: 20px;">👻</span> Hidden Messages
+					<span style="font-size: 20px;">👻</span> Hidden Messages <span style="font-size: 11px; font-weight: 400; opacity: 0.8; margin-left: 6px;">v${SCRIPT_VERSION}</span>
 				</h2>
 				<p style="margin: 3px 0 0 0; font-size: 13px; color: rgba(255,255,255,0.9);">
 					${hiddenMessages.length} secret${hiddenMessages.length > 1 ? 's' : ''} found
