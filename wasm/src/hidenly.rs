@@ -129,8 +129,18 @@ fn encoded_to_base64(input: &str) -> String {
 }
 
 fn wrap(input: &str, secret: &str) -> String {
-    let middle_index = input.len() / 2;
-    let (first_half, second_half) = input.split_at(middle_index);
+    // Calculate middle index based on character count, not byte count
+    // This ensures we don't split in the middle of a multi-byte UTF-8 character
+    let char_count = input.chars().count();
+    let middle_char_index = char_count / 2;
+    
+    // Find the byte index corresponding to the middle character
+    let middle_byte_index = input.char_indices()
+        .nth(middle_char_index)
+        .map(|(idx, _)| idx)
+        .unwrap_or(0);
+    
+    let (first_half, second_half) = input.split_at(middle_byte_index);
     format!("{}\u{FEFF}{}\u{FEFF}{}", first_half, secret, second_half)
 }
 
