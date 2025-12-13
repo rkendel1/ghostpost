@@ -42,6 +42,7 @@ Improved the Twitter adapter with **4-strategy extraction approach**:
 ```
 
 **Key Improvements:**
+
 - Multiple extraction strategies ensure reliability across different X.com DOM structures
 - Enhanced debug logging with X.com-specific context
 - References XCOM_API_BEHAVIOR.md for troubleshooting
@@ -63,12 +64,14 @@ Applied the same multi-strategy improvements to the browser extension:
 ### 4. Updated Changelogs
 
 **Userscript Changelog:**
+
 - Version bumped to 2.3.9
 - Documented multi-strategy extraction
 - Explained X.com API behavior context
 - Listed all improvements
 
 **Extension Changelog:**
+
 - Version bumped to 1.2.2
 - Added comprehensive section on X.com reliability enhancements
 - Documented the 4-strategy approach
@@ -83,24 +86,25 @@ X.com's frontend rendering engine can split text content in various ways:
 ```html
 <!-- Pattern 1: Nested splitting -->
 <div>
-  <span>
-    <span>\uFEFF</span>
-    <span>invisible_chars</span>
-    <span>\uFEFF</span>
-  </span>
+	<span>
+		<span>\uFEFF</span>
+		<span>invisible_chars</span>
+		<span>\uFEFF</span>
+	</span>
 </div>
 
 <!-- Pattern 2: Horizontal splitting -->
 <div>
-  <span>\uFEFF + invisible_chars_part1</span>
-  <span>invisible_chars_part2 + \uFEFF</span>
+	<span>\uFEFF + invisible_chars_part1</span>
+	<span>invisible_chars_part2 + \uFEFF</span>
 </div>
 
 <!-- Pattern 3: Deep nesting (6-10 levels) -->
 <article>
-  <div> ... 10 levels deep ...
-    <span>\uFEFF invisible_chars \uFEFF</span>
-  </div>
+	<div>
+		... 10 levels deep ...
+		<span>\uFEFF invisible_chars \uFEFF</span>
+	</div>
 </article>
 ```
 
@@ -120,10 +124,12 @@ This confirms our approach is correct: scan the DOM/API for invisible characters
 ## Files Changed
 
 ### New Files
+
 - `XCOM_API_BEHAVIOR.md` - Comprehensive documentation (279 lines)
 - `XCOM_FINAL_REVEAL_UPDATE_SUMMARY.md` - This file
 
 ### Modified Files
+
 - `static/ghostpost-reveal.user.js` - Enhanced Twitter adapter (v2.3.9)
 - `browser-extension/scripts/content.js` - Enhanced extraction function (v1.2.2)
 - `browser-extension/manifest.json` - Version bump to 1.2.2
@@ -132,6 +138,7 @@ This confirms our approach is correct: scan the DOM/API for invisible characters
 ## Impact
 
 ### Before This Update
+
 - Single extraction strategy (parent tree walking)
 - Limited to 10 levels of nesting
 - Could miss messages split horizontally
@@ -139,6 +146,7 @@ This confirms our approach is correct: scan the DOM/API for invisible characters
 - No comprehensive documentation
 
 ### After This Update
+
 - ✅ 4-strategy extraction approach
 - ✅ Handles vertical and horizontal splitting
 - ✅ Comprehensive X.com behavior documentation
@@ -166,6 +174,7 @@ To validate these changes:
 To enable detailed logging:
 
 **Userscript:**
+
 ```javascript
 const DEBUG_MODE = true; // Line ~171
 ```

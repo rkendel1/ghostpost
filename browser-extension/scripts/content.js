@@ -13,7 +13,7 @@
  * - Incremental scanning of new nodes for better performance
  * - Periodic background scanning (every 10s) for social media to catch missed updates
  * - Feed-specific DOM selectors for targeted detection
- * 
+ *
  * X.COM CONTEXT:
  * X.com's GraphQL API preserves all invisible Unicode characters in the full_text field.
  * The frontend visually collapses them, but they're fully accessible in DOM/API responses.
@@ -149,62 +149,62 @@ function isLikelyHidenlyMessage(text) {
  * A complete message needs at least TWO delimiter characters (\uFEFF)
  * Format: \uFEFF + invisible_chars + \uFEFF
  * ENHANCED: Validates content between delimiters contains only invisible characters
- * 
+ *
  * Design note: We filter \uFEFF from HIDENLY_CHARS to create the list of
  * valid characters that can appear BETWEEN delimiters. This ensures that
  * delimiter characters themselves don't appear in the encoded content.
  */
 function hasCompleteEncodedMessage(text) {
 	if (!text) return false;
-	
+
 	const delimiterChar = '\uFEFF';
-	
+
 	// Find first delimiter
 	const firstDelimIndex = text.indexOf(delimiterChar);
 	if (firstDelimIndex === -1) return false;
-	
+
 	// Find second delimiter after the first
 	const secondDelimIndex = text.indexOf(delimiterChar, firstDelimIndex + 1);
 	if (secondDelimIndex === -1) return false;
-	
+
 	// Extract content between delimiters
 	const betweenDelimiters = text.substring(firstDelimIndex + 1, secondDelimIndex);
-	
+
 	// Must have content between delimiters
 	if (betweenDelimiters.length === 0) return false;
-	
+
 	// Validate that content between delimiters contains only invisible characters
 	// This prevents false positives from legitimate FEFF usage
 	// We filter out FEFF since it's the delimiter, not encoding content
-	const invisibleCharsOnly = HIDENLY_CHARS.filter(char => char !== '\uFEFF');
-	const hasOnlyInvisible = [...betweenDelimiters].every(char => 
+	const invisibleCharsOnly = HIDENLY_CHARS.filter((char) => char !== '\uFEFF');
+	const hasOnlyInvisible = [...betweenDelimiters].every((char) =>
 		invisibleCharsOnly.includes(char)
 	);
-	
+
 	if (!hasOnlyInvisible) {
 		console.log('[Hidenly] Rejected: visible text found between delimiters');
 		return false;
 	}
-	
+
 	return true;
 }
 
 /**
  * Extract complete encoded text from a text node - SIMPLIFIED with advanced fallbacks
- * 
+ *
  * STRATEGY: Try simple approaches first, use complex techniques as backups only when needed
- * 
+ *
  * CONTEXT: X.com's GraphQL API preserves all invisible Unicode characters in the
  * full_text field. Most of the time (90%+), the complete encoded message is accessible
  * via simple text extraction. Only when X.com's DOM splits the content do we need
  * advanced aggregation techniques.
- * 
+ *
  * Extraction order (from simplest to most complex):
  * 1. Direct text node access - works 90%+ of the time
  * 2. Parent element textContent - fast and works for most splits
  * 3. Parent traversal with TreeWalker - handles deep nesting (up to 10 levels)
  * 4. Sibling aggregation - handles horizontal splits across spans
- * 
+ *
  * See XCOM_API_BEHAVIOR.md for detailed explanation of X.com's behavior.
  */
 function extractCompleteText(node) {
@@ -214,7 +214,7 @@ function extractCompleteText(node) {
 		console.log('[Hidenly] [X.com] ✓ Complete message found in text node (simple)');
 		return nodeText;
 	}
-	
+
 	// SIMPLE APPROACH #2: Try parent element's textContent (fast and works for most splits)
 	if (node.parentElement) {
 		const parentText = node.parentElement.textContent || '';
@@ -223,57 +223,57 @@ function extractCompleteText(node) {
 			return parentText;
 		}
 	}
-	
+
 	// ADVANCED FALLBACK #1: Walk up DOM tree with TreeWalker (handles deep nesting)
 	// Only runs if simple approaches fail
 	let currentElement = node.parentElement;
 	let levelsChecked = 0;
 	const MAX_PARENT_LEVELS = 10;
-	
+
 	while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
 		// Get all text from this element by aggregating child text nodes
 		let combinedText = '';
-		const walker = document.createTreeWalker(
-			currentElement,
-			NodeFilter.SHOW_TEXT,
-			null
-		);
+		const walker = document.createTreeWalker(currentElement, NodeFilter.SHOW_TEXT, null);
 		let textNode;
 		while ((textNode = walker.nextNode())) {
 			combinedText += textNode.data || textNode.nodeValue || '';
 		}
-		
+
 		// Check if combined text has complete message (both delimiters + valid content)
 		if (combinedText && hasCompleteEncodedMessage(combinedText)) {
-			console.log('[Hidenly] [X.com] ✓ Complete message found at parent level', levelsChecked + 1, '(advanced TreeWalker)');
+			console.log(
+				'[Hidenly] [X.com] ✓ Complete message found at parent level',
+				levelsChecked + 1,
+				'(advanced TreeWalker)'
+			);
 			return combinedText;
 		}
-		
+
 		// Move up to parent
 		currentElement = currentElement.parentElement;
 		levelsChecked++;
 	}
-	
+
 	// ADVANCED FALLBACK #2: Check sibling nodes (handles horizontal splits)
 	// Only runs if all previous approaches fail
 	if (node.parentElement) {
 		let siblingText = '';
 		const parent = node.parentElement;
 		const children = parent.childNodes;
-		
+
 		for (let i = 0; i < children.length; i++) {
 			const child = children[i];
 			if (child.nodeType === Node.TEXT_NODE) {
 				siblingText += child.data || child.nodeValue || '';
 			}
 		}
-		
+
 		if (siblingText && hasCompleteEncodedMessage(siblingText)) {
 			console.log('[Hidenly] [X.com] ✓ Complete message found in sibling aggregation (advanced)');
 			return siblingText;
 		}
 	}
-	
+
 	// All strategies exhausted - log debug info and return what we have
 	console.warn('[Hidenly] [X.com] ⚠ Could not find complete message after trying all strategies');
 	console.warn('[Hidenly] [X.com] Node text preview:', (nodeText || '').substring(0, 100));
@@ -281,7 +281,7 @@ function extractCompleteText(node) {
 	console.warn('[Hidenly] [X.com] Checked', MAX_PARENT_LEVELS, 'parent levels');
 	console.warn('[Hidenly] [X.com] NOTE: X.com preserves invisible chars in full_text field');
 	console.warn('[Hidenly] [X.com] See XCOM_API_BEHAVIOR.md for troubleshooting guidance');
-	
+
 	// Return node text anyway - decoder will provide appropriate error message
 	return nodeText || '';
 }
@@ -305,13 +305,13 @@ function scanPageForHiddenContent() {
 			if (element && !processedElements.has(element)) {
 				// Extract complete text (may aggregate from parent elements)
 				const completeText = extractCompleteText(node);
-				
+
 				detectedElements.push({
 					element: element,
 					text: completeText, // Use complete aggregated text
 					location: getElementLocation(element)
 				});
-				
+
 				processedElements.add(element);
 			}
 		}
@@ -492,13 +492,13 @@ function scanNewNodes(nodes) {
 				if (element && !processedElements.has(element)) {
 					// Extract complete text (may aggregate from parent elements)
 					const completeText = extractCompleteText(node);
-					
+
 					detectedElements.push({
 						element: element,
 						text: completeText, // Use complete aggregated text
 						location: getElementLocation(element)
 					});
-					
+
 					processedElements.add(element);
 				}
 			}
@@ -514,13 +514,13 @@ function scanNewNodes(nodes) {
 					if (element && !processedElements.has(element)) {
 						// Extract complete text (may aggregate from parent elements)
 						const completeText = extractCompleteText(textNode);
-						
+
 						detectedElements.push({
 							element: element,
 							text: completeText, // Use complete aggregated text
 							location: getElementLocation(element)
 						});
-						
+
 						processedElements.add(element);
 					}
 				}

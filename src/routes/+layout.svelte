@@ -15,7 +15,7 @@
 	import Navigation from '$lib/navigation/Navigation.svelte';
 	import AuthModal from '$lib/components/AuthModal.svelte';
 	import { authStore } from '$lib/stores/auth';
-	
+
 	injectAnalytics();
 
 	let mounted = false;

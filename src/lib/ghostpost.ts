@@ -84,12 +84,12 @@ export async function encodeMessage(
 	}
 
 	const encoded = encode(visibleMessage, finalSecret);
-	
+
 	// Calculate character counts
 	const visibleLength = visibleMessage.length;
 	const totalLength = encoded.length;
 	const hiddenLength = totalLength - visibleLength;
-	
+
 	return { encoded, postId, visibleLength, hiddenLength, totalLength };
 }
 
@@ -197,7 +197,7 @@ async function resizeImageIfNeeded(
 				return new Promise((resolve, reject) => {
 					const scaledWidth = Math.floor(width * scaleFactor);
 					const scaledHeight = Math.floor(height * scaleFactor);
-					
+
 					// Create a new canvas with scaled dimensions if needed
 					const finalCanvas = scaleFactor < 1.0 ? document.createElement('canvas') : canvas;
 					if (scaleFactor < 1.0) {
@@ -210,7 +210,7 @@ async function resizeImageIfNeeded(
 						}
 						finalCtx.drawImage(canvas, 0, 0, scaledWidth, scaledHeight);
 					}
-					
+
 					// Always convert to JPEG for better compression
 					finalCanvas.toBlob(
 						(blob) => {
@@ -247,7 +247,7 @@ async function resizeImageIfNeeded(
 							return;
 						}
 					}
-					
+
 					// If still too large, try reducing dimensions with lowest quality
 					for (const scale of SCALE_FACTORS) {
 						const blob = await tryQuality(QUALITY_LEVELS[QUALITY_LEVELS.length - 1], scale);
@@ -256,7 +256,7 @@ async function resizeImageIfNeeded(
 							return;
 						}
 					}
-					
+
 					// If still too large, reject with error
 					reject(
 						new Error(
@@ -317,12 +317,12 @@ export async function encodeImage(
 	}
 
 	const encoded = encode(visibleMessage, imageWithMeta);
-	
+
 	// Calculate character counts
 	const visibleLength = visibleMessage.length;
 	const totalLength = encoded.length;
 	const hiddenLength = totalLength - visibleLength;
-	
+
 	return { encoded, postId, visibleLength, hiddenLength, totalLength };
 }
 

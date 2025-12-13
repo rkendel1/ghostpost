@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	
+
 	// Redirect to the appropriate install page based on device
 	onMount(() => {
 		const ua = navigator.userAgent.toLowerCase();
 		const isIOS = /iphone|ipad|ipod/.test(ua);
-		
+
 		if (isIOS) {
 			window.location.href = '/install/iphone';
 		} else {
@@ -24,7 +24,7 @@
 	<p>Detecting your device and redirecting to the best installation guide...</p>
 	<p class="text-sm opacity-70">
 		If you are not redirected automatically:
-		<a href="/install-easy" class="anchor">Desktop Install</a> | 
+		<a href="/install-easy" class="anchor">Desktop Install</a> |
 		<a href="/install/iphone" class="anchor">iPhone Install</a>
 	</p>
 </div>

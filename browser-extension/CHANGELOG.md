@@ -5,6 +5,7 @@
 ## [1.2.2] - 2025-12-12
 
 ### Enhanced
+
 - **X.COM RELIABILITY ENHANCEMENT**: Added comprehensive X.com API behavior documentation (XCOM_API_BEHAVIOR.md)
 - Implemented multi-strategy text extraction for X.com with 4 fallback approaches
 - **Strategy 1**: Check text node itself (fastest path)
@@ -15,6 +16,7 @@
 - Enhanced error messages that reference X.com's tweet_text preservation behavior
 
 ### Technical Details
+
 - X.com's GraphQL API preserves ALL invisible Unicode characters in tweet_text field
 - Frontend visually collapses them but they're fully accessible in the DOM/API
 - New multi-strategy approach ensures reliable extraction even with complex DOM splitting
@@ -22,6 +24,7 @@
 - See XCOM_API_BEHAVIOR.md for complete explanation of X.com's behavior
 
 ### Context
+
 - This update ensures we can **always** decode hidden characters in the overlay/extension
 - Provides comprehensive documentation of how X.com handles encoded messages
 - Multiple extraction strategies cover all known X.com DOM splitting patterns
@@ -30,6 +33,7 @@
 ## [1.2.1] - 2025-12-12
 
 ### Fixed
+
 - **CRITICAL ENHANCEMENT**: Improved X.com/Twitter reveal success rate with robust delimiter validation
 - Enhanced `hasCompleteEncodedMessage()` to validate content between delimiters
 - Now ensures only invisible Unicode characters exist between delimiters (no visible text)
@@ -38,6 +42,7 @@
 - This ensures near-100% success rate for X.com reveals by validating message structure
 
 ### Technical Details
+
 - Validates that content between `\uFEFF` delimiters contains only invisible characters
 - Rejects false positives where visible text appears between delimiters
 - Deeper parent traversal (10 levels vs 5) handles X.com's complex nesting
@@ -47,6 +52,7 @@
 ## [1.2.0] - 2025-12-12
 
 ### Fixed
+
 - **CRITICAL FIX**: Fixed X.com/Twitter decoding "No hidden content found" error
 - Enhanced text extraction to ensure BOTH delimiters are present before extraction
 - Added `hasCompleteEncodedMessage()` helper to validate complete message format
@@ -58,6 +64,7 @@
 - Uses Set to track processed elements and avoid duplicates
 
 ### Technical Details
+
 - X.com's dynamic DOM splits text across multiple nested text nodes
 - Single text nodes may only contain partial encoded messages (one delimiter instead of two)
 - New logic walks up DOM tree to parent elements and aggregates all text nodes
@@ -65,6 +72,7 @@
 - Ensures successful decoding in the sidebar panel
 
 ## [1.1.0] - Previous Release
+
 - Enhanced feed monitoring for social media sites
 - Improved detection accuracy
 - Performance optimizations

@@ -3,6 +3,7 @@
 ## Problem ❌
 
 **Users saw this error on X.com:**
+
 ```
 ❌ Decoding Failed
 Failed to decode: No hidden content found
@@ -35,15 +36,15 @@ Before (broken):
 ```javascript
 // New helper function
 function hasCompleteEncodedMessage(text) {
-    // Count delimiters - need at least 2!
-    let count = 0;
-    let index = text.indexOf('\uFEFF');
-    while (index !== -1) {
-        count++;
-        if (count >= 2) return true; // ✅ Found both!
-        index = text.indexOf('\uFEFF', index + 1);
-    }
-    return false;
+	// Count delimiters - need at least 2!
+	let count = 0;
+	let index = text.indexOf('\uFEFF');
+	while (index !== -1) {
+		count++;
+		if (count >= 2) return true; // ✅ Found both!
+		index = text.indexOf('\uFEFF', index + 1);
+	}
+	return false;
 }
 ```
 
@@ -66,6 +67,7 @@ After (fixed):
 ## What Changed 📦
 
 ### Userscript v2.3.5
+
 ```javascript
 // static/ghostpost-reveal.user.js
 + hasCompleteEncodedMessage() // Validates 2 delimiters
@@ -73,6 +75,7 @@ After (fixed):
 ```
 
 ### Browser Extension v1.2.0
+
 ```javascript
 // browser-extension/scripts/content.js
 + hasCompleteEncodedMessage()  // Validates 2 delimiters
@@ -82,16 +85,17 @@ After (fixed):
 
 ## Testing Status 🧪
 
-| Test | Status |
-|------|--------|
-| Code Review | ✅ Passed (3 comments addressed) |
-| Security Scan | ✅ Passed (0 vulnerabilities) |
-| Unit Tests | ✅ Updated (test-xcom-adapter.html) |
-| Manual Testing | ⏳ **Needs user testing on X.com** |
+| Test           | Status                              |
+| -------------- | ----------------------------------- |
+| Code Review    | ✅ Passed (3 comments addressed)    |
+| Security Scan  | ✅ Passed (0 vulnerabilities)       |
+| Unit Tests     | ✅ Updated (test-xcom-adapter.html) |
+| Manual Testing | ⏳ **Needs user testing on X.com**  |
 
 ## How to Test 🧪
 
 ### For Userscript Users:
+
 1. The script will auto-update (if you have `@updateURL` enabled)
 2. Or reinstall from `/install` page
 3. Go to X.com and find a post with hidden messages
@@ -100,6 +104,7 @@ After (fixed):
 6. ✅ Should decode successfully!
 
 ### For Extension Users:
+
 1. Update extension to v1.2.0
 2. Reload the extension in your browser
 3. Go to X.com and refresh the page
@@ -110,6 +115,7 @@ After (fixed):
 ## Expected Behavior ✨
 
 **Before (Broken):**
+
 ```
 👻 Hidden Messages
 3 secrets found
@@ -123,6 +129,7 @@ Failed to decode: No hidden content found
 ```
 
 **After (Fixed):**
+
 ```
 👻 Hidden Messages
 3 secrets found
@@ -137,12 +144,12 @@ Your hidden message here! 🎉
 
 ## Documentation 📚
 
-| File | Description |
-|------|-------------|
-| `XCOM_DECODING_FIX.md` | Complete technical documentation |
-| `SECURITY_SUMMARY.md` | Security analysis and CodeQL results |
-| `browser-extension/CHANGELOG.md` | Extension changelog |
-| This file | Quick reference guide |
+| File                             | Description                          |
+| -------------------------------- | ------------------------------------ |
+| `XCOM_DECODING_FIX.md`           | Complete technical documentation     |
+| `SECURITY_SUMMARY.md`            | Security analysis and CodeQL results |
+| `browser-extension/CHANGELOG.md` | Extension changelog                  |
+| This file                        | Quick reference guide                |
 
 ## Backward Compatibility ✅
 
@@ -155,6 +162,7 @@ Your hidden message here! 🎉
 ## Need Help? 🆘
 
 If you still see issues:
+
 1. Check that you're running v2.3.5 (userscript) or v1.2.0 (extension)
 2. Hard refresh the page (Ctrl+F5 / Cmd+Shift+R)
 3. Check browser console for errors

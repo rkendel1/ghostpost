@@ -1,17 +1,20 @@
 # Fix Summary: Userscript Decoding Garbled Characters
 
 ## Issue Report
+
 Users reported that the Ghostpost userscript overlay was showing garbled characters when decoding hidden messages:
+
 - Example: `s��!�Rp�}�H�S�u*J.�` instead of the actual secret text
 - Screenshot: https://github.com/user-attachments/assets/2ea48242-055c-45c0-bcdc-1c72c3328650
 
 ## Root Cause Analysis
 
 ### The Problem
+
 There was a **compression format mismatch** between the encoder and decoder:
 
 1. **Rust Encoder (WASM)**
-   - Uses `flate2::write::DeflateEncoder` 
+   - Uses `flate2::write::DeflateEncoder`
    - Produces **raw DEFLATE** format (RFC 1951)
    - No zlib headers or trailers
    - Just the compressed data stream
@@ -22,7 +25,9 @@ There was a **compression format mismatch** between the encoder and decoder:
    - Requires zlib wrapper with header (2 bytes) and Adler-32 checksum trailer (4 bytes)
 
 ### Why It Failed
+
 When `pako.inflate()` tried to decompress raw DEFLATE data:
+
 1. It looked for zlib headers that weren't there
 2. Failed with "incorrect header check" error
 3. Fell back to treating compressed bytes as uncompressed UTF-8
@@ -31,12 +36,14 @@ When `pako.inflate()` tried to decompress raw DEFLATE data:
 ### Technical Details
 
 **Raw DEFLATE vs Zlib Format:**
+
 ```
 Raw DEFLATE:  [compressed data]
 Zlib format:  [2-byte header][compressed data][4-byte Adler-32]
 ```
 
 **Example with "Hello, World!":**
+
 ```
 Original:      "Hello, World!" (13 bytes UTF-8)
 Compressed:    f3 48 cd c9 c9 d7 51 08 cf 2f ca 49 51 04 00 (15 bytes)
@@ -51,65 +58,75 @@ Decompressed:  "Hello, World!" (correct!)
 #### 1. Updated `static/ghostpost-reveal.user.js` (v2.2.0 → v2.2.1)
 
 **Before (WRONG):**
+
 ```javascript
-finalBytes = pako.inflate(decodedBytes);  // Expects zlib format
+finalBytes = pako.inflate(decodedBytes); // Expects zlib format
 ```
 
 **After (CORRECT):**
+
 ```javascript
-finalBytes = pako.inflateRaw(decodedBytes);  // Handles raw DEFLATE
+finalBytes = pako.inflateRaw(decodedBytes); // Handles raw DEFLATE
 ```
 
 **Full change:**
+
 ```javascript
 // Use pako to decompress RAW DEFLATE data
 if (typeof pako !== 'undefined' && typeof pako.inflateRaw === 'function') {
-    try {
-        finalBytes = pako.inflateRaw(decodedBytes);
-        if (DEBUG_MODE) {
-            console.log('[Ghostpost] Successfully decompressed with pako.inflateRaw');
-        }
-    } catch (decompressError) {
-        // Decompression failed - might be legacy uncompressed message
-        // Fall back to using original bytes
-        if (DEBUG_MODE) {
-            console.log('[Ghostpost] Decompression failed, trying uncompressed:', decompressError);
-        }
-        finalBytes = decodedBytes;
-    }
+	try {
+		finalBytes = pako.inflateRaw(decodedBytes);
+		if (DEBUG_MODE) {
+			console.log('[Ghostpost] Successfully decompressed with pako.inflateRaw');
+		}
+	} catch (decompressError) {
+		// Decompression failed - might be legacy uncompressed message
+		// Fall back to using original bytes
+		if (DEBUG_MODE) {
+			console.log('[Ghostpost] Decompression failed, trying uncompressed:', decompressError);
+		}
+		finalBytes = decodedBytes;
+	}
 } else {
-    // Pako not available - use uncompressed bytes
-    console.warn('[Ghostpost] Pako library not available, assuming uncompressed message');
-    finalBytes = decodedBytes;
+	// Pako not available - use uncompressed bytes
+	console.warn('[Ghostpost] Pako library not available, assuming uncompressed message');
+	finalBytes = decodedBytes;
 }
 ```
 
 #### 2. Updated `test-decoding.html`
+
 Changed test file to use `pako.inflateRaw()` for consistency.
 
 #### 3. Created `static/test-pako-fix.html`
+
 Comprehensive test page to verify the fix works in browsers.
 
 ### Why This Fix Works
 
 **Pako Library Methods:**
+
 - `pako.inflate()` → Decompresses zlib format (DEFLATE with headers)
 - `pako.inflateRaw()` → Decompresses raw DEFLATE format (no headers)
 - `pako.deflate()` → Compresses to zlib format
 - `pako.deflateRaw()` → Compresses to raw DEFLATE format
 
 The fix matches the Rust encoder's format:
+
 - Rust: `DeflateEncoder` → raw DEFLATE
 - JavaScript: `pako.inflateRaw()` → raw DEFLATE ✅
 
 ### Backward Compatibility
+
 The fix maintains support for legacy uncompressed messages:
+
 - If `pako.inflateRaw()` fails, it falls back to using uncompressed bytes
 - This ensures old messages (pre-compression) still decode correctly
 
 ## Verification
 
 ### Automated Tests
+
 ```bash
 # Syntax check
 node -c static/ghostpost-reveal.user.js
@@ -131,12 +148,14 @@ node test_complete_cycle.js
 **Test Page:** `/static/test-pako-fix.html`
 
 **Expected Results:**
+
 1. ✅ `pako.inflate()` fails with "incorrect header check"
 2. ✅ `pako.inflateRaw()` succeeds with correct text
 3. ✅ Without decompression shows garbled characters (the bug)
 4. ✅ Full cycle encode/decode produces perfect match
 
 **To Test:**
+
 1. Open `https://your-deployment/test-pako-fix.html`
 2. Click "Run Test" buttons
 3. Verify all tests pass with green checkmarks
@@ -145,17 +164,21 @@ node test_complete_cycle.js
 ## Deployment Instructions
 
 ### For Userscript Users (Auto-Update)
+
 Userscript managers will automatically update to v2.2.1:
+
 - Tampermonkey: Checks every 24 hours
 - Greasemonkey: Checks on script startup
 - Violentmonkey: Checks every 24 hours
 
 Users can also manually update:
+
 1. Open userscript manager dashboard
 2. Find "Ghostpost Reveal"
 3. Click "Check for updates"
 
 ### For Self-Hosted Deployments
+
 1. Deploy updated `static/ghostpost-reveal.user.js`
 2. Update version references to 2.2.1
 3. No database changes needed
@@ -181,11 +204,13 @@ PAKO_FIX_SUMMARY.md                (This document)
 ## Code Review
 
 ✅ All code review comments addressed:
+
 - Better type checking: `typeof pako.inflateRaw === 'function'`
 - Simplified error handling (removed duplicate try-catch)
 - Clear comments explaining raw DEFLATE vs zlib
 
 ✅ Security scan passed:
+
 - CodeQL: 0 alerts
 - No XSS vulnerabilities
 - Proper input validation
@@ -201,6 +226,7 @@ PAKO_FIX_SUMMARY.md                (This document)
 ## Verification Checklist
 
 After deployment, verify:
+
 - [ ] Create a new message with compression (v2.2.1)
 - [ ] Decode it with userscript - should show correct text
 - [ ] Test with old uncompressed messages - should still work

@@ -24,23 +24,23 @@
  * CHANGELOG:
  * ==========
  * v2.5.0 (2025-12-13):
-* - FEATURE: Added privacy-first install tracking with device fingerprinting
-* - Tracks userscript installations and sends daily heartbeats to Supabase
-* - Collects device info (platform, browser, OS) without PII
-* - Auto-generates unique install fingerprint using browser characteristics
-* - Heartbeat sent once per 24 hours to track active installations
-* - All tracking data stored in Supabase for analytics
-* - Tracking failures do not break userscript functionality
- * 
+ * - FEATURE: Added privacy-first install tracking with device fingerprinting
+ * - Tracks userscript installations and sends daily heartbeats to Supabase
+ * - Collects device info (platform, browser, OS) without PII
+ * - Auto-generates unique install fingerprint using browser characteristics
+ * - Heartbeat sent once per 24 hours to track active installations
+ * - All tracking data stored in Supabase for analytics
+ * - Tracking failures do not break userscript functionality
+ *
  * v2.4.2 (2025-12-12):
-* - FEATURE: Added decodeFromZeroWidthString() helper to decode hidden messages directly from any zero-width character string (like "what...")
-* - FEATURE: Added programmatic X.com hidden message extraction via full_text field
-* - Decoding no longer relies solely on DOM nodes; preserves all invisible Unicode characters reliably
-* - DetectHiddenMessagesXCom function added for batch tweet JSON decoding
-* - Legacy DOM extraction remains intact for other sites and fallback scenarios
-* - Improved stability and performance on X.com dynamic content and split text nodes
-* - Debug logs now show whether extraction used programmatic full_text or DOM fallbacks
- * 
+ * - FEATURE: Added decodeFromZeroWidthString() helper to decode hidden messages directly from any zero-width character string (like "what...")
+ * - FEATURE: Added programmatic X.com hidden message extraction via full_text field
+ * - Decoding no longer relies solely on DOM nodes; preserves all invisible Unicode characters reliably
+ * - DetectHiddenMessagesXCom function added for batch tweet JSON decoding
+ * - Legacy DOM extraction remains intact for other sites and fallback scenarios
+ * - Improved stability and performance on X.com dynamic content and split text nodes
+ * - Debug logs now show whether extraction used programmatic full_text or DOM fallbacks
+ *
  * v2.4.0 (2025-12-12):
  * - OPTIMIZATION: Simplified X.com text extraction with advanced techniques as backups
  * - Tries simple approaches first: direct node access (90%+ success), then parent.textContent
@@ -222,12 +222,12 @@
 			screen.colorDepth || 0,
 			new Date().getTimezoneOffset() || 0
 		].join('|');
-		
+
 		// Simple hash function
 		let hash = 0;
 		for (let i = 0; i < data.length; i++) {
 			const char = data.charCodeAt(i);
-			hash = ((hash << 5) - hash) + char;
+			hash = (hash << 5) - hash + char;
 			hash = hash & hash;
 		}
 		return 'gp_' + Math.abs(hash).toString(36) + '_' + Date.now().toString(36);
@@ -273,7 +273,7 @@
 			// Get or create install fingerprint
 			let fingerprint = localStorage.getItem('ghostpost_install_fingerprint');
 			const lastTracked = localStorage.getItem('ghostpost_last_tracked');
-			
+
 			if (!fingerprint) {
 				fingerprint = generateInstallFingerprint();
 				localStorage.setItem('ghostpost_install_fingerprint', fingerprint);
@@ -282,13 +282,13 @@
 			// Check if we need to send heartbeat (once per day)
 			const now = Date.now();
 			const lastTrackedNum = Number(lastTracked);
-			if (lastTracked && !isNaN(lastTrackedNum) && (now - lastTrackedNum) < HEARTBEAT_INTERVAL) {
+			if (lastTracked && !isNaN(lastTrackedNum) && now - lastTrackedNum < HEARTBEAT_INTERVAL) {
 				// Skip if tracked recently
 				return;
 			}
 
 			const deviceInfo = detectDeviceInfo();
-			
+
 			// Send tracking data
 			const response = await fetch(`${TRACKING_API_BASE}/install`, {
 				method: 'POST',
@@ -507,7 +507,7 @@
 		 * A complete message needs at least TWO delimiter characters (\uFEFF)
 		 * Format: \uFEFF + invisible_chars + \uFEFF
 		 * ENHANCED: Validates content between delimiters contains only invisible characters
-		 * 
+		 *
 		 * Design note: We filter \uFEFF from HIDENLY_CHARS to create the list of
 		 * valid characters that can appear BETWEEN delimiters. This ensures that
 		 * delimiter characters themselves don't appear in the encoded content.
@@ -516,65 +516,71 @@
 			if (!text) return false;
 
 			const delimiterChar = '\uFEFF';
-			
+
 			// Find first delimiter
 			const firstDelimIndex = text.indexOf(delimiterChar);
 			if (firstDelimIndex === -1) return false;
-			
+
 			// Find second delimiter after the first
 			const secondDelimIndex = text.indexOf(delimiterChar, firstDelimIndex + 1);
 			if (secondDelimIndex === -1) return false;
-			
+
 			// Extract content between delimiters
 			const betweenDelimiters = text.substring(firstDelimIndex + 1, secondDelimIndex);
-			
+
 			// Must have content between delimiters
 			if (betweenDelimiters.length === 0) return false;
-			
+
 			// Validate that content between delimiters contains only invisible characters
 			// This prevents false positives from legitimate FEFF usage
 			// We filter out FEFF since it's the delimiter, not encoding content
-			const invisibleCharsOnly = HIDENLY_CHARS.filter(char => char !== '\uFEFF');
-			const hasOnlyInvisible = [...betweenDelimiters].every(char => 
+			const invisibleCharsOnly = HIDENLY_CHARS.filter((char) => char !== '\uFEFF');
+			const hasOnlyInvisible = [...betweenDelimiters].every((char) =>
 				invisibleCharsOnly.includes(char)
 			);
-			
+
 			if (!hasOnlyInvisible) {
 				if (DEBUG_MODE) {
 					console.log('[Ghostpost] Rejected: visible text found between delimiters');
 				}
 				return false;
 			}
-			
+
 			return true;
 		}
 
 		/**
 		 * Twitter/X.com specialized adapter - SIMPLIFIED with advanced fallbacks
-		 * 
+		 *
 		 * STRATEGY: Try simple approaches first, use complex techniques as backups only when needed
-		 * 
+		 *
 		 * CONTEXT: X.com's GraphQL API preserves all invisible Unicode characters in the
 		 * full_text field. Most of the time (90%+), the complete encoded message is accessible
 		 * via simple text extraction. Only when X.com's DOM splits the content do we need
 		 * advanced aggregation techniques.
-		 * 
+		 *
 		 * Extraction order (from simplest to most complex):
 		 * 1. Direct text node access - works 90%+ of the time
 		 * 2. Parent element textContent - fast and works for most splits
 		 * 3. Parent traversal with TreeWalker - handles deep nesting (up to 10 levels)
 		 * 4. Sibling aggregation - handles horizontal splits across spans
-		 * 
+		 *
 		 * See XCOM_API_BEHAVIOR.md for detailed explanation of X.com's behavior.
 		 */
 		const twitterAdapter = {
 			extractText: (tweetOrNode) => {
 				// If we are passed a tweet object with a 'full_text' property, use programmatic extraction
-				if (tweetOrNode && typeof tweetOrNode === 'object' && typeof tweetOrNode.full_text === 'string') {
+				if (
+					tweetOrNode &&
+					typeof tweetOrNode === 'object' &&
+					typeof tweetOrNode.full_text === 'string'
+				) {
 					const extracted = extractXComMessage(tweetOrNode);
 					if (extracted) {
 						if (DEBUG_MODE) {
-							console.log('[Ghostpost] [X.com] ✓ Decoded message from programmatic extraction (full_text)');
+							console.log(
+								'[Ghostpost] [X.com] ✓ Decoded message from programmatic extraction (full_text)'
+							);
 						}
 						return extracted;
 					}
@@ -595,7 +601,9 @@
 					const parentText = tweetOrNode.parentElement.textContent || '';
 					if (parentText && hasCompleteEncodedMessage(parentText)) {
 						if (DEBUG_MODE) {
-							console.log('[Ghostpost] [X.com] ✓ Complete message found in parent.textContent (simple)');
+							console.log(
+								'[Ghostpost] [X.com] ✓ Complete message found in parent.textContent (simple)'
+							);
 						}
 						return parentText;
 					}
@@ -619,7 +627,11 @@
 					// Check if combined text has complete message (both delimiters + valid content)
 					if (combinedText && hasCompleteEncodedMessage(combinedText)) {
 						if (DEBUG_MODE) {
-							console.log('[Ghostpost] [X.com] ✓ Complete message found at parent level', levelsChecked + 1, '(advanced TreeWalker)');
+							console.log(
+								'[Ghostpost] [X.com] ✓ Complete message found at parent level',
+								levelsChecked + 1,
+								'(advanced TreeWalker)'
+							);
 						}
 						return combinedText;
 					}
@@ -635,17 +647,19 @@
 					let siblingText = '';
 					const parent = tweetOrNode.parentElement;
 					const children = parent.childNodes;
-					
+
 					for (let i = 0; i < children.length; i++) {
 						const child = children[i];
 						if (child.nodeType === Node.TEXT_NODE) {
 							siblingText += child.data || child.nodeValue || '';
 						}
 					}
-					
+
 					if (siblingText && hasCompleteEncodedMessage(siblingText)) {
 						if (DEBUG_MODE) {
-							console.log('[Ghostpost] [X.com] ✓ Complete message found in sibling aggregation (advanced)');
+							console.log(
+								'[Ghostpost] [X.com] ✓ Complete message found in sibling aggregation (advanced)'
+							);
 						}
 						return siblingText;
 					}
@@ -653,14 +667,24 @@
 
 				// All strategies exhausted - log debug info and return what we have
 				if (DEBUG_MODE) {
-					console.warn('[Ghostpost] [X.com] ⚠ Could not find complete message after trying all strategies');
-					console.warn('[Ghostpost] [X.com] Node text preview:', (nodeText || '').substring(0, 100));
-					console.warn('[Ghostpost] [X.com] Has FEFF delimiter:', (nodeText || '').indexOf('\uFEFF') !== -1);
+					console.warn(
+						'[Ghostpost] [X.com] ⚠ Could not find complete message after trying all strategies'
+					);
+					console.warn(
+						'[Ghostpost] [X.com] Node text preview:',
+						(nodeText || '').substring(0, 100)
+					);
+					console.warn(
+						'[Ghostpost] [X.com] Has FEFF delimiter:',
+						(nodeText || '').indexOf('\uFEFF') !== -1
+					);
 					console.warn('[Ghostpost] [X.com] Checked', MAX_PARENT_LEVELS, 'parent levels');
-					console.warn('[Ghostpost] [X.com] NOTE: X.com preserves invisible chars in full_text field');
+					console.warn(
+						'[Ghostpost] [X.com] NOTE: X.com preserves invisible chars in full_text field'
+					);
 					console.warn('[Ghostpost] [X.com] See XCOM_API_BEHAVIOR.md for troubleshooting guidance');
 				}
-				
+
 				// Return node text anyway - decoder will provide appropriate error message
 				return nodeText || '';
 			},
@@ -1091,9 +1115,9 @@
 				// - First byte = compression marker (0x00 = uncompressed, 0x01 = compressed)
 				// - Remaining bytes = actual data (compressed or uncompressed)
 				// - Legacy messages (no marker) are handled by trying decompression with fallback
-				const MARKER_UNCOMPRESSED = 0x00;  // Must match Rust: MARKER_UNCOMPRESSED
-				const MARKER_COMPRESSED = 0x01;     // Must match Rust: MARKER_COMPRESSED
-				
+				const MARKER_UNCOMPRESSED = 0x00; // Must match Rust: MARKER_UNCOMPRESSED
+				const MARKER_COMPRESSED = 0x01; // Must match Rust: MARKER_COMPRESSED
+
 				let finalBytes;
 				if (decodedBytes.length === 0) {
 					throw new Error('Empty decoded content');
@@ -1112,7 +1136,9 @@
 								console.log('[Ghostpost] Successfully decompressed marked data');
 							}
 						} catch (decompressError) {
-							throw new Error('Failed to decompress marked compressed data: ' + decompressError.message);
+							throw new Error(
+								'Failed to decompress marked compressed data: ' + decompressError.message
+							);
 						}
 					} else {
 						throw new Error('Data is compressed but pako library not available');
@@ -1134,7 +1160,9 @@
 						}
 					} else {
 						// Pako not available - assume uncompressed
-						console.warn('[Ghostpost] Pako library not available, assuming uncompressed legacy message');
+						console.warn(
+							'[Ghostpost] Pako library not available, assuming uncompressed legacy message'
+						);
 						finalBytes = decodedBytes;
 					}
 				}
@@ -1204,7 +1232,7 @@
 			}
 		}
 
-				/**
+		/**
 		 * Decode a hidden message directly from a string containing zero-width characters
 		 * 200b = 0, 200c = 1; ignores 200d and 2060
 		 * Returns the decoded text
@@ -1213,20 +1241,22 @@
 			if (!s || typeof s !== 'string') return '';
 
 			// Keep only zero-width characters relevant for decoding
-			const zwChars = [...s].filter(c => ['\u200b','\u200c','\u200d','\u2060'].includes(c));
+			const zwChars = [...s].filter((c) => ['\u200b', '\u200c', '\u200d', '\u2060'].includes(c));
 
 			// Convert to binary: 200b=0, 200c=1
-			const binary = zwChars.map(c => {
-				if (c === '\u200b') return '0';
-				if (c === '\u200c') return '1';
-				return ''; // ignore 200d, 2060
-			}).join('');
+			const binary = zwChars
+				.map((c) => {
+					if (c === '\u200b') return '0';
+					if (c === '\u200c') return '1';
+					return ''; // ignore 200d, 2060
+				})
+				.join('');
 
 			// Split binary into bytes and convert to string
 			const bytes = binary.match(/.{1,8}/g);
 			if (!bytes) return '';
 
-			const text = bytes.map(b => String.fromCharCode(parseInt(b, 2))).join('');
+			const text = bytes.map((b) => String.fromCharCode(parseInt(b, 2))).join('');
 			return text;
 		}
 
@@ -1415,14 +1445,17 @@
 				try {
 					let decodedMessage;
 					let postId = null;
-					
+
 					if (DEBUG_MODE) {
 						console.log('[Ghostpost] Attempting to decode message');
 						console.log('[Ghostpost] Encoded text length:', encodedText.length);
 						console.log('[Ghostpost] Has FEFF delimiter:', encodedText.indexOf('\uFEFF') !== -1);
-						console.log('[Ghostpost] Zero-width char count:', (encodedText.match(/[\u200b\u200c\u200d\u2060]/g) || []).length);
+						console.log(
+							'[Ghostpost] Zero-width char count:',
+							(encodedText.match(/[\u200b\u200c\u200d\u2060]/g) || []).length
+						);
 					}
-					
+
 					// Try Ghostpost format first (with FEFF delimiters)
 					if (encodedText.indexOf('\uFEFF') !== -1) {
 						if (DEBUG_MODE) console.log('[Ghostpost] Using Ghostpost format decoder');
@@ -1437,9 +1470,12 @@
 							throw new Error('No decodable content found');
 						}
 					}
-					
+
 					if (DEBUG_MODE) {
-						console.log('[Ghostpost] Decoded successfully:', decodedMessage.substring(0, 50) + '...');
+						console.log(
+							'[Ghostpost] Decoded successfully:',
+							decodedMessage.substring(0, 50) + '...'
+						);
 					}
 					// Track reveal if post_id is present
 					let revealData = null;

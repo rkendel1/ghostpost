@@ -5,6 +5,7 @@ This directory contains SQL migrations for the Ghostpost database.
 ## Applying Migrations
 
 ### Option 1: Via Supabase Dashboard (Recommended)
+
 1. Log in to your Supabase project dashboard
 2. Navigate to the **SQL Editor**
 3. Open the migration file you want to run
@@ -12,13 +13,17 @@ This directory contains SQL migrations for the Ghostpost database.
 5. Paste into the SQL Editor and click "Run"
 
 ### Option 2: Via Supabase CLI
+
 If you have the Supabase CLI installed:
+
 ```bash
 supabase db push
 ```
 
 ### Option 3: Manual Execution
+
 Connect to your PostgreSQL database and run the migration files in order:
+
 ```bash
 psql "postgresql://..." < supabase/migrations/20241211_create_posts.sql
 psql "postgresql://..." < supabase/migrations/20231211_limited_reveals.sql
@@ -41,11 +46,13 @@ You MUST run the `20241211_fix_increment_reveal_security.sql` migration. This fi
 After applying the migration, you can verify it worked by:
 
 1. Check the function has SECURITY DEFINER:
+
 ```sql
-SELECT proname, prosecdef 
-FROM pg_proc 
+SELECT proname, prosecdef
+FROM pg_proc
 WHERE proname = 'increment_reveal_count';
 ```
+
 The `prosecdef` column should be `true`.
 
 2. Test the reveal endpoint with a post that has limited reveals set up.

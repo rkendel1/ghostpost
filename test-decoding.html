@@ -1,269 +1,327 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ghostpost Decoding Test</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" 
-            integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb" 
-            crossorigin="anonymous"></script>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 900px;
-            margin: 40px auto;
-            padding: 20px;
-            background: #f8f9fa;
-        }
-        h1 {
-            color: #667eea;
-            border-bottom: 3px solid #667eea;
-            padding-bottom: 10px;
-        }
-        .test-section {
-            background: white;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .test-case {
-            margin: 15px 0;
-            padding: 15px;
-            border-left: 4px solid #667eea;
-            background: #f8f9fa;
-        }
-        .success {
-            border-left-color: #10b981;
-            background: #f0fdf4;
-        }
-        .error {
-            border-left-color: #ef4444;
-            background: #fef2f2;
-        }
-        button {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin: 5px;
-        }
-        button:hover {
-            background: #5568d3;
-        }
-        .result {
-            margin-top: 10px;
-            padding: 10px;
-            background: white;
-            border-radius: 4px;
-            font-family: monospace;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-        .encoded {
-            background: #e3f2fd;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 10px 0;
-            font-family: monospace;
-            font-size: 12px;
-            word-break: break-all;
-        }
-    </style>
-</head>
-<body>
-    <h1>🔍 Ghostpost Decoding Test Suite</h1>
-    
-    <div class="test-section">
-        <h2>Test Purpose</h2>
-        <p>This page tests the DEFLATE decompression fix for the Ghostpost decoder. The WASM encoder uses DEFLATE compression, so the userscript decoder must decompress the data after base64 decoding.</p>
-        <p><strong>Expected Result:</strong> All test messages should decode correctly without garbled characters.</p>
-    </div>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Ghostpost Decoding Test</title>
+		<script
+			src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"
+			integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb"
+			crossorigin="anonymous"
+		></script>
+		<style>
+			body {
+				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+				max-width: 900px;
+				margin: 40px auto;
+				padding: 20px;
+				background: #f8f9fa;
+			}
+			h1 {
+				color: #667eea;
+				border-bottom: 3px solid #667eea;
+				padding-bottom: 10px;
+			}
+			.test-section {
+				background: white;
+				padding: 20px;
+				margin: 20px 0;
+				border-radius: 8px;
+				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+			}
+			.test-case {
+				margin: 15px 0;
+				padding: 15px;
+				border-left: 4px solid #667eea;
+				background: #f8f9fa;
+			}
+			.success {
+				border-left-color: #10b981;
+				background: #f0fdf4;
+			}
+			.error {
+				border-left-color: #ef4444;
+				background: #fef2f2;
+			}
+			button {
+				background: #667eea;
+				color: white;
+				border: none;
+				padding: 10px 20px;
+				border-radius: 4px;
+				cursor: pointer;
+				font-size: 14px;
+				margin: 5px;
+			}
+			button:hover {
+				background: #5568d3;
+			}
+			.result {
+				margin-top: 10px;
+				padding: 10px;
+				background: white;
+				border-radius: 4px;
+				font-family: monospace;
+				white-space: pre-wrap;
+				word-break: break-word;
+			}
+			.encoded {
+				background: #e3f2fd;
+				padding: 10px;
+				border-radius: 4px;
+				margin: 10px 0;
+				font-family: monospace;
+				font-size: 12px;
+				word-break: break-all;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>🔍 Ghostpost Decoding Test Suite</h1>
 
-    <div class="test-section">
-        <h2>Hardened Constants Verification</h2>
-        <div id="constants-test"></div>
-    </div>
+		<div class="test-section">
+			<h2>Test Purpose</h2>
+			<p>
+				This page tests the DEFLATE decompression fix for the Ghostpost decoder. The WASM encoder
+				uses DEFLATE compression, so the userscript decoder must decompress the data after base64
+				decoding.
+			</p>
+			<p>
+				<strong>Expected Result:</strong> All test messages should decode correctly without garbled
+				characters.
+			</p>
+		</div>
 
-    <div class="test-section">
-        <h2>Test Cases</h2>
-        <div id="test-results"></div>
-    </div>
+		<div class="test-section">
+			<h2>Hardened Constants Verification</h2>
+			<div id="constants-test"></div>
+		</div>
 
-    <script>
-        // Hardened encoding constants (same as userscript)
-        const ENCODING_CONSTANTS = Object.freeze({
-            BASE64_CHAR_MAP: Object.freeze({
-                '\u2060\u2060': 'A', '\u2060\u200B': 'B', '\u2060\u200C': 'C', '\u2060\u200D': 'D',
-                '\u2060\u200E': 'E', '\u2060\u200F': 'F', '\u2060\u202D': 'G', '\u2060\u202C': 'H',
-                '\u200B\u2060': 'I', '\u200B\u200B': 'J', '\u200B\u200C': 'K', '\u200B\u200D': 'L',
-                '\u200B\u200E': 'M', '\u200B\u200F': 'N', '\u200B\u202D': 'O', '\u200B\u202C': 'P',
-                '\u200C\u2060': 'Q', '\u200C\u200B': 'R', '\u200C\u200C': 'S', '\u200C\u200D': 'T',
-                '\u200C\u200E': 'U', '\u200C\u200F': 'V', '\u200C\u202D': 'W', '\u200C\u202C': 'X',
-                '\u200D\u2060': 'Y', '\u200D\u200B': 'Z', '\u200D\u200C': 'a', '\u200D\u200D': 'b',
-                '\u200D\u200E': 'c', '\u200D\u200F': 'd', '\u200D\u202D': 'e', '\u200D\u202C': 'f',
-                '\u200E\u2060': 'g', '\u200E\u200B': 'h', '\u200E\u200C': 'i', '\u200E\u200D': 'j',
-                '\u200E\u200E': 'k', '\u200E\u200F': 'l', '\u200E\u202D': 'm', '\u200E\u202C': 'n',
-                '\u200F\u2060': 'o', '\u200F\u200B': 'p', '\u200F\u200C': 'q', '\u200F\u200D': 'r',
-                '\u200F\u200E': 's', '\u200F\u200F': 't', '\u200F\u202D': 'u', '\u200F\u202C': 'v',
-                '\u202D\u2060': 'w', '\u202D\u200B': 'x', '\u202D\u200C': 'y', '\u202D\u200D': 'z',
-                '\u202D\u200E': '0', '\u202D\u200F': '1', '\u202D\u202D': '2', '\u202D\u202C': '3',
-                '\u202C\u2060': '4', '\u202C\u200B': '5', '\u202C\u200C': '6', '\u202C\u200D': '7',
-                '\u202C\u200E': '8', '\u202C\u200F': '9', '\u202C\u202D': '+', '\u202C\u202C': '/'
-            }),
-            POST_ID_DELIMITER: '||ghostid:',
-            POST_ID_END: '||',
-            CONTENT_DELIMITER: '\uFEFF'
-        });
+		<div class="test-section">
+			<h2>Test Cases</h2>
+			<div id="test-results"></div>
+		</div>
 
-        // Test that constants are frozen
-        function testConstantHardening() {
-            const resultsDiv = document.getElementById('constants-test');
-            let passed = 0;
-            let failed = 0;
-            let output = '';
+		<script>
+			// Hardened encoding constants (same as userscript)
+			const ENCODING_CONSTANTS = Object.freeze({
+				BASE64_CHAR_MAP: Object.freeze({
+					'\u2060\u2060': 'A',
+					'\u2060\u200B': 'B',
+					'\u2060\u200C': 'C',
+					'\u2060\u200D': 'D',
+					'\u2060\u200E': 'E',
+					'\u2060\u200F': 'F',
+					'\u2060\u202D': 'G',
+					'\u2060\u202C': 'H',
+					'\u200B\u2060': 'I',
+					'\u200B\u200B': 'J',
+					'\u200B\u200C': 'K',
+					'\u200B\u200D': 'L',
+					'\u200B\u200E': 'M',
+					'\u200B\u200F': 'N',
+					'\u200B\u202D': 'O',
+					'\u200B\u202C': 'P',
+					'\u200C\u2060': 'Q',
+					'\u200C\u200B': 'R',
+					'\u200C\u200C': 'S',
+					'\u200C\u200D': 'T',
+					'\u200C\u200E': 'U',
+					'\u200C\u200F': 'V',
+					'\u200C\u202D': 'W',
+					'\u200C\u202C': 'X',
+					'\u200D\u2060': 'Y',
+					'\u200D\u200B': 'Z',
+					'\u200D\u200C': 'a',
+					'\u200D\u200D': 'b',
+					'\u200D\u200E': 'c',
+					'\u200D\u200F': 'd',
+					'\u200D\u202D': 'e',
+					'\u200D\u202C': 'f',
+					'\u200E\u2060': 'g',
+					'\u200E\u200B': 'h',
+					'\u200E\u200C': 'i',
+					'\u200E\u200D': 'j',
+					'\u200E\u200E': 'k',
+					'\u200E\u200F': 'l',
+					'\u200E\u202D': 'm',
+					'\u200E\u202C': 'n',
+					'\u200F\u2060': 'o',
+					'\u200F\u200B': 'p',
+					'\u200F\u200C': 'q',
+					'\u200F\u200D': 'r',
+					'\u200F\u200E': 's',
+					'\u200F\u200F': 't',
+					'\u200F\u202D': 'u',
+					'\u200F\u202C': 'v',
+					'\u202D\u2060': 'w',
+					'\u202D\u200B': 'x',
+					'\u202D\u200C': 'y',
+					'\u202D\u200D': 'z',
+					'\u202D\u200E': '0',
+					'\u202D\u200F': '1',
+					'\u202D\u202D': '2',
+					'\u202D\u202C': '3',
+					'\u202C\u2060': '4',
+					'\u202C\u200B': '5',
+					'\u202C\u200C': '6',
+					'\u202C\u200D': '7',
+					'\u202C\u200E': '8',
+					'\u202C\u200F': '9',
+					'\u202C\u202D': '+',
+					'\u202C\u202C': '/'
+				}),
+				POST_ID_DELIMITER: '||ghostid:',
+				POST_ID_END: '||',
+				CONTENT_DELIMITER: '\uFEFF'
+			});
 
-            // Test 1: Try to modify ENCODING_CONSTANTS
-            try {
-                ENCODING_CONSTANTS.NEW_PROPERTY = 'test';
-                if (ENCODING_CONSTANTS.NEW_PROPERTY === undefined) {
-                    output += '✅ ENCODING_CONSTANTS is immutable (Object.freeze works)\n';
-                    passed++;
-                } else {
-                    output += '❌ ENCODING_CONSTANTS can be modified\n';
-                    failed++;
-                }
-            } catch (e) {
-                output += '✅ ENCODING_CONSTANTS throws error on modification (strict mode)\n';
-                passed++;
-            }
+			// Test that constants are frozen
+			function testConstantHardening() {
+				const resultsDiv = document.getElementById('constants-test');
+				let passed = 0;
+				let failed = 0;
+				let output = '';
 
-            // Test 2: Try to modify BASE64_CHAR_MAP
-            try {
-                ENCODING_CONSTANTS.BASE64_CHAR_MAP['\u2060\u2060'] = 'X';
-                if (ENCODING_CONSTANTS.BASE64_CHAR_MAP['\u2060\u2060'] === 'A') {
-                    output += '✅ BASE64_CHAR_MAP is immutable\n';
-                    passed++;
-                } else {
-                    output += '❌ BASE64_CHAR_MAP can be modified\n';
-                    failed++;
-                }
-            } catch (e) {
-                output += '✅ BASE64_CHAR_MAP throws error on modification (strict mode)\n';
-                passed++;
-            }
+				// Test 1: Try to modify ENCODING_CONSTANTS
+				try {
+					ENCODING_CONSTANTS.NEW_PROPERTY = 'test';
+					if (ENCODING_CONSTANTS.NEW_PROPERTY === undefined) {
+						output += '✅ ENCODING_CONSTANTS is immutable (Object.freeze works)\n';
+						passed++;
+					} else {
+						output += '❌ ENCODING_CONSTANTS can be modified\n';
+						failed++;
+					}
+				} catch (e) {
+					output += '✅ ENCODING_CONSTANTS throws error on modification (strict mode)\n';
+					passed++;
+				}
 
-            output += `\nPassed: ${passed}, Failed: ${failed}`;
-            
-            resultsDiv.innerHTML = `<div class="test-case ${failed === 0 ? 'success' : 'error'}">
+				// Test 2: Try to modify BASE64_CHAR_MAP
+				try {
+					ENCODING_CONSTANTS.BASE64_CHAR_MAP['\u2060\u2060'] = 'X';
+					if (ENCODING_CONSTANTS.BASE64_CHAR_MAP['\u2060\u2060'] === 'A') {
+						output += '✅ BASE64_CHAR_MAP is immutable\n';
+						passed++;
+					} else {
+						output += '❌ BASE64_CHAR_MAP can be modified\n';
+						failed++;
+					}
+				} catch (e) {
+					output += '✅ BASE64_CHAR_MAP throws error on modification (strict mode)\n';
+					passed++;
+				}
+
+				output += `\nPassed: ${passed}, Failed: ${failed}`;
+
+				resultsDiv.innerHTML = `<div class="test-case ${failed === 0 ? 'success' : 'error'}">
                 <div class="result">${output}</div>
             </div>`;
-        }
+			}
 
-        // Decoder function (matches userscript v2.2.0)
-        function decodeHiddenMessage(encodedText) {
-            try {
-                // Step 1: Extract content between delimiters
-                const parts = encodedText.split(ENCODING_CONSTANTS.CONTENT_DELIMITER);
-                if (parts.length < 2) {
-                    throw new Error('No hidden content found');
-                }
+			// Decoder function (matches userscript v2.2.0)
+			function decodeHiddenMessage(encodedText) {
+				try {
+					// Step 1: Extract content between delimiters
+					const parts = encodedText.split(ENCODING_CONSTANTS.CONTENT_DELIMITER);
+					if (parts.length < 2) {
+						throw new Error('No hidden content found');
+					}
 
-                const unwrapped = parts[1];
-                if (!unwrapped || unwrapped.length === 0) {
-                    throw new Error('Empty hidden content');
-                }
+					const unwrapped = parts[1];
+					if (!unwrapped || unwrapped.length === 0) {
+						throw new Error('Empty hidden content');
+					}
 
-                // Step 2: Convert pairs to base64
-                let base64String = '';
-                for (let i = 0; i < unwrapped.length; i += 2) {
-                    if (i + 1 < unwrapped.length) {
-                        const pair = unwrapped[i] + unwrapped[i + 1];
-                        const base64Char = ENCODING_CONSTANTS.BASE64_CHAR_MAP[pair];
-                        if (base64Char) {
-                            base64String += base64Char;
-                        }
-                    }
-                }
+					// Step 2: Convert pairs to base64
+					let base64String = '';
+					for (let i = 0; i < unwrapped.length; i += 2) {
+						if (i + 1 < unwrapped.length) {
+							const pair = unwrapped[i] + unwrapped[i + 1];
+							const base64Char = ENCODING_CONSTANTS.BASE64_CHAR_MAP[pair];
+							if (base64Char) {
+								base64String += base64Char;
+							}
+						}
+					}
 
-                if (!base64String) {
-                    throw new Error('Invalid encoded content');
-                }
+					if (!base64String) {
+						throw new Error('Invalid encoded content');
+					}
 
-                // Step 3: Decode base64
-                const binaryString = atob(base64String);
-                const decodedBytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                    decodedBytes[i] = binaryString.charCodeAt(i);
-                }
+					// Step 3: Decode base64
+					const binaryString = atob(base64String);
+					const decodedBytes = new Uint8Array(binaryString.length);
+					for (let i = 0; i < binaryString.length; i++) {
+						decodedBytes[i] = binaryString.charCodeAt(i);
+					}
 
-                // Step 4: Decompress with pako (using inflateRaw for raw DEFLATE)
-                let finalBytes;
-                try {
-                    // Rust's DeflateEncoder produces RAW DEFLATE (no zlib headers)
-                    // Must use inflateRaw() not inflate()
-                    finalBytes = pako.inflateRaw(decodedBytes);
-                } catch (decompressError) {
-                    // Fallback to uncompressed
-                    console.log('Decompression failed, using uncompressed:', decompressError);
-                    finalBytes = decodedBytes;
-                }
+					// Step 4: Decompress with pako (using inflateRaw for raw DEFLATE)
+					let finalBytes;
+					try {
+						// Rust's DeflateEncoder produces RAW DEFLATE (no zlib headers)
+						// Must use inflateRaw() not inflate()
+						finalBytes = pako.inflateRaw(decodedBytes);
+					} catch (decompressError) {
+						// Fallback to uncompressed
+						console.log('Decompression failed, using uncompressed:', decompressError);
+						finalBytes = decodedBytes;
+					}
 
-                // Step 5: Convert to UTF-8 string
-                const decoder = new TextDecoder('utf-8');
-                const decoded = decoder.decode(finalBytes);
+					// Step 5: Convert to UTF-8 string
+					const decoder = new TextDecoder('utf-8');
+					const decoded = decoder.decode(finalBytes);
 
-                // Strip post ID if present
-                const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
-                if (postIdIndex !== -1) {
-                    return decoded.substring(0, postIdIndex);
-                }
+					// Strip post ID if present
+					const postIdIndex = decoded.indexOf(ENCODING_CONSTANTS.POST_ID_DELIMITER);
+					if (postIdIndex !== -1) {
+						return decoded.substring(0, postIdIndex);
+					}
 
-                return decoded;
-            } catch (err) {
-                console.error('Decode error:', err);
-                throw new Error('Failed to decode: ' + err.message);
-            }
-        }
+					return decoded;
+				} catch (err) {
+					console.error('Decode error:', err);
+					throw new Error('Failed to decode: ' + err.message);
+				}
+			}
 
-        // Test cases - Note: These need to be generated by the actual WASM encoder
-        // For now, we'll simulate the format
-        const testCases = [
-            {
-                name: 'Simple text',
-                visible: 'Hello',
-                expected: 'World',
-                // This would need to be an actual encoded message from the WASM encoder
-                encoded: null
-            }
-        ];
+			// Test cases - Note: These need to be generated by the actual WASM encoder
+			// For now, we'll simulate the format
+			const testCases = [
+				{
+					name: 'Simple text',
+					visible: 'Hello',
+					expected: 'World',
+					// This would need to be an actual encoded message from the WASM encoder
+					encoded: null
+				}
+			];
 
-        function runTests() {
-            const resultsDiv = document.getElementById('test-results');
-            let html = '<p><strong>Status:</strong> Test infrastructure ready. Actual test messages need to be generated by the WASM encoder with compression enabled.</p>';
-            
-            html += '<div class="test-case">';
-            html += '<h3>Manual Test Instructions</h3>';
-            html += '<ol>';
-            html += '<li>Go to the Compose page to create an encoded message</li>';
-            html += '<li>Copy the encoded message and paste it in the test-reveal.html page</li>';
-            html += '<li>Use the userscript to decode it and verify it shows the correct text</li>';
-            html += '<li>If it shows garbled characters like "$ÛÿDeal...", the fix didn\'t work</li>';
-            html += '<li>If it shows the correct text, the fix is working!</li>';
-            html += '</ol>';
-            html += '</div>';
-            
-            resultsDiv.innerHTML = html;
-        }
+			function runTests() {
+				const resultsDiv = document.getElementById('test-results');
+				let html =
+					'<p><strong>Status:</strong> Test infrastructure ready. Actual test messages need to be generated by the WASM encoder with compression enabled.</p>';
 
-        // Run tests on page load
-        window.addEventListener('DOMContentLoaded', function() {
-            testConstantHardening();
-            runTests();
-        });
-    </script>
-</body>
+				html += '<div class="test-case">';
+				html += '<h3>Manual Test Instructions</h3>';
+				html += '<ol>';
+				html += '<li>Go to the Compose page to create an encoded message</li>';
+				html += '<li>Copy the encoded message and paste it in the test-reveal.html page</li>';
+				html += '<li>Use the userscript to decode it and verify it shows the correct text</li>';
+				html += '<li>If it shows garbled characters like "$ÛÿDeal...", the fix didn\'t work</li>';
+				html += '<li>If it shows the correct text, the fix is working!</li>';
+				html += '</ol>';
+				html += '</div>';
+
+				resultsDiv.innerHTML = html;
+			}
+
+			// Run tests on page load
+			window.addEventListener('DOMContentLoaded', function () {
+				testConstantHardening();
+				runTests();
+			});
+		</script>
+	</body>
 </html>

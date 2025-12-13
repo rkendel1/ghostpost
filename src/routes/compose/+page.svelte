@@ -353,8 +353,8 @@
 						<label class="label">
 							<span>Secret Image</span>
 							<p class="text-sm opacity-75 mb-2">
-								⚠️ Images will be automatically compressed to ~25KB and resized to fit under 40,000 character platform limits.
-								Very large or complex images may take longer to compress.
+								⚠️ Images will be automatically compressed to ~25KB and resized to fit under 40,000
+								character platform limits. Very large or complex images may take longer to compress.
 							</p>
 							<input type="file" accept="image/*" class="file-input" on:change={handleSecretFile} />
 							{#if imagePreview}
@@ -389,18 +389,16 @@
 								</p>
 							</div>
 							<label class="flex items-center gap-2">
-								<input
-									type="checkbox"
-									class="checkbox"
-									bind:checked={enableLimitedReveals}
-								/>
+								<input type="checkbox" class="checkbox" bind:checked={enableLimitedReveals} />
 								<span class="text-xs">Enable</span>
 							</label>
 						</div>
 
 						{#if enableLimitedReveals}
 							<label class="label">
-								<span class="text-sm">Max Reveals (e.g., 100 = only 100 people can ever see this)</span>
+								<span class="text-sm"
+									>Max Reveals (e.g., 100 = only 100 people can ever see this)</span
+								>
 								<input
 									type="number"
 									class="input"
@@ -411,18 +409,19 @@
 								/>
 								{#if maxReveals && maxReveals > 0}
 									<p class="text-xs opacity-75 mt-1">
-										⚠️ Once {maxReveals} {maxReveals === 1 ? 'person reveals' : 'people reveal'} this secret,
-										it will be permanently unreadable for everyone else!
+										⚠️ Once {maxReveals}
+										{maxReveals === 1 ? 'person reveals' : 'people reveal'} this secret, it will be permanently
+										unreadable for everyone else!
 									</p>
 								{/if}
 							</label>
 
 							<div class="card p-3 variant-ghost-warning">
 								<p class="text-xs">
-									<strong>💎 What happens:</strong><br/>
-									• Real-time counter shows "You are reveal #X of {maxReveals || 'Y'}"<br/>
-									• Pulsing red warning when &lt;20% remaining<br/>
-									• Confetti celebration for last few reveals<br/>
+									<strong>💎 What happens:</strong><br />
+									• Real-time counter shows "You are reveal #X of {maxReveals || 'Y'}"<br />
+									• Pulsing red warning when &lt;20% remaining<br />
+									• Confetti celebration for last few reveals<br />
 									• Message becomes "SOLD OUT FOREVER" when limit reached
 								</p>
 							</div>
@@ -495,7 +494,8 @@
 							</div>
 							{#if characterStats.totalLength > 40000}
 								<div class="mt-2 text-warning-500 text-sm font-bold">
-									⚠️ Warning: Message exceeds 40,000 characters and may not be accepted on some platforms
+									⚠️ Warning: Message exceeds 40,000 characters and may not be accepted on some
+									platforms
 								</div>
 							{:else if characterStats.totalLength > 10000}
 								<div class="mt-2 text-secondary-500 text-sm">

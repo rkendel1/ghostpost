@@ -1,9 +1,11 @@
 # Limited Reveals Fix - Complete Summary
 
 ## Issue
+
 "not tracking the fomor or displaying perply the metrics"
 
 The limited reveals feature (FOMO reveal numbers) was completely broken:
+
 - API returned "Unlimited reveals - no tracking" for posts with max_reveals=3
 - No reveal_events records were being created in the database
 - Userscript overlay did not display "reveal #X of Y" stats
@@ -41,6 +43,7 @@ AS $$ ... $$ LANGUAGE plpgsql;
 ```
 
 Now the flow works correctly:
+
 ```
 Anonymous user → supabase.rpc('increment_reveal_count') → Function executes as owner (postgres)
                                                          ↓
@@ -62,16 +65,19 @@ Function executes: SELECT * FROM limited_secrets WHERE post_id = ... FOR UPDATE
 ## Changes Made
 
 ### Code Changes
+
 - **`supabase/migrations/20241211_fix_increment_reveal_security.sql`**
   - New migration that recreates `increment_reveal_count` with `SECURITY DEFINER`
   - Adds `SET search_path = public` for security
 
 ### Documentation
+
 - **`LIMITED_REVEALS_FIX.md`** - Detailed technical explanation of bug and fix
 - **`DEPLOYMENT.md`** - Step-by-step deployment and testing instructions
 - **`supabase/README.md`** - General migration guide for all migrations
 
 ### What Didn't Change
+
 - No changes to API endpoints (they were already correct)
 - No changes to userscript (it already had display logic)
 - No changes to RLS policies (they were already correct)
@@ -97,6 +103,7 @@ Using `SECURITY DEFINER` is safe here because:
    - Via psql: `psql "..." < migration.sql`
 
 2. **Verify**:
+
    ```sql
    SELECT proname, prosecdef FROM pg_proc WHERE proname = 'increment_reveal_count';
    -- Should show prosecdef = true
@@ -113,12 +120,14 @@ See `DEPLOYMENT.md` for complete instructions.
 ## Impact
 
 ### Before Fix
+
 - Limited reveals completely broken
 - No tracking of who revealed when
 - No FOMO effect in UI
 - Users had no idea reveals were limited
 
 ### After Fix
+
 - Full reveal tracking in `reveal_events` table
 - Proper atomic increment with race condition protection
 - Userscript displays "reveal #1 of 3 — only 2 left!"
@@ -140,19 +149,23 @@ See `DEPLOYMENT.md` for complete instructions.
 ## Related Files
 
 ### Migration Files
+
 - `supabase/migrations/20231211_limited_reveals.sql` - Original tables and function
 - `supabase/migrations/20241211_fix_increment_reveal_security.sql` - This fix
 
 ### API Endpoints
+
 - `src/routes/api/limited-reveals/init/+server.ts` - Initialize limited secret
 - `src/routes/api/limited-reveals/reveal/+server.ts` - Record a reveal (calls database function)
 - `src/routes/api/limited-reveals/status/+server.ts` - Check reveal status
 - `src/routes/api/analytics/track/+server.ts` - General analytics (separate from limited reveals)
 
 ### Frontend
+
 - `static/ghostpost-reveal.user.js` - Userscript with reveal display logic (lines 825-862, 886-930)
 
 ### Documentation
+
 - `LIMITED_REVEALS_FIX.md` - Technical deep dive
 - `DEPLOYMENT.md` - Deployment guide
 - `supabase/README.md` - Migration guide
@@ -180,6 +193,7 @@ A: Yes, if you have a local Supabase instance. Apply the migration to your local
 ## Success Criteria
 
 This fix is successful when:
+
 1. ✅ Reveal API returns proper reveal numbers (not null)
 2. ✅ `reveal_events` table populates with new records
 3. ✅ Userscript displays "#X/Y" stats in overlay
@@ -197,6 +211,7 @@ This fix is successful when:
 ## Support
 
 If you encounter issues:
+
 1. Check DEPLOYMENT.md for common issues
 2. Verify migration applied correctly (`prosecdef = true`)
 3. Check Supabase logs for errors

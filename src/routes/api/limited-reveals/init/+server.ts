@@ -1,7 +1,7 @@
 /**
  * API Endpoint: Initialize Limited Secret
  * POST /api/limited-reveals/init
- * 
+ *
  * Called when creating a new GhostPost with reveal limits
  */
 
@@ -22,17 +22,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Create limited secret record
-		const { data, error } = await locals.supabase.from('limited_secrets').insert({
-			post_id,
-			user_id,
-			max_reveals: max_reveals || null, // null = unlimited
-			current_reveals: 0,
-			is_expired: false
-		}).select().single();
+		const { data, error } = await locals.supabase
+			.from('limited_secrets')
+			.insert({
+				post_id,
+				user_id,
+				max_reveals: max_reveals || null, // null = unlimited
+				current_reveals: 0,
+				is_expired: false
+			})
+			.select()
+			.single();
 
 		if (error) {
 			console.error('Error initializing limited secret:', error);
-			return json({ success: false, error: 'Failed to initialize limited secret' }, { status: 500 });
+			return json(
+				{ success: false, error: 'Failed to initialize limited secret' },
+				{ status: 500 }
+			);
 		}
 
 		return json({

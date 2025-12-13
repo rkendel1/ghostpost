@@ -72,26 +72,26 @@ Users will need to update to v2.5.0 to be tracked. The userscript will auto-upda
 SELECT COUNT(*) as total_installs FROM userscript_installs;
 
 -- Active installs (last 7 days)
-SELECT COUNT(*) as active_installs 
-FROM userscript_installs 
+SELECT COUNT(*) as active_installs
+FROM userscript_installs
 WHERE last_seen > NOW() - INTERVAL '7 days';
 
 -- Platform breakdown
-SELECT platform, COUNT(*) as count 
-FROM userscript_installs 
-GROUP BY platform 
+SELECT platform, COUNT(*) as count
+FROM userscript_installs
+GROUP BY platform
 ORDER BY count DESC;
 
 -- Browser breakdown
-SELECT browser, COUNT(*) as count 
-FROM userscript_installs 
-GROUP BY browser 
+SELECT browser, COUNT(*) as count
+FROM userscript_installs
+GROUP BY browser
 ORDER BY count DESC;
 
 -- OS breakdown
-SELECT os, COUNT(*) as count 
-FROM userscript_installs 
-GROUP BY os 
+SELECT os, COUNT(*) as count
+FROM userscript_installs
+GROUP BY os
 ORDER BY count DESC;
 ```
 
@@ -102,32 +102,32 @@ ORDER BY count DESC;
 SELECT COUNT(*) as total_messages FROM encoded_messages_tracking;
 
 -- Messages by platform
-SELECT platform, COUNT(*) as count 
-FROM encoded_messages_tracking 
-GROUP BY platform 
+SELECT platform, COUNT(*) as count
+FROM encoded_messages_tracking
+GROUP BY platform
 ORDER BY count DESC;
 
 -- Messages by secret type
-SELECT secret_type, COUNT(*) as count 
-FROM encoded_messages_tracking 
+SELECT secret_type, COUNT(*) as count
+FROM encoded_messages_tracking
 GROUP BY secret_type;
 
 -- Average message lengths
-SELECT 
+SELECT
   AVG(visible_length) as avg_visible,
   AVG(hidden_length) as avg_hidden,
   AVG(total_length) as avg_total
 FROM encoded_messages_tracking;
 
 -- Top users by message count
-SELECT user_id, COUNT(*) as message_count 
-FROM encoded_messages_tracking 
-GROUP BY user_id 
-ORDER BY message_count DESC 
+SELECT user_id, COUNT(*) as message_count
+FROM encoded_messages_tracking
+GROUP BY user_id
+ORDER BY message_count DESC
 LIMIT 10;
 
 -- Limited reveals adoption
-SELECT 
+SELECT
   COUNT(CASE WHEN has_limited_reveals THEN 1 END) as with_limits,
   COUNT(CASE WHEN NOT has_limited_reveals THEN 1 END) as without_limits
 FROM encoded_messages_tracking;
@@ -136,6 +136,7 @@ FROM encoded_messages_tracking;
 ## Privacy Considerations
 
 ### What is tracked:
+
 - Browser fingerprint (not personally identifiable)
 - Device characteristics (platform, browser, OS)
 - Message metadata (no content)
@@ -143,6 +144,7 @@ FROM encoded_messages_tracking;
 - Timestamps
 
 ### What is NOT tracked:
+
 - User IP addresses
 - Personal information
 - Actual message content (visible or secret)
@@ -150,6 +152,7 @@ FROM encoded_messages_tracking;
 - Browsing history
 
 ### User Control:
+
 - Users can clear localStorage to reset their fingerprint
 - Tracking failures don't affect functionality
 - Anonymous installs are supported
@@ -168,15 +171,18 @@ FROM encoded_messages_tracking;
 ### Common issues:
 
 **"Failed to track install"**
+
 - Check Supabase credentials in `.env`
 - Verify tables exist in database
 - Check RLS policies allow anonymous inserts
 
 **"Install fingerprint not found"**
+
 - Check if localStorage is enabled in browser
 - Verify the fingerprint generation code is working
 
 **"Heartbeat not updating"**
+
 - Check if `last_tracked` timestamp in localStorage is recent
 - Verify heartbeat interval (24 hours)
 - Check if API endpoint is accessible
@@ -195,12 +201,12 @@ Example API endpoint structure:
 ```typescript
 // /api/analytics/installs/+server.ts
 export async function GET() {
-  const { data: stats } = await supabase
-    .from('userscript_installs')
-    .select('platform, browser, os, last_seen');
-  
-  // Process and return aggregate stats
-  return json({ stats });
+	const { data: stats } = await supabase
+		.from('userscript_installs')
+		.select('platform, browser, os, last_seen');
+
+	// Process and return aggregate stats
+	return json({ stats });
 }
 ```
 

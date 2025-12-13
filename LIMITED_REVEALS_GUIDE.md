@@ -7,11 +7,13 @@ The Limited Reveals feature transforms Ghostpost from a simple message hiding to
 ## Key Features
 
 ### 1. **Creator Controls**
+
 - Set max reveals when creating a post (e.g., "only 100 people can ever see this")
 - Default is unlimited reveals (backward compatible)
 - Immediate feedback on what happens when limit is reached
 
 ### 2. **Real-Time FOMO UI**
+
 - Live counter: "You are reveal #87 of 100 — only 13 left!"
 - Progress bars that change color based on availability:
   - Green: >20% remaining
@@ -21,17 +23,20 @@ The Limited Reveals feature transforms Ghostpost from a simple message hiding to
 - "SOLD OUT FOREVER" message when limit reached
 
 ### 3. **Live Analytics Dashboard**
+
 - Real-time countdown ring showing X/Y reveals
 - Reveal timeline with timestamps
 - Percentage revealed with visual progress bar
 - "SOLD OUT FOREVER" banner when complete
 
 ### 4. **Social Amplification**
+
 - Auto-generated share text: "I just got reveal #87 of 100 — only 13 left forever! 👻"
 - One-click copy to share achievement
 - Builds viral FOMO loop
 
 ### 5. **Real-Time Updates**
+
 - Uses Supabase Realtime subscriptions
 - All viewers see live countdown simultaneously
 - Dashboard updates in real-time as reveals happen
@@ -41,6 +46,7 @@ The Limited Reveals feature transforms Ghostpost from a simple message hiding to
 ### Tables
 
 #### `limited_secrets`
+
 ```sql
 - id (UUID, primary key)
 - post_id (TEXT, unique) - Links to posts.post_id
@@ -53,6 +59,7 @@ The Limited Reveals feature transforms Ghostpost from a simple message hiding to
 ```
 
 #### `reveal_events`
+
 ```sql
 - id (UUID, primary key)
 - post_id (TEXT) - Links to limited_secrets.post_id
@@ -65,6 +72,7 @@ The Limited Reveals feature transforms Ghostpost from a simple message hiding to
 ### Database Function
 
 #### `increment_reveal_count(p_post_id, p_user_fingerprint)`
+
 - **Purpose**: Atomically increments reveal counter with race condition protection
 - **Returns**: JSON with success status, reveal number, and remaining count
 - **Features**:
@@ -76,18 +84,21 @@ The Limited Reveals feature transforms Ghostpost from a simple message hiding to
 ## API Endpoints
 
 ### POST `/api/limited-reveals/init`
+
 Initialize a limited secret when creating a post.
 
 **Request:**
+
 ```json
 {
-  "post_id": "uuid-here",
-  "max_reveals": 100,
-  "user_id": "uuid-here"
+	"post_id": "uuid-here",
+	"max_reveals": 100,
+	"user_id": "uuid-here"
 }
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -96,77 +107,87 @@ Initialize a limited secret when creating a post.
 ```
 
 ### GET `/api/limited-reveals/status?post_id={id}`
+
 Check current status of a limited secret.
 
 **Response:**
+
 ```json
 {
-  "success": true,
-  "status": {
-    "post_id": "...",
-    "max_reveals": 100,
-    "current_reveals": 87,
-    "is_expired": false,
-    "remaining_reveals": 13,
-    "percentage_revealed": 87.0,
-    "can_reveal": true
-  }
+	"success": true,
+	"status": {
+		"post_id": "...",
+		"max_reveals": 100,
+		"current_reveals": 87,
+		"is_expired": false,
+		"remaining_reveals": 13,
+		"percentage_revealed": 87.0,
+		"can_reveal": true
+	}
 }
 ```
 
 ### POST `/api/limited-reveals/reveal`
+
 Record a reveal (called when decoding).
 
 **Request:**
+
 ```json
 {
-  "post_id": "uuid-here",
-  "user_fingerprint": "abc123"
+	"post_id": "uuid-here",
+	"user_fingerprint": "abc123"
 }
 ```
 
 **Response:**
+
 ```json
 {
-  "success": true,
-  "reveal_number": 87,
-  "total_reveals": 100,
-  "remaining": 13,
-  "message": "You are reveal #87 of 100 — only 13 left!"
+	"success": true,
+	"reveal_number": 87,
+	"total_reveals": 100,
+	"remaining": 13,
+	"message": "You are reveal #87 of 100 — only 13 left!"
 }
 ```
 
 ### GET `/api/limited-reveals/analytics?post_id={id}`
+
 Get detailed analytics for a limited secret.
 
 **Response:**
+
 ```json
 {
-  "success": true,
-  "analytics": {
-    "post_id": "...",
-    "max_reveals": 100,
-    "current_reveals": 87,
-    "remaining_reveals": 13,
-    "percentage_revealed": 87.0,
-    "is_expired": false,
-    "reveal_timeline": [
-      { "reveal_number": 1, "timestamp": "..." },
-      { "reveal_number": 2, "timestamp": "..." }
-    ]
-  }
+	"success": true,
+	"analytics": {
+		"post_id": "...",
+		"max_reveals": 100,
+		"current_reveals": 87,
+		"remaining_reveals": 13,
+		"percentage_revealed": 87.0,
+		"is_expired": false,
+		"reveal_timeline": [
+			{ "reveal_number": 1, "timestamp": "..." },
+			{ "reveal_number": 2, "timestamp": "..." }
+		]
+	}
 }
 ```
 
 ## Security Features
 
 ### 1. **Atomic Operations**
+
 - Database function with `FOR UPDATE` lock prevents race conditions
 - Multiple simultaneous reveals can't exceed the limit
 - All increment operations are transactional
 
 ### 2. **Enhanced Fingerprinting**
+
 Browser fingerprinting includes:
+
 - User agent
 - Screen dimensions and color depth
 - Language and timezone
@@ -176,6 +197,7 @@ Browser fingerprinting includes:
 - WebGL renderer info
 
 ### 3. **Row Level Security**
+
 - Users can only create limited secrets for their own posts
 - Public read access is documented (needed for decode page)
 - Reveal events are tied to their parent posts
@@ -189,52 +211,56 @@ Add the limited reveals toggle and input:
 ```svelte
 <input type="checkbox" bind:checked={enableLimitedReveals} />
 {#if enableLimitedReveals}
-  <input type="number" bind:value={maxReveals} min="1" max="10000" />
+	<input type="number" bind:value={maxReveals} min="1" max="10000" />
 {/if}
 ```
 
 Initialize when encoding:
+
 ```javascript
 if (enableLimitedReveals && maxReveals > 0) {
-  await fetch('/api/limited-reveals/init', {
-    method: 'POST',
-    body: JSON.stringify({ post_id, max_reveals: maxReveals, user_id })
-  });
+	await fetch('/api/limited-reveals/init', {
+		method: 'POST',
+		body: JSON.stringify({ post_id, max_reveals: maxReveals, user_id })
+	});
 }
 ```
 
 ### Decode Page
 
 Check status before revealing:
+
 ```javascript
 const statusResponse = await fetch(`/api/limited-reveals/status?post_id=${postId}`);
 const { status } = await statusResponse.json();
 
 if (status.is_expired || !status.can_reveal) {
-  // Show "SOLD OUT" message
-  return;
+	// Show "SOLD OUT" message
+	return;
 }
 
 // Record the reveal
 const revealResponse = await fetch('/api/limited-reveals/reveal', {
-  method: 'POST',
-  body: JSON.stringify({ post_id: postId, user_fingerprint: generateFingerprint() })
+	method: 'POST',
+	body: JSON.stringify({ post_id: postId, user_fingerprint: generateFingerprint() })
 });
 ```
 
 Setup real-time updates:
+
 ```javascript
 import { subscribeLimitedSecret } from '$lib/realtime-limited-reveals';
 
 const unsubscribe = subscribeLimitedSecret(postId, (updatedSecret) => {
-  // Update UI with new reveal count
-  revealStatus = { ...revealStatus, current_reveals: updatedSecret.current_reveals };
+	// Update UI with new reveal count
+	revealStatus = { ...revealStatus, current_reveals: updatedSecret.current_reveals };
 });
 ```
 
 ### Dashboard
 
 Load analytics and setup real-time:
+
 ```javascript
 const response = await fetch(`/api/limited-reveals/analytics?post_id=${postId}`);
 const { analytics } = await response.json();
@@ -248,11 +274,13 @@ setupRealtimeUpdates(postId);
 ### 1. Run Database Migration
 
 Execute the SQL migration in your Supabase SQL Editor:
+
 ```bash
 supabase/migrations/20231211_limited_reveals.sql
 ```
 
 This creates:
+
 - `limited_secrets` table
 - `reveal_events` table
 - Indexes for performance
@@ -262,6 +290,7 @@ This creates:
 ### 2. Install Dependencies
 
 The feature requires canvas-confetti:
+
 ```bash
 npm install canvas-confetti
 ```
@@ -269,6 +298,7 @@ npm install canvas-confetti
 ### 3. Deploy
 
 Build and deploy as normal:
+
 ```bash
 npm run build
 ```
@@ -309,6 +339,7 @@ Chat explodes when someone gets #50 (last one)
 ### Adjust FOMO Thresholds
 
 In `src/routes/decode/+page.svelte`:
+
 ```javascript
 // Show confetti for last 10 reveals
 if (revealResult.remaining !== null && revealResult.remaining <= 10) {
@@ -324,7 +355,7 @@ if (revealResult.remaining !== null && revealResult.remaining <= 10) {
 ### Custom Progress Bar Colors
 
 ```svelte
-<div 
+<div
   class:bg-success-500={percentage < 50}
   class:bg-warning-500={percentage >= 50 && percentage < 80}
   class:bg-error-500={percentage >= 80}
@@ -345,6 +376,7 @@ Modify `generateFingerprint()` in decode page to add/remove entropy sources.
 ## Future Enhancements
 
 Potential additions:
+
 1. **Waitlist**: Allow users to join a waitlist when sold out
 2. **Secondary Market**: Let users transfer their reveal slot
 3. **Timed Expiry**: Auto-expire after X hours regardless of reveals
@@ -355,16 +387,19 @@ Potential additions:
 ## Troubleshooting
 
 ### Issue: Reveals exceeding limit
+
 - Check that database function is being called (not direct UPDATE)
 - Verify `FOR UPDATE` lock is working
 - Check for connection pooling issues
 
 ### Issue: Real-time not updating
+
 - Verify Supabase Realtime is enabled for tables
 - Check browser console for subscription errors
 - Ensure RLS policies allow reading updated rows
 
 ### Issue: Fingerprinting too weak
+
 - Add more entropy sources (WebRTC, audio context, etc.)
 - Consider server-side session tracking
 - Use localStorage to persist across page loads
@@ -372,6 +407,7 @@ Potential additions:
 ## Support
 
 For issues or questions:
+
 - Check existing analytics: `GET /api/limited-reveals/analytics?post_id={id}`
 - View database logs for function calls
 - Test with unlimited posts first (max_reveals = null)

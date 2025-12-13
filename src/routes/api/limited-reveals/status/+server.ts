@@ -1,7 +1,7 @@
 /**
  * API Endpoint: Get Reveal Status
  * GET /api/limited-reveals/status?post_id={post_id}
- * 
+ *
  * Check if a secret can be revealed and get current status
  */
 
@@ -14,7 +14,7 @@ import type { RevealStatus } from '$lib/types/limited-reveals';
 const corsHeaders = {
 	'Access-Control-Allow-Origin': '*',
 	'Access-Control-Allow-Methods': 'GET, OPTIONS',
-	'Access-Control-Allow-Headers': 'Content-Type',
+	'Access-Control-Allow-Headers': 'Content-Type'
 };
 
 // Handle OPTIONS preflight request
@@ -31,7 +31,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		if (!post_id) {
 			return json(
-				{ success: false, error: 'Missing post_id parameter' }, 
+				{ success: false, error: 'Missing post_id parameter' },
 				{ status: 400, headers: corsHeaders }
 			);
 		}
@@ -45,29 +45,33 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		// If no record exists, this is an unlimited post
 		if (error || !limitedSecret) {
-			return json({
-				success: true,
-				status: {
-					post_id,
-					max_reveals: null,
-					current_reveals: 0,
-					is_expired: false,
-					remaining_reveals: null,
-					percentage_revealed: null,
-					can_reveal: true
-				} as RevealStatus
-			}, { headers: corsHeaders });
+			return json(
+				{
+					success: true,
+					status: {
+						post_id,
+						max_reveals: null,
+						current_reveals: 0,
+						is_expired: false,
+						remaining_reveals: null,
+						percentage_revealed: null,
+						can_reveal: true
+					} as RevealStatus
+				},
+				{ headers: corsHeaders }
+			);
 		}
 
 		const remaining = limitedSecret.max_reveals
 			? limitedSecret.max_reveals - limitedSecret.current_reveals
 			: null;
-		
+
 		const percentage = limitedSecret.max_reveals
 			? (limitedSecret.current_reveals / limitedSecret.max_reveals) * 100
 			: null;
 
-		const canReveal = !limitedSecret.is_expired && 
+		const canReveal =
+			!limitedSecret.is_expired &&
 			(!limitedSecret.max_reveals || limitedSecret.current_reveals < limitedSecret.max_reveals);
 
 		const status: RevealStatus = {
@@ -80,14 +84,17 @@ export const GET: RequestHandler = async ({ url }) => {
 			can_reveal: canReveal
 		};
 
-		return json({
-			success: true,
-			status
-		}, { headers: corsHeaders });
+		return json(
+			{
+				success: true,
+				status
+			},
+			{ headers: corsHeaders }
+		);
 	} catch (error) {
 		console.error('Error getting reveal status:', error);
 		return json(
-			{ success: false, error: 'Internal server error' }, 
+			{ success: false, error: 'Internal server error' },
 			{ status: 500, headers: corsHeaders }
 		);
 	}
