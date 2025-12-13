@@ -3,15 +3,15 @@
 	import { decodeMessage, encodeMessage, initWasm } from '$lib/ghostpost';
 
 	// Demo state
-	let demoVisibleMessage = 'Just shipped our latest feature! 🚀';
-	let demoSecretMessage = 'Beta access code: GHOST2024';
-	let demoEncodedMessage = '';
-	let demoDecodedSecret = '';
-	let isEncoding = false;
-	let isDecoding = false;
-	let showEncoded = false;
-	let showDecoded = false;
-	let errorMessage = '';
+	let demoVisibleMessage = $state('Just shipped our latest feature! 🚀');
+	let demoSecretMessage = $state('Beta access code: GHOST2024');
+	let demoEncodedMessage = $state('');
+	let demoDecodedSecret = $state('');
+	let isEncoding = $state(false);
+	let isDecoding = $state(false);
+	let showEncoded = $state(false);
+	let showDecoded = $state(false);
+	let errorMessage = $state('');
 	let installUrl = $state('/install');
 
 	onMount(async () => {
