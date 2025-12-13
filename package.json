@@ -52,6 +52,7 @@
 		"@supabase/auth-helpers-sveltekit": "^0.15.0",
 		"@supabase/ssr": "^0.8.0",
 		"@supabase/supabase-js": "^2.87.1",
+		"@vercel/analytics": "^1.6.1",
 		"canvas-confetti": "^1.9.4",
 		"dotenv": "^17.2.3",
 		"ioredis": "^5.8.2",
