@@ -231,7 +231,7 @@
 
 							<button
 								class="btn variant-filled-primary w-full"
-								on:click={handleEncode}
+								onclick={handleEncode}
 								disabled={isEncoding || !demoVisibleMessage.trim() || !demoSecretMessage.trim()}
 							>
 								{#if isEncoding}
@@ -253,7 +253,7 @@
 											<label class="label">
 												<span class="text-sm font-semibold">Encoded Message</span>
 											</label>
-											<button class="btn btn-sm variant-ghost-surface" on:click={handleCopy}>
+											<button class="btn btn-sm variant-ghost-surface" onclick={handleCopy}>
 												📋 Copy
 											</button>
 										</div>
@@ -268,7 +268,7 @@
 
 								<button
 									class="btn variant-filled-secondary w-full"
-									on:click={handleDecode}
+									onclick={handleDecode}
 									disabled={isDecoding}
 								>
 									{#if isDecoding}
@@ -296,7 +296,7 @@
 									</div>
 								</div>
 
-								<button class="btn variant-ghost-surface w-full" on:click={resetDemo}>
+								<button class="btn variant-ghost-surface w-full" onclick={resetDemo}>
 									<span>🔄</span>
 									<span>Try Again</span>
 								</button>
