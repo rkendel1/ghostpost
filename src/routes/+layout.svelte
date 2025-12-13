@@ -6,6 +6,7 @@
 
 	import { onMount } from 'svelte';
 	import GitHubIcon from '$lib/images/github.svg?component';
+	import { injectAnalytics } from '@vercel/analytics/sveltekit';
 
 	import { AppBar, AppShell } from '@skeletonlabs/skeleton';
 	import { Drawer, drawerStore, Modal, modalStore } from '@skeletonlabs/skeleton';
@@ -14,6 +15,8 @@
 	import Navigation from '$lib/navigation/Navigation.svelte';
 	import AuthModal from '$lib/components/AuthModal.svelte';
 	import { authStore } from '$lib/stores/auth';
+	
+	injectAnalytics();
 
 	let mounted = false;
 
