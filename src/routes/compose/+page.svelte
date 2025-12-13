@@ -150,6 +150,24 @@
 						secret_type: secretType
 					});
 
+					// Track encoded message creation
+					try {
+						await supabase.from('encoded_messages_tracking').insert({
+							user_id: user.id,
+							post_id: currentPostId,
+							platform: platform,
+							secret_type: secretType,
+							visible_length: characterStats.visibleLength,
+							hidden_length: characterStats.hiddenLength,
+							total_length: characterStats.totalLength,
+							has_limited_reveals: enableLimitedReveals,
+							max_reveals: enableLimitedReveals ? maxReveals : null
+						});
+					} catch (trackError) {
+						console.error('Failed to track encoded message:', trackError);
+						// Don't show error to user for tracking failure
+					}
+
 					// Initialize limited reveals if enabled
 					if (enableLimitedReveals && maxReveals && maxReveals > 0) {
 						try {

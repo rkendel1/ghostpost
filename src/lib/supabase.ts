@@ -102,6 +102,91 @@ export type Database = {
 					created_at?: string;
 				};
 			};
+			userscript_installs: {
+				Row: {
+					id: string;
+					user_id: string | null;
+					install_fingerprint: string;
+					user_agent: string | null;
+					platform: string | null;
+					browser: string | null;
+					os: string | null;
+					installed_at: string;
+					last_seen: string;
+					version: string | null;
+					created_at: string;
+					updated_at: string;
+				};
+				Insert: {
+					id?: string;
+					user_id?: string | null;
+					install_fingerprint: string;
+					user_agent?: string | null;
+					platform?: string | null;
+					browser?: string | null;
+					os?: string | null;
+					installed_at?: string;
+					last_seen?: string;
+					version?: string | null;
+					created_at?: string;
+					updated_at?: string;
+				};
+				Update: {
+					id?: string;
+					user_id?: string | null;
+					install_fingerprint?: string;
+					user_agent?: string | null;
+					platform?: string | null;
+					browser?: string | null;
+					os?: string | null;
+					installed_at?: string;
+					last_seen?: string;
+					version?: string | null;
+					created_at?: string;
+					updated_at?: string;
+				};
+			};
+			encoded_messages_tracking: {
+				Row: {
+					id: string;
+					user_id: string;
+					post_id: string;
+					platform: string;
+					secret_type: string;
+					visible_length: number;
+					hidden_length: number;
+					total_length: number;
+					has_limited_reveals: boolean;
+					max_reveals: number | null;
+					created_at: string;
+				};
+				Insert: {
+					id?: string;
+					user_id: string;
+					post_id: string;
+					platform: string;
+					secret_type: string;
+					visible_length: number;
+					hidden_length: number;
+					total_length: number;
+					has_limited_reveals?: boolean;
+					max_reveals?: number | null;
+					created_at?: string;
+				};
+				Update: {
+					id?: string;
+					user_id?: string;
+					post_id?: string;
+					platform?: string;
+					secret_type?: string;
+					visible_length?: number;
+					hidden_length?: number;
+					total_length?: number;
+					has_limited_reveals?: boolean;
+					max_reveals?: number | null;
+					created_at?: string;
+				};
+			};
 		};
 	};
 };
