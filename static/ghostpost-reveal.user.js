@@ -281,7 +281,8 @@
 
 			// Check if we need to send heartbeat (once per day)
 			const now = Date.now();
-			if (lastTracked && (now - parseInt(lastTracked)) < HEARTBEAT_INTERVAL) {
+			const lastTrackedNum = Number(lastTracked);
+			if (lastTracked && !isNaN(lastTrackedNum) && (now - lastTrackedNum) < HEARTBEAT_INTERVAL) {
 				// Skip if tracked recently
 				return;
 			}
