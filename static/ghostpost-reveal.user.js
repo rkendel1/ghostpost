@@ -582,6 +582,7 @@
 		function detectHiddenMessages() {
 			const hiddenMessages = [];
 			const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+			const processedTweetContainers = new Set(); // Track processed tweet containers to avoid duplicates
 			
 			// Check if we're on X.com
 			const hostname = window.location.hostname.toLowerCase();
@@ -603,6 +604,10 @@
 				}
 				
 				if (tweetContainer) {
+					// Skip if we already processed this tweet container
+					if (processedTweetContainers.has(tweetContainer)) continue;
+					processedTweetContainers.add(tweetContainer);
+					
 					// Aggregate full tweet text to handle splits
 					let fullText = '';
 					const tweetWalker = document.createTreeWalker(tweetContainer, NodeFilter.SHOW_TEXT, null);
@@ -617,7 +622,7 @@
 					}
 				}
 
-				if (hasCompleteEncodedMessage(text)) {
+				if (hasCompleteEncodedMessage(text) && isLikelyHidenlyMessage(text)) {
 					hiddenMessages.push({
 						node: textNode,
 						encodedText: text  // Use aggregated text for x.com

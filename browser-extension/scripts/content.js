@@ -325,6 +325,7 @@ function extractCompleteText(node) {
 function scanPageForHiddenContent() {
 	const detectedElements = [];
 	const processedElements = new Set(); // Track processed elements to avoid duplicates
+	const processedTweetContainers = new Set(); // Track processed tweet containers to avoid duplicates
 	const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
 	
 	// Check if we're on X.com
@@ -347,6 +348,10 @@ function scanPageForHiddenContent() {
 		}
 		
 		if (tweetContainer) {
+			// Skip if we already processed this tweet container
+			if (processedTweetContainers.has(tweetContainer)) continue;
+			processedTweetContainers.add(tweetContainer);
+			
 			// Aggregate full tweet text to handle splits
 			let fullText = '';
 			const tweetWalker = document.createTreeWalker(tweetContainer, NodeFilter.SHOW_TEXT, null);
@@ -540,6 +545,7 @@ function isInFeedContainer(node) {
 function scanNewNodes(nodes) {
 	const detectedElements = [];
 	const processedElements = new Set(); // Track processed elements to avoid duplicates
+	const processedTweetContainers = new Set(); // Track processed tweet containers to avoid duplicates
 	
 	// Check if we're on X.com
 	const hostname = window.location.hostname.toLowerCase();
@@ -561,6 +567,10 @@ function scanNewNodes(nodes) {
 			}
 			
 			if (tweetContainer) {
+				// Skip if we already processed this tweet container
+				if (processedTweetContainers.has(tweetContainer)) continue;
+				processedTweetContainers.add(tweetContainer);
+				
 				// Aggregate full tweet text to handle splits
 				let fullText = '';
 				const tweetWalker = document.createTreeWalker(tweetContainer, NodeFilter.SHOW_TEXT, null);
@@ -602,6 +612,10 @@ function scanNewNodes(nodes) {
 				}
 				
 				if (tweetContainer) {
+					// Skip if we already processed this tweet container
+					if (processedTweetContainers.has(tweetContainer)) continue;
+					processedTweetContainers.add(tweetContainer);
+					
 					// Aggregate full tweet text to handle splits
 					let fullText = '';
 					const tweetWalker = document.createTreeWalker(tweetContainer, NodeFilter.SHOW_TEXT, null);
