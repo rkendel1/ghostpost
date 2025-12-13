@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.4.7
+// @version      2.4.8
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -23,6 +23,15 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.4.8 (2025-12-13):
+ * - CRITICAL FIX: Hybrid detection approach for X.com reliability
+ * - Reverted to broad TreeWalker scan on document.body for all sites
+ * - Added X.com-specific filter: only processes text inside tweetText containers
+ * - Aggregates full tweet text when X.com tweetText container detected
+ * - Fixes detection failures on mobile x.com feeds and lazy-loaded content
+ * - Simplified twitterAdapter since detection now handles aggregation
+ * - Restores reliable detection across all sites while fixing X.com reveal issues
+ * 
  * v2.4.7 (2025-12-12):
  * - CRITICAL FIX: Improved X.com detection reliability with tweet-scoped scanning
  * - Changed detectHiddenMessages() to only scan text nodes inside tweet articles
@@ -217,7 +226,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.4.7';
+	const SCRIPT_VERSION = '2.4.8';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 
 	// Function to initialize the userscript
@@ -453,35 +462,28 @@
 		}
 
 		/**
-		 * Twitter/X.com specialized adapter - Simplified since detection aggregates
+		 * Twitter/X.com specialized adapter - Simplified since detection handles aggregation
 		 * 
-		 * STRATEGY: Detection already provides fully aggregated text from tweetText container.
-		 * This adapter re-aggregates from the closest tweetText container to ensure consistency.
+		 * STRATEGY: Just return what's already stored, or quick re-aggregate from tweetText
 		 * 
 		 * CONTEXT: X.com's GraphQL API preserves all invisible Unicode characters in the
 		 * full_text field, and the DOM preserves them in the tweetText container.
-		 * data-testid="tweetText" is X.com's standard selector for tweet content (used in their tests).
-		 * 
-		 * See XCOM_API_BEHAVIOR.md for detailed explanation of X.com's behavior.
+		 * data-testid="tweetText" is X.com's standard selector for tweet content.
 		 */
 		const twitterAdapter = {
 			extractText: (node) => {
-				// Re-aggregate from the closest tweetText for consistency with detection
-				const tweetTextContainer = node.closest('[data-testid="tweetText"]') || 
-										   node.closest('article[data-testid="tweet"]')?.querySelector('[data-testid="tweetText"]');
-				if (!tweetTextContainer) return '';
+				// Just return what's already stored, or quick re-aggregate
+				const container = node.closest('[data-testid="tweetText"]');
+				if (!container) return '';
 
-				let fullText = '';
-				const walker = document.createTreeWalker(tweetTextContainer, NodeFilter.SHOW_TEXT, null);
-				let textNode;
-				while ((textNode = walker.nextNode())) {
-					fullText += textNode.data || '';
-				}
-
-				return fullText;
+				let full = '';
+				const w = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+				let n;
+				while ((n = w.nextNode())) full += n.data || '';
+				return full;
 			},
 			description:
-				'Simplified text extraction for X.com. Re-aggregates from tweetText container since detection already provides complete text.'
+				'Simplified text extraction for X.com. Quick re-aggregation from tweetText container.'
 		};
 
 		/**
@@ -571,132 +573,68 @@
 		}
 
 		/**
-		 * Core detection function - with X.com tweet-scoping for reliability
+		 * Core detection function - Hybrid approach: broad scan + X.com filtering
 		 * Returns array of objects: { node, encodedText }
 		 * 
-		 * For X.com/Twitter: Scopes detection to tweet articles only, avoiding false paths
-		 * For other sites: Uses standard page-wide text node scanning
+		 * Uses broad TreeWalker scan to find secrets anywhere, then adds X.com-specific
+		 * filtering and aggregation to handle split text nodes on that platform.
 		 */
 		function detectHiddenMessages() {
-			const results = [];
+			const hiddenMessages = [];
+			const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+			const processedTweetContainers = new Set(); // Track processed tweet containers to avoid duplicates
+			
+			// Check if we're on X.com
 			const hostname = window.location.hostname.toLowerCase();
 			const isXCom = hostname === 'x.com' || hostname === 'twitter.com' || 
 			               hostname.endsWith('.x.com') || hostname.endsWith('.twitter.com');
 
-			// X.com-specific detection: scope to tweet articles only
-			if (isXCom) {
-				// Scope to tweet articles only - this is critical for x.com reliability
-				const tweetArticles = document.querySelectorAll('article[data-testid="tweet"]');
-				if (tweetArticles.length === 0) {
-					if (DEBUG_MODE) console.log('[Ghostpost] No tweet articles found - page may not be loaded yet');
-					return [];
+			let textNode;
+			while ((textNode = walker.nextNode())) {
+				let text = textNode.data || '';
+
+				// Quick skip for performance
+				if (!hasInvisibleChars(text)) continue;
+
+				// For x.com: only consider text inside a tweetText container
+				const tweetContainer = textNode.parentElement?.closest('[data-testid="tweetText"]');
+				if (isXCom && !tweetContainer) {
+					// Skip non-tweet text on X.com
+					continue;
 				}
-
-				tweetArticles.forEach(article => {
-					// Get the tweetText container inside this article
-					const tweetTextContainer = article.querySelector('[data-testid="tweetText"]');
-					if (!tweetTextContainer) return;
-
-					// Aggregate all text nodes under tweetText
-					const walker = document.createTreeWalker(tweetTextContainer, NodeFilter.SHOW_TEXT, null);
-					let textNode;
-					let combinedText = '';
-					while ((textNode = walker.nextNode())) {
-						combinedText += textNode.data || '';
+				
+				if (tweetContainer) {
+					// Skip if we already processed this tweet container
+					if (processedTweetContainers.has(tweetContainer)) continue;
+					processedTweetContainers.add(tweetContainer);
+					
+					// Aggregate full tweet text to handle splits
+					let fullText = '';
+					const tweetWalker = document.createTreeWalker(tweetContainer, NodeFilter.SHOW_TEXT, null);
+					let tweetNode;
+					while ((tweetNode = tweetWalker.nextNode())) {
+						fullText += tweetNode.data || '';
 					}
+					text = fullText;
 
-					// Quick pre-check
-					if (!hasInvisibleChars(combinedText)) return;
-
-					// Full validation
-					if (hasCompleteEncodedMessage(combinedText)) {
-						// Find a representative text node for highlighting (first one)
-						walker.currentNode = tweetTextContainer;
-						const firstTextNode = walker.nextNode();
-
-						results.push({
-							node: firstTextNode || tweetTextContainer, // fallback to container
-							encodedText: combinedText // Store full aggregated text here
-						});
-
-						if (DEBUG_MODE) {
-							console.log('[Ghostpost] [X.com] ✓ Detected hidden message in tweet:', combinedText.substring(0, 50) + '...');
-						}
-					}
-				});
-
-				if (DEBUG_MODE) {
-					console.log('[Ghostpost] [X.com] Tweet-scoped scan complete. Found', results.length, 'hidden messages');
-				}
-
-				return results;
-			}
-
-			// Standard detection for non-X.com sites
-			const startTime = Date.now();
-			let nodesChecked = 0;
-
-			// Get site-specific adapter
-			const adapter = getSiteAdapter();
-
-			const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-
-			let node;
-			while ((node = walker.nextNode())) {
-				// Safety check: stop if taking too long
-				if (Date.now() - startTime > SCAN_TIMEOUT) {
 					if (DEBUG_MODE) {
-						console.log(
-							'[Ghostpost] Scan timeout - stopping early for performance. Checked',
-							nodesChecked,
-							'nodes, found',
-							results.length,
-							'hidden messages'
-						);
+						console.log('[Ghostpost] [X.com] Aggregated tweet text:', text.substring(0, 100) + '...');
 					}
-					break;
 				}
 
-				// Limit number of nodes processed
-				if (nodesChecked >= MAX_NODES_PER_SCAN) {
-					if (DEBUG_MODE) {
-						console.log(
-							'[Ghostpost] Max nodes reached - stopping scan. Checked',
-							nodesChecked,
-							'nodes, found',
-							results.length,
-							'hidden messages'
-						);
-					}
-					break;
-				}
+				if (hasCompleteEncodedMessage(text) && isLikelyHidenlyMessage(text)) {
+					hiddenMessages.push({
+						node: textNode,
+						encodedText: text  // Use aggregated text for x.com
+					});
 
-				nodesChecked++;
-
-				// Use site-specific text extraction
-				const nodeText = adapter.extractText(node);
-				if (nodeText && isLikelyHidenlyMessage(nodeText)) {
-					// Store both the node and the encoded text at detection time
-					results.push({ node, encodedText: nodeText });
 					if (DEBUG_MODE) {
-						console.log('[Ghostpost] Found hidden message #' + results.length, 'in node:', node);
+						console.log('[Ghostpost] ✓ Detected hidden message!');
 					}
 				}
 			}
 
-			if (DEBUG_MODE) {
-				console.log(
-					'[Ghostpost] Scan complete. Checked',
-					nodesChecked,
-					'nodes in',
-					Date.now() - startTime,
-					'ms. Found',
-					results.length,
-					'hidden messages'
-				);
-			}
-
-			return results;
+			return hiddenMessages;
 		}
 
 		// Detect if on a social media site for micro-pulsing

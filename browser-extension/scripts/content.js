@@ -2,7 +2,15 @@
  * Content Script - Scans page for hidden content
  * Detects invisible Unicode characters used by Hidenly encoding
  *
- * ENHANCED FEATURES (v1.2.4):
+ * ENHANCED FEATURES (v1.2.5):
+ * - CRITICAL FIX: Hybrid detection approach for X.com reliability
+ * - Reverted to broad TreeWalker scan on document.body for all sites
+ * - Added X.com-specific filter: only processes text inside tweetText containers
+ * - Aggregates full tweet text when X.com tweetText container detected
+ * - Fixes detection failures on mobile x.com feeds and lazy-loaded content
+ * - Restores reliable detection across all sites while fixing X.com reveal issues
+ * 
+ * v1.2.4:
  * - CRITICAL FIX: Improved X.com detection reliability with tweet-scoped scanning
  * - Changed scanPageForHiddenContent() to scope detection to tweet articles on X.com
  * - Targets article[data-testid="tweet"] containers first, then scans tweetText inside
@@ -310,84 +318,63 @@ function extractCompleteText(node) {
 }
 
 /**
- * Scan the entire page for hidden content
- * For X.com/Twitter: Uses tweet-scoped scanning for reliability
- * For other sites: Uses standard page-wide text node scanning
+ * Scan the entire page for hidden content - Hybrid approach: broad scan + X.com filtering
+ * Uses broad TreeWalker scan to find secrets anywhere, then adds X.com-specific
+ * filtering and aggregation to handle split text nodes on that platform.
  */
 function scanPageForHiddenContent() {
 	const detectedElements = [];
 	const processedElements = new Set(); // Track processed elements to avoid duplicates
+	const processedTweetContainers = new Set(); // Track processed tweet containers to avoid duplicates
+	const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
 	
+	// Check if we're on X.com
 	const hostname = window.location.hostname.toLowerCase();
 	const isXCom = hostname === 'x.com' || hostname === 'twitter.com' || 
 	               hostname.endsWith('.x.com') || hostname.endsWith('.twitter.com');
 
-	// X.com-specific detection: scope to tweet articles only
-	if (isXCom) {
-		// Scope to tweet articles only - this is critical for x.com reliability
-		const tweetArticles = document.querySelectorAll('article[data-testid="tweet"]');
-		if (tweetArticles.length === 0) {
-			console.log('[Hidenly] No tweet articles found - page may not be loaded yet');
-			return [];
+	let textNode;
+	while ((textNode = walker.nextNode())) {
+		let text = textNode.data || '';
+
+		// Quick skip for performance
+		if (!hasInvisibleChars(text)) continue;
+
+		// For x.com: only consider text inside a tweetText container
+		const tweetContainer = textNode.parentElement?.closest('[data-testid="tweetText"]');
+		if (isXCom && !tweetContainer) {
+			// Skip non-tweet text on X.com
+			continue;
+		}
+		
+		if (tweetContainer) {
+			// Skip if we already processed this tweet container
+			if (processedTweetContainers.has(tweetContainer)) continue;
+			processedTweetContainers.add(tweetContainer);
+			
+			// Aggregate full tweet text to handle splits
+			let fullText = '';
+			const tweetWalker = document.createTreeWalker(tweetContainer, NodeFilter.SHOW_TEXT, null);
+			let tweetNode;
+			while ((tweetNode = tweetWalker.nextNode())) {
+				fullText += tweetNode.data || '';
+			}
+			text = fullText;
+
+			console.log('[Hidenly] [X.com] Aggregated tweet text:', text.substring(0, 100) + '...');
 		}
 
-		tweetArticles.forEach(article => {
-			// Get the tweetText container inside this article
-			const tweetTextContainer = article.querySelector('[data-testid="tweetText"]');
-			if (!tweetTextContainer) return;
-
-			// Aggregate all text nodes under tweetText
-			const walker = document.createTreeWalker(tweetTextContainer, NodeFilter.SHOW_TEXT, null);
-			let textNode;
-			let combinedText = '';
-			while ((textNode = walker.nextNode())) {
-				combinedText += textNode.data || '';
-			}
-
-			// Quick pre-check
-			if (!hasInvisibleChars(combinedText)) return;
-
-			// Full validation
-			if (combinedText && hasCompleteEncodedMessage(combinedText) && isLikelyHidenlyMessage(combinedText)) {
-				// Use the tweetText container as the element
-				if (!processedElements.has(tweetTextContainer)) {
-					detectedElements.push({
-						element: tweetTextContainer,
-						text: combinedText, // Store full aggregated text
-						location: getElementLocation(tweetTextContainer)
-					});
-					
-					processedElements.add(tweetTextContainer);
-					console.log('[Hidenly] [X.com] ✓ Detected hidden message in tweet');
-				}
-			}
-		});
-
-		console.log(`[Hidenly] [X.com] Tweet-scoped scan complete. Found ${detectedElements.length} elements with hidden content`);
-		return detectedElements;
-	}
-
-	// Standard detection for non-X.com sites
-	// Get all text nodes in the document
-	const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-
-	let node;
-	while ((node = walker.nextNode())) {
-		const text = node.data || node.nodeValue || '';
-		if (text && isLikelyHidenlyMessage(text)) {
-			// Found invisible characters that match Hidenly pattern
-			const element = node.parentElement;
+		if (hasCompleteEncodedMessage(text) && isLikelyHidenlyMessage(text)) {
+			const element = textNode.parentElement || tweetContainer;
 			if (element && !processedElements.has(element)) {
-				// Extract complete text (may aggregate from parent elements)
-				const completeText = extractCompleteText(node);
-				
 				detectedElements.push({
 					element: element,
-					text: completeText, // Use complete aggregated text
+					text: text,  // Use aggregated text for x.com
 					location: getElementLocation(element)
 				});
-				
+
 				processedElements.add(element);
+				console.log('[Hidenly] ✓ Detected hidden message!');
 			}
 		}
 	}
@@ -553,24 +540,53 @@ function isInFeedContainer(node) {
 }
 
 /**
- * Scan only new nodes for performance optimization
+ * Scan only new nodes for performance optimization - Hybrid approach
  */
 function scanNewNodes(nodes) {
 	const detectedElements = [];
 	const processedElements = new Set(); // Track processed elements to avoid duplicates
+	const processedTweetContainers = new Set(); // Track processed tweet containers to avoid duplicates
+	
+	// Check if we're on X.com
+	const hostname = window.location.hostname.toLowerCase();
+	const isXCom = hostname === 'x.com' || hostname === 'twitter.com' || 
+	               hostname.endsWith('.x.com') || hostname.endsWith('.twitter.com');
 
 	for (const node of nodes) {
 		if (node.nodeType === Node.TEXT_NODE) {
-			const text = node.data || node.nodeValue || '';
-			if (text && isLikelyHidenlyMessage(text)) {
-				const element = node.parentElement;
+			let text = node.data || node.nodeValue || '';
+			
+			// Quick skip for performance
+			if (!hasInvisibleChars(text)) continue;
+
+			// For x.com: only consider text inside a tweetText container
+			const tweetContainer = node.parentElement?.closest('[data-testid="tweetText"]');
+			if (isXCom && !tweetContainer) {
+				// Skip non-tweet text on X.com
+				continue;
+			}
+			
+			if (tweetContainer) {
+				// Skip if we already processed this tweet container
+				if (processedTweetContainers.has(tweetContainer)) continue;
+				processedTweetContainers.add(tweetContainer);
+				
+				// Aggregate full tweet text to handle splits
+				let fullText = '';
+				const tweetWalker = document.createTreeWalker(tweetContainer, NodeFilter.SHOW_TEXT, null);
+				let tweetNode;
+				while ((tweetNode = tweetWalker.nextNode())) {
+					fullText += tweetNode.data || '';
+				}
+				text = fullText;
+			}
+
+			if (hasCompleteEncodedMessage(text) && isLikelyHidenlyMessage(text)) {
+				const element = node.parentElement || tweetContainer;
 				if (element && !processedElements.has(element)) {
-					// Extract complete text (may aggregate from parent elements)
-					const completeText = extractCompleteText(node);
-					
 					detectedElements.push({
 						element: element,
-						text: completeText, // Use complete aggregated text
+						text: text, // Use aggregated text for x.com
 						location: getElementLocation(element)
 					});
 					
@@ -583,16 +599,39 @@ function scanNewNodes(nodes) {
 
 			let textNode;
 			while ((textNode = walker.nextNode())) {
-				const text = textNode.data || textNode.nodeValue || '';
-				if (text && isLikelyHidenlyMessage(text)) {
-					const element = textNode.parentElement;
+				let text = textNode.data || textNode.nodeValue || '';
+				
+				// Quick skip for performance
+				if (!hasInvisibleChars(text)) continue;
+
+				// For x.com: only consider text inside a tweetText container
+				const tweetContainer = textNode.parentElement?.closest('[data-testid="tweetText"]');
+				if (isXCom && !tweetContainer) {
+					// Skip non-tweet text on X.com
+					continue;
+				}
+				
+				if (tweetContainer) {
+					// Skip if we already processed this tweet container
+					if (processedTweetContainers.has(tweetContainer)) continue;
+					processedTweetContainers.add(tweetContainer);
+					
+					// Aggregate full tweet text to handle splits
+					let fullText = '';
+					const tweetWalker = document.createTreeWalker(tweetContainer, NodeFilter.SHOW_TEXT, null);
+					let tweetNode;
+					while ((tweetNode = tweetWalker.nextNode())) {
+						fullText += tweetNode.data || '';
+					}
+					text = fullText;
+				}
+
+				if (hasCompleteEncodedMessage(text) && isLikelyHidenlyMessage(text)) {
+					const element = textNode.parentElement || tweetContainer;
 					if (element && !processedElements.has(element)) {
-						// Extract complete text (may aggregate from parent elements)
-						const completeText = extractCompleteText(textNode);
-						
 						detectedElements.push({
 							element: element,
-							text: completeText, // Use complete aggregated text
+							text: text, // Use aggregated text for x.com
 							location: getElementLocation(element)
 						});
 						
