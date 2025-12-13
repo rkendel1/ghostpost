@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.4.8
+// @version      2.4.9
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -23,6 +23,15 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.4.9 (2025-12-13):
+ * - REVERT: Restored pre-PR115 x.com reveal approach with parent tree walking
+ * - Changed twitterAdapter back to DOM parent traversal method (up to 10 levels)
+ * - This approach better identifies hidden text on x.com (as per issue feedback)
+ * - Walks up parent elements and aggregates all text nodes at each level
+ * - Checks for complete encoded message (both delimiters) at each parent level
+ * - Returns first complete message found during traversal
+ * - More reliable detection even if decode/reveal has issues
+ * 
  * v2.4.8 (2025-12-13):
  * - CRITICAL FIX: Hybrid detection approach for X.com reliability
  * - Reverted to broad TreeWalker scan on document.body for all sites
@@ -462,28 +471,67 @@
 		}
 
 		/**
-		 * Twitter/X.com specialized adapter - Simplified since detection handles aggregation
+		 * Twitter/X.com specialized adapter - Parent tree walking approach (Pre-PR115)
 		 * 
-		 * STRATEGY: Just return what's already stored, or quick re-aggregate from tweetText
+		 * STRATEGY: Walk up DOM tree and aggregate text at each parent level
+		 * This approach provides better identification of hidden text on x.com
 		 * 
 		 * CONTEXT: X.com's GraphQL API preserves all invisible Unicode characters in the
-		 * full_text field, and the DOM preserves them in the tweetText container.
-		 * data-testid="tweetText" is X.com's standard selector for tweet content.
+		 * full_text field, and the DOM can split them across nested elements.
+		 * Walking up the parent tree and aggregating all text nodes at each level
+		 * ensures we capture the complete encoded message even when split.
 		 */
 		const twitterAdapter = {
 			extractText: (node) => {
-				// Just return what's already stored, or quick re-aggregate
-				const container = node.closest('[data-testid="tweetText"]');
-				if (!container) return '';
-
-				let full = '';
-				const w = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
-				let n;
-				while ((n = w.nextNode())) full += n.data || '';
-				return full;
+				const nodeText = node.data || node.nodeValue || '';
+				
+				// First, check if the text node itself contains a complete encoded message
+				if (nodeText && hasCompleteEncodedMessage(nodeText)) {
+					if (DEBUG_MODE) {
+						console.log('[Ghostpost] ✓ Found complete message in text node itself');
+					}
+					return nodeText;
+				}
+				
+				// Walk up DOM tree to aggregate text from parent elements
+				// This handles X.com's complex DOM where content is split across elements
+				let currentElement = node.parentElement;
+				let levelsChecked = 0;
+				const MAX_PARENT_LEVELS = 10;
+				
+				while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
+					let combinedText = '';
+					const walker = document.createTreeWalker(
+						currentElement,
+						NodeFilter.SHOW_TEXT,
+						null
+					);
+					let textNode;
+					while ((textNode = walker.nextNode())) {
+						combinedText += textNode.data || textNode.nodeValue || '';
+					}
+					
+					// Check if combined text has complete message (both delimiters)
+					if (combinedText && hasCompleteEncodedMessage(combinedText)) {
+						if (DEBUG_MODE) {
+							console.log(`[Ghostpost] ✓ Found complete message at parent level ${levelsChecked + 1}`);
+						}
+						return combinedText;
+					}
+					
+					// Move up to next parent
+					currentElement = currentElement.parentElement;
+					levelsChecked++;
+				}
+				
+				// Fallback: return original node text even if incomplete
+				if (DEBUG_MODE && nodeText) {
+					console.log('[Ghostpost] ⚠ No complete message found after checking all parent levels');
+				}
+				return nodeText;
 			},
 			description:
-				'Simplified text extraction for X.com. Quick re-aggregation from tweetText container.'
+				'Parent tree walking extraction for X.com (up to 10 levels) - Pre-PR115 approach'
 		};
 
 		/**

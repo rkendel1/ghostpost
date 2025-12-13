@@ -2,7 +2,17 @@
  * Content Script - Scans page for hidden content
  * Detects invisible Unicode characters used by Hidenly encoding
  *
- * ENHANCED FEATURES (v1.2.5):
+ * ENHANCED FEATURES (v1.2.6):
+ * - REVERT: Restored pre-PR115 x.com reveal approach with parent tree walking
+ * - Changed extractCompleteText() back to simple parent traversal method (up to 10 levels)
+ * - Removed extra "simple approaches" that were added after PR115
+ * - This approach better identifies hidden text on x.com (as per issue feedback)
+ * - Walks up parent elements and aggregates all text nodes at each level
+ * - Checks for complete encoded message (both delimiters) at each parent level
+ * - Returns first complete message found during traversal
+ * - More reliable detection even if decode/reveal has issues
+ * 
+ * v1.2.5:
  * - CRITICAL FIX: Hybrid detection approach for X.com reliability
  * - Reverted to broad TreeWalker scan on document.body for all sites
  * - Added X.com-specific filter: only processes text inside tweetText containers
@@ -239,24 +249,18 @@ function hasCompleteEncodedMessage(text) {
  * See XCOM_API_BEHAVIOR.md for detailed explanation of X.com's behavior.
  */
 function extractCompleteText(node) {
-	// SIMPLE APPROACH #1: Try the text node itself first (works 90%+ of cases)
-	const nodeText = node.data || node.nodeValue || node.textContent || '';
+	// Parent tree walking approach (Pre-PR115)
+	// This approach provides better identification of hidden text on x.com
+	const nodeText = node.data || node.nodeValue || '';
+	
+	// First, check if the text node itself contains a complete encoded message
 	if (nodeText && hasCompleteEncodedMessage(nodeText)) {
-		console.log('[Hidenly] [X.com] ✓ Complete message found in text node (simple)');
+		console.log('[Hidenly] [X.com] ✓ Complete message found in text node itself');
 		return nodeText;
 	}
 	
-	// SIMPLE APPROACH #2: Try parent element's textContent (fast and works for most splits)
-	if (node.parentElement) {
-		const parentText = node.parentElement.textContent || '';
-		if (parentText && hasCompleteEncodedMessage(parentText)) {
-			console.log('[Hidenly] [X.com] ✓ Complete message found in parent.textContent (simple)');
-			return parentText;
-		}
-	}
-	
-	// ADVANCED FALLBACK #1: Walk up DOM tree with TreeWalker (handles deep nesting)
-	// Only runs if simple approaches fail
+	// Walk up DOM tree to aggregate text from parent elements
+	// This handles X.com's complex DOM where content is split across elements
 	let currentElement = node.parentElement;
 	let levelsChecked = 0;
 	const MAX_PARENT_LEVELS = 10;
@@ -276,7 +280,7 @@ function extractCompleteText(node) {
 		
 		// Check if combined text has complete message (both delimiters + valid content)
 		if (combinedText && hasCompleteEncodedMessage(combinedText)) {
-			console.log('[Hidenly] [X.com] ✓ Complete message found at parent level', levelsChecked + 1, '(advanced TreeWalker)');
+			console.log('[Hidenly] [X.com] ✓ Complete message found at parent level', levelsChecked + 1);
 			return combinedText;
 		}
 		
@@ -285,35 +289,8 @@ function extractCompleteText(node) {
 		levelsChecked++;
 	}
 	
-	// ADVANCED FALLBACK #2: Check sibling nodes (handles horizontal splits)
-	// Only runs if all previous approaches fail
-	if (node.parentElement) {
-		let siblingText = '';
-		const parent = node.parentElement;
-		const children = parent.childNodes;
-		
-		for (let i = 0; i < children.length; i++) {
-			const child = children[i];
-			if (child.nodeType === Node.TEXT_NODE) {
-				siblingText += child.data || child.nodeValue || '';
-			}
-		}
-		
-		if (siblingText && hasCompleteEncodedMessage(siblingText)) {
-			console.log('[Hidenly] [X.com] ✓ Complete message found in sibling aggregation (advanced)');
-			return siblingText;
-		}
-	}
-	
-	// All strategies exhausted - log debug info and return what we have
-	console.warn('[Hidenly] [X.com] ⚠ Could not find complete message after trying all strategies');
-	console.warn('[Hidenly] [X.com] Node text preview:', (nodeText || '').substring(0, 100));
-	console.warn('[Hidenly] [X.com] Has FEFF delimiter:', (nodeText || '').indexOf('\uFEFF') !== -1);
-	console.warn('[Hidenly] [X.com] Checked', MAX_PARENT_LEVELS, 'parent levels');
-	console.warn('[Hidenly] [X.com] NOTE: X.com preserves invisible chars in full_text field');
-	console.warn('[Hidenly] [X.com] See XCOM_API_BEHAVIOR.md for troubleshooting guidance');
-	
-	// Return node text anyway - decoder will provide appropriate error message
+	// Fallback: return original node text even if incomplete
+	console.warn('[Hidenly] [X.com] ⚠ No complete message found after checking all parent levels');
 	return nodeText || '';
 }
 

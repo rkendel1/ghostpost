@@ -2,6 +2,31 @@
 
 # Ghostpost Reveal Browser Extension
 
+## [1.2.6] - 2025-12-13
+
+### Reverted
+- **REVERT TO PRE-PR115**: Restored x.com reveal approach to parent tree walking method
+- Removed extra "simple approaches" added after PR115 (parent.textContent, etc.)
+- Changed `extractCompleteText()` back to simple DOM parent traversal (up to 10 levels)
+- This pre-PR115 approach better identifies hidden text on x.com (as reported in issue)
+- Walks up parent elements and aggregates all text nodes at each level using TreeWalker
+- Checks for complete encoded message (both delimiters) at each parent level
+- Returns first complete message found during traversal
+- More reliable detection even if decode/reveal has issues
+
+### Technical Details
+- Simplified extraction logic to match v2.3.4-v2.3.8 documented approach
+- Removed "SIMPLE APPROACH #1" (direct textContent check) and "SIMPLE APPROACH #2" (parent.textContent)
+- Removed "ADVANCED FALLBACK #2" (sibling aggregation)
+- Kept only the core parent tree walking with TreeWalker aggregation
+- MAX_PARENT_LEVELS remains at 10 to handle deeply nested X.com structures
+
+### Context
+- Issue reported that pre-PR115 approach gave better identification of hidden text
+- While it may have decode/reveal issues, identification is more important
+- This matches the approach documented in XCOM_DECODING_FIX.md and XCOM_REVEAL_SOLUTION.md
+- Aligns userscript and extension to use same extraction method
+
 ## [1.2.2] - 2025-12-12
 
 ### Enhanced
