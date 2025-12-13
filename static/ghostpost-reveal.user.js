@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.4.4
+// @version      2.5.0
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -23,6 +23,15 @@
  *
  * CHANGELOG:
  * ==========
+ * v2.5.0 (2025-12-13):
+* - FEATURE: Added privacy-first install tracking with device fingerprinting
+* - Tracks userscript installations and sends daily heartbeats to Supabase
+* - Collects device info (platform, browser, OS) without PII
+* - Auto-generates unique install fingerprint using browser characteristics
+* - Heartbeat sent once per 24 hours to track active installations
+* - All tracking data stored in Supabase for analytics
+* - Tracking failures do not break userscript functionality
+ * 
  * v2.4.2 (2025-12-12):
 * - FEATURE: Added decodeFromZeroWidthString() helper to decode hidden messages directly from any zero-width character string (like "what...")
 * - FEATURE: Added programmatic X.com hidden message extraction via full_text field
@@ -196,8 +205,115 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.4.4';
+	const SCRIPT_VERSION = '2.5.0';
 	const DEBUG_MODE = false; // Set to true for verbose logging
+	const TRACKING_API_BASE = 'https://ghostpost-six.vercel.app/api/tracking';
+	const HEARTBEAT_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+	// Tracking functions
+	function generateInstallFingerprint() {
+		// Create a unique fingerprint for this install
+		const nav = navigator;
+		const data = [
+			nav.userAgent || '',
+			nav.language || '',
+			screen.width || 0,
+			screen.height || 0,
+			screen.colorDepth || 0,
+			new Date().getTimezoneOffset() || 0
+		].join('|');
+		
+		// Simple hash function
+		let hash = 0;
+		for (let i = 0; i < data.length; i++) {
+			const char = data.charCodeAt(i);
+			hash = ((hash << 5) - hash) + char;
+			hash = hash & hash;
+		}
+		return 'gp_' + Math.abs(hash).toString(36) + '_' + Date.now().toString(36);
+	}
+
+	function detectDeviceInfo() {
+		const ua = navigator.userAgent;
+		let platform = 'Desktop';
+		let browser = 'Unknown';
+		let os = 'Unknown';
+
+		// Detect platform
+		if (/Mobile|Android|iPhone|iPad|iPod/i.test(ua)) {
+			platform = 'Mobile';
+			if (/iPad/i.test(ua)) platform = 'Tablet';
+		}
+
+		// Detect browser
+		if (/Firefox/i.test(ua)) browser = 'Firefox';
+		else if (/Chrome/i.test(ua) && !/Edge|Edg/i.test(ua)) browser = 'Chrome';
+		else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+		else if (/Edge|Edg/i.test(ua)) browser = 'Edge';
+		else if (/Opera|OPR/i.test(ua)) browser = 'Opera';
+
+		// Detect OS
+		if (/Windows/i.test(ua)) os = 'Windows';
+		else if (/Mac/i.test(ua)) os = 'macOS';
+		else if (/Linux/i.test(ua)) os = 'Linux';
+		else if (/Android/i.test(ua)) os = 'Android';
+		else if (/iOS|iPhone|iPad|iPod/i.test(ua)) os = 'iOS';
+
+		return {
+			userAgent: ua,
+			platform: platform,
+			browser: browser,
+			os: os,
+			version: SCRIPT_VERSION
+		};
+	}
+
+	async function trackInstall() {
+		try {
+			// Get or create install fingerprint
+			let fingerprint = localStorage.getItem('ghostpost_install_fingerprint');
+			const lastTracked = localStorage.getItem('ghostpost_last_tracked');
+			
+			if (!fingerprint) {
+				fingerprint = generateInstallFingerprint();
+				localStorage.setItem('ghostpost_install_fingerprint', fingerprint);
+			}
+
+			// Check if we need to send heartbeat (once per day)
+			const now = Date.now();
+			const lastTrackedNum = Number(lastTracked);
+			if (lastTracked && !isNaN(lastTrackedNum) && (now - lastTrackedNum) < HEARTBEAT_INTERVAL) {
+				// Skip if tracked recently
+				return;
+			}
+
+			const deviceInfo = detectDeviceInfo();
+			
+			// Send tracking data
+			const response = await fetch(`${TRACKING_API_BASE}/install`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					install_fingerprint: fingerprint,
+					device_info: deviceInfo
+				})
+			});
+
+			if (response.ok) {
+				localStorage.setItem('ghostpost_last_tracked', now.toString());
+				if (DEBUG_MODE) {
+					console.log('[Ghostpost] Install tracked successfully');
+				}
+			}
+		} catch (error) {
+			// Fail silently - don't break userscript if tracking fails
+			if (DEBUG_MODE) {
+				console.error('[Ghostpost] Tracking error:', error);
+			}
+		}
+	}
 
 	// Function to initialize the userscript
 	function init() {
@@ -206,6 +322,11 @@
 			console.error('[Ghostpost] Cannot initialize: document.body not available');
 			return;
 		}
+
+		// Track install on first load
+		trackInstall().catch(() => {
+			// Silently fail if tracking doesn't work
+		});
 
 		// Check if button already exists (might be from an old version)
 		const existingButton = document.getElementById(BUTTON_ID);
