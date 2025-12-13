@@ -166,7 +166,7 @@
 						</div>
 						<div class="card p-4 variant-ghost-surface">
 							<div class="text-2xl mb-1">🚀</div>
-							<div class="font-semibold text-sm">No Sign-Up</div>
+							<div class="font-semibold text-sm">No Sign-Up to Decode</div>
 						</div>
 					</div>
 
@@ -426,10 +426,8 @@
 
 				<div class="card p-6 space-y-3 hover:scale-105 transition-transform">
 					<div class="text-4xl">🚀</div>
-					<h3 class="h3 text-lg font-semibold">No Sign-Up Required</h3>
-					<p class="text-sm opacity-75">
-						Start encoding and decoding immediately, no account needed
-					</p>
+					<h3 class="h3 text-lg font-semibold">No Sign-Up for Decoding</h3>
+					<p class="text-sm opacity-75">Start decoding immediately, no account needed</p>
 				</div>
 			</div>
 		</div>

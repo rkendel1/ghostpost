@@ -106,6 +106,7 @@ A browser extension can detect Ghostpost content by:
    - `\uFEFF` - Zero Width No-Break Space (delimiter)
 
 3. **Validating the format**:
+
    ```javascript
    function hasGhostpostContent(text) {
    	// Look for delimiter characters

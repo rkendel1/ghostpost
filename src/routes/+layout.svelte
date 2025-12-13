@@ -5,7 +5,6 @@
 	import './styles.css';
 
 	import { onMount } from 'svelte';
-	import GitHubIcon from '$lib/images/github.svg?component';
 	import { injectAnalytics } from '@vercel/analytics/sveltekit';
 
 	import { AppBar, AppShell } from '@skeletonlabs/skeleton';
@@ -86,12 +85,6 @@
 							Sign In
 						</button>
 					{/if}
-					<a
-						href="https://github.com/rkendel1/ghostpost"
-						class="no-underline hover:no-underline text-inherit"
-					>
-						<GitHubIcon width="24" />
-					</a>
 				</div>
 			</svelte:fragment>
 		</AppBar>
