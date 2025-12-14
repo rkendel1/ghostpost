@@ -439,6 +439,22 @@ The app uses invisible Unicode characters (zero-width characters, combining mark
 
 This allows secrets to be hidden in plain sight - the text looks normal but contains hidden data!
 
+## 🗺️ Strategic Roadmap
+
+Want to see where GhostPost is headed? Check out our strategic planning documents:
+
+- **[📚 Roadmap Index](./ROADMAP_INDEX.md)** - Start here for an overview of all planning documents
+- **[🚀 Product Roadmap](./PRODUCT_ROADMAP.md)** - Comprehensive 24-month strategic roadmap with IP analysis
+- **[💼 Executive Summary](./EXECUTIVE_SUMMARY.md)** - Investor & acquirer-focused brief
+- **[⚡ Execution Playbook](./EXECUTION_PLAYBOOK.md)** - 90-day tactical implementation guide
+
+These documents outline:
+- Patent-worthy innovations and competitive moat
+- 4-phase feature roadmap (Foundation → Creator Economy → Enterprise → AI/Multimedia)
+- Business model and monetization strategy ($20M ARR target by Year 3)
+- Acquisition positioning for larger firms ($100M-$500M valuation)
+- Immediate next steps and quick wins
+
 ## 🙏 Credits
 
 - Thanks to [Steganographr](https://github.com/neatnik/steganographr) for inspiration
