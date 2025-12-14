@@ -27,6 +27,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ success: false, error: 'Account not found' }, { status: 404 });
 		}
 
+		// TODO: Implement provider-specific token refresh logic
 		// Note: Actual token refresh logic is provider-specific and not yet implemented
 		// Each OAuth provider has different refresh token endpoints and requirements
 		// For now, users should disconnect and reconnect accounts to get fresh tokens

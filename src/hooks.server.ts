@@ -29,6 +29,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.session = session;
 
 	// Handle OAuth callbacks - store provider tokens in social_accounts table
+	// TODO: For production, consider implementing a session-based cache to avoid
+	// repeated database queries. The current implementation checks on every request.
 	if (session && session.user && session.user.app_metadata?.provider) {
 		const provider = session.user.app_metadata.provider;
 		// Only process OAuth providers (not email)

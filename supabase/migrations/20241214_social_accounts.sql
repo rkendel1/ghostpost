@@ -41,6 +41,7 @@ USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
 
 -- Update trigger for social_accounts.updated_at
+-- Note: update_updated_at_column() function is created in 20241211_create_posts.sql migration
 CREATE TRIGGER update_social_accounts_updated_at
 BEFORE UPDATE ON public.social_accounts
 FOR EACH ROW

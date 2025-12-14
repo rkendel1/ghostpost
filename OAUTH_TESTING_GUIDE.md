@@ -13,6 +13,7 @@ This guide provides step-by-step instructions for testing the new OAuth social l
 ### 1. Visual UI Testing
 
 #### Login Modal with Social Buttons
+
 - [ ] Navigate to the homepage
 - [ ] Click "Sign In" or try to access a protected route
 - [ ] Verify AuthModal displays with:
@@ -24,6 +25,7 @@ This guide provides step-by-step instructions for testing the new OAuth social l
   - Clean, modern layout
 
 #### Settings Page
+
 - [ ] Sign in (email or social)
 - [ ] Navigate to `/settings`
 - [ ] Verify three tabs: Connected Accounts, Profile, Security
@@ -49,6 +51,7 @@ These tests verify existing functionality still works:
 For each provider (Google, GitHub, Facebook, Discord, Twitter):
 
 #### Initial Connection
+
 - [ ] Click the provider button in AuthModal
 - [ ] Verify redirect to provider's OAuth page
 - [ ] Grant permissions
@@ -61,6 +64,7 @@ For each provider (Google, GitHub, Facebook, Discord, Twitter):
   - Disconnect button
 
 #### Token Storage Verification
+
 - [ ] In Supabase dashboard, check `social_accounts` table
 - [ ] Verify row exists with:
   - Correct user_id
@@ -71,6 +75,7 @@ For each provider (Google, GitHub, Facebook, Discord, Twitter):
   - is_active = true
 
 #### Reconnecting After Disconnect
+
 - [ ] In Settings, disconnect an account
 - [ ] Verify account shows as "Not connected"
 - [ ] Click Connect button
@@ -78,6 +83,7 @@ For each provider (Google, GitHub, Facebook, Discord, Twitter):
 - [ ] Verify account shows as connected again
 
 #### Multiple Sessions
+
 - [ ] Connect with one provider
 - [ ] Sign out
 - [ ] Connect with a different provider using same email
@@ -86,18 +92,21 @@ For each provider (Google, GitHub, Facebook, Discord, Twitter):
 ### 4. Account Management Features
 
 #### Viewing Connected Accounts
+
 - [ ] Navigate to `/settings`
 - [ ] Verify all connected accounts listed
 - [ ] Check last used dates are accurate
 - [ ] Verify connection status indicators
 
 #### Disconnecting Accounts
+
 - [ ] Click "Disconnect" on a connected account
 - [ ] Confirm the action
 - [ ] Verify account changes to "Not connected"
 - [ ] Check database: is_active should be false
 
 #### Token Expiration Handling
+
 - [ ] Manually set token_expires_at in past in database
 - [ ] Reload settings page
 - [ ] Verify expired token warning shown
@@ -105,12 +114,14 @@ For each provider (Google, GitHub, Facebook, Discord, Twitter):
 - [ ] Verify user prompted to reconnect
 
 #### Profile Tab
+
 - [ ] Switch to Profile tab
 - [ ] Verify email displayed
 - [ ] Verify user ID shown
 - [ ] Verify account creation date
 
 #### Security Tab
+
 - [ ] Switch to Security tab
 - [ ] Verify authentication method shown
 - [ ] Test sign out button
@@ -138,18 +149,21 @@ For each provider (Google, GitHub, Facebook, Discord, Twitter):
 ### 7. Error Handling
 
 #### OAuth Cancellation
+
 - [ ] Start OAuth flow
 - [ ] Cancel/deny on provider page
 - [ ] Verify user returned to app
 - [ ] Verify no error state stuck in UI
 
 #### Invalid OAuth Configuration
+
 - [ ] (Admin) Temporarily break OAuth config in Supabase
 - [ ] Try to sign in
 - [ ] Verify appropriate error message
 - [ ] (Admin) Fix configuration
 
 #### Network Errors
+
 - [ ] (With dev tools) Throttle network
 - [ ] Try to load connected accounts
 - [ ] Verify loading state shows
@@ -158,6 +172,7 @@ For each provider (Google, GitHub, Facebook, Discord, Twitter):
 ### 8. Database Integrity
 
 #### Row Level Security
+
 - [ ] Sign in as User A
 - [ ] Note User A's social account IDs
 - [ ] Sign out and sign in as User B
@@ -165,6 +180,7 @@ For each provider (Google, GitHub, Facebook, Discord, Twitter):
 - [ ] Verify access denied (403/404)
 
 #### Cascade Deletion
+
 - [ ] Create test user with connected accounts
 - [ ] Delete user in Supabase Auth
 - [ ] Verify social_accounts rows also deleted
@@ -172,12 +188,14 @@ For each provider (Google, GitHub, Facebook, Discord, Twitter):
 ### 9. Performance Testing
 
 #### Multiple Accounts
+
 - [ ] Connect all 5 providers
 - [ ] Navigate to Settings
 - [ ] Verify page loads quickly
 - [ ] Check database query count (should be minimal)
 
 #### Hooks Performance
+
 - [ ] Sign in with OAuth
 - [ ] Navigate between pages
 - [ ] Check that hooks.server.ts doesn't duplicate accounts
@@ -195,6 +213,7 @@ For each provider (Google, GitHub, Facebook, Discord, Twitter):
 ## Expected Outcomes
 
 ### After Successful OAuth Login
+
 1. User is redirected to `/dashboard`
 2. Session established in browser
 3. social_accounts table has new row
@@ -202,6 +221,7 @@ For each provider (Google, GitHub, Facebook, Discord, Twitter):
 5. Navigation includes Settings link
 
 ### Security Checks Passed
+
 - ✅ No CodeQL alerts
 - ✅ RLS policies enforced
 - ✅ Tokens stored securely (with production encryption note)
@@ -209,6 +229,7 @@ For each provider (Google, GitHub, Facebook, Discord, Twitter):
 - ✅ No token exposure to client-side
 
 ### Code Quality Checks Passed
+
 - ✅ TypeScript type checking passes
 - ✅ Prettier formatting passes
 - ✅ Build completes successfully
@@ -217,18 +238,21 @@ For each provider (Google, GitHub, Facebook, Discord, Twitter):
 ## Troubleshooting
 
 ### OAuth Flow Doesn't Complete
+
 - Check Supabase OAuth provider configuration
 - Verify redirect URLs match exactly
 - Check browser console for errors
 - Verify cookies enabled
 
 ### Tokens Not Stored
+
 - Check hooks.server.ts logs
 - Verify social_accounts table exists
 - Check RLS policies allow inserts
 - Verify provider metadata format
 
 ### Settings Page Not Loading
+
 - Check authentication state
 - Verify /api/social-accounts endpoint works
 - Check browser network tab for API errors
@@ -250,6 +274,7 @@ Before marking this feature complete:
 ## Automated Testing
 
 For future implementation:
+
 - Unit tests for auth store functions
 - Integration tests for API endpoints
 - E2E tests for OAuth flows
@@ -258,6 +283,7 @@ For future implementation:
 ## Production Checklist
 
 Before deploying to production:
+
 - [ ] All OAuth providers configured in production Supabase
 - [ ] Production domain added to OAuth redirect URLs
 - [ ] Token encryption implemented (or documented as TODO)
