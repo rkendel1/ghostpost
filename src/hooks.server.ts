@@ -28,6 +28,48 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.session = session;
 
+	// Handle OAuth callbacks - store provider tokens in social_accounts table
+	if (session && session.user && session.user.app_metadata?.provider) {
+		const provider = session.user.app_metadata.provider;
+		// Only process OAuth providers (not email)
+		if (provider !== 'email') {
+			try {
+				// Check if we need to store this social account
+				const { data: existingAccount } = await event.locals.supabase
+					.from('social_accounts')
+					.select('id')
+					.eq('user_id', session.user.id)
+					.eq('provider', provider)
+					.eq('provider_user_id', session.user.user_metadata?.sub || session.user.id)
+					.single();
+
+				// Only insert if account doesn't exist
+				if (!existingAccount) {
+					await event.locals.supabase
+						.from('social_accounts')
+						.insert({
+							user_id: session.user.id,
+							provider: provider,
+							provider_user_id: session.user.user_metadata?.sub || session.user.id,
+							provider_username: session.user.user_metadata?.user_name || 
+											   session.user.user_metadata?.preferred_username ||
+											   session.user.user_metadata?.name,
+							provider_email: session.user.email,
+							access_token: session.provider_token || null,
+							refresh_token: session.provider_refresh_token || null,
+							scope: session.user.user_metadata?.scope ? 
+								   session.user.user_metadata.scope.split(' ') : [],
+							raw_user_meta_data: session.user.user_metadata,
+							is_active: true,
+							last_used_at: new Date().toISOString()
+						});
+				}
+			} catch (error) {
+				console.error('Error storing OAuth tokens:', error);
+			}
+		}
+	}
+
 	// Public routes that don't require authentication
 	// These routes are accessible without login
 	const publicRoutes = [

@@ -16,6 +16,7 @@ export type Database = {
 					visible_message: string;
 					secret_message: string;
 					secret_type: 'text' | 'image';
+					social_account_id: string | null;
 					created_at: string;
 					updated_at: string;
 				};
@@ -28,6 +29,7 @@ export type Database = {
 					visible_message: string;
 					secret_message: string;
 					secret_type: 'text' | 'image';
+					social_account_id?: string | null;
 					created_at?: string;
 					updated_at?: string;
 				};
@@ -40,6 +42,60 @@ export type Database = {
 					visible_message?: string;
 					secret_message?: string;
 					secret_type?: 'text' | 'image';
+					social_account_id?: string | null;
+					created_at?: string;
+					updated_at?: string;
+				};
+			};
+			social_accounts: {
+				Row: {
+					id: string;
+					user_id: string;
+					provider: string;
+					provider_user_id: string;
+					provider_username: string | null;
+					provider_email: string | null;
+					access_token: string | null;
+					refresh_token: string | null;
+					token_expires_at: string | null;
+					scope: string[] | null;
+					raw_user_meta_data: any;
+					is_active: boolean;
+					last_used_at: string | null;
+					created_at: string;
+					updated_at: string;
+				};
+				Insert: {
+					id?: string;
+					user_id: string;
+					provider: string;
+					provider_user_id: string;
+					provider_username?: string | null;
+					provider_email?: string | null;
+					access_token?: string | null;
+					refresh_token?: string | null;
+					token_expires_at?: string | null;
+					scope?: string[] | null;
+					raw_user_meta_data?: any;
+					is_active?: boolean;
+					last_used_at?: string | null;
+					created_at?: string;
+					updated_at?: string;
+				};
+				Update: {
+					id?: string;
+					user_id?: string;
+					provider?: string;
+					provider_user_id?: string;
+					provider_username?: string | null;
+					provider_email?: string | null;
+					access_token?: string | null;
+					refresh_token?: string | null;
+					token_expires_at?: string | null;
+					scope?: string[] | null;
+					raw_user_meta_data?: any;
+					is_active?: boolean;
+					last_used_at?: string | null;
 					created_at?: string;
 					updated_at?: string;
 				};

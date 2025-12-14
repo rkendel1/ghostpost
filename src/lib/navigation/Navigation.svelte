@@ -17,7 +17,8 @@
 	// Pages that require authentication
 	const authMenus = [
 		{ href: '/compose', label: '✍️ Compose' },
-		{ href: '/dashboard', label: '📊 My Posts' }
+		{ href: '/dashboard', label: '📊 My Posts' },
+		{ href: '/settings', label: '⚙️ Settings' }
 	];
 
 	$: user = $authStore.user;

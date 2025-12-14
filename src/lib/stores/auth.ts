@@ -90,6 +90,17 @@ function createAuthStore() {
 
 			return { data, error };
 		},
+		signInWithProvider: async (provider: 'google' | 'github' | 'facebook' | 'discord' | 'twitter') => {
+			const { data, error } = await supabase.auth.signInWithOAuth({
+				provider,
+				options: {
+					redirectTo: `${window.location.origin}/dashboard`,
+					scopes: getProviderScopes(provider)
+				}
+			});
+
+			return { data, error };
+		},
 		signOut: async () => {
 			const { error } = await supabase.auth.signOut();
 			return { error };
@@ -99,6 +110,18 @@ function createAuthStore() {
 			return { data, error };
 		}
 	};
+}
+
+// Helper function to get appropriate scopes for each provider
+function getProviderScopes(provider: 'google' | 'github' | 'facebook' | 'discord' | 'twitter'): string {
+	const scopes = {
+		google: 'openid email profile',
+		github: 'user:email read:user',
+		facebook: 'email public_profile',
+		discord: 'identify email',
+		twitter: 'tweet.read users.read offline.access'
+	};
+	return scopes[provider] || '';
 }
 
 export const authStore = createAuthStore();
