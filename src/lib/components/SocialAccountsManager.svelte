@@ -121,10 +121,19 @@
 			if (data.success) {
 				await loadAccounts();
 			} else {
-				error = data.error || 'Failed to refresh token';
+				// Token refresh not implemented - prompt user to reconnect
+				if (
+					confirm(
+						`${data.error || 'Token refresh not yet implemented.'}\n\nWould you like to reconnect this account now?`
+					)
+				) {
+					// Disconnect old account and prompt to reconnect
+					await disconnectAccount(accountId, provider);
+					await connectAccount(provider);
+				}
 			}
 		} catch (err) {
-			error = 'Failed to refresh token';
+			error = 'Failed to refresh token. Please disconnect and reconnect your account.';
 			console.error(err);
 		}
 	}
@@ -237,10 +246,11 @@
 			<h3 class="h3 mb-2">🔒 Security & Privacy</h3>
 			<div class="text-sm space-y-2 opacity-75">
 				<p>
-					• OAuth tokens are securely stored and encrypted<br />
+					• OAuth tokens are securely stored in the database<br />
 					• You can disconnect any account at any time<br />
 					• Tokens are only used for posting with your explicit permission<br />
-					• We never access your data without authorization
+					• We never access your data without authorization<br />
+					• ⚠️ Production deployments should implement token encryption at rest
 				</p>
 			</div>
 		</div>

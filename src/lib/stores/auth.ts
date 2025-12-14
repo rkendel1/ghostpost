@@ -123,6 +123,9 @@ function getProviderScopes(
 		github: 'user:email read:user',
 		facebook: 'email public_profile',
 		discord: 'identify email',
+		// Note: offline.access provides refresh tokens for long-lived access
+		// This is needed for future automated posting features
+		// Remove if only basic authentication is needed
 		twitter: 'tweet.read users.read offline.access'
 	};
 	return scopes[provider] || '';

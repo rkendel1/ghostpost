@@ -27,25 +27,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ success: false, error: 'Account not found' }, { status: 404 });
 		}
 
-		// Note: Token refresh logic would go here
-		// This is provider-specific and would require implementing OAuth refresh flows
-		// For now, we'll mark that a refresh attempt was made
-		const { error: updateError } = await supabase
-			.from('social_accounts')
-			.update({
-				updated_at: new Date().toISOString()
-			})
-			.eq('id', accountId)
-			.eq('user_id', session.user.id);
-
-		if (updateError) {
-			console.error('Error updating social account:', updateError);
-			return json({ success: false, error: 'Failed to refresh token' }, { status: 500 });
-		}
-
+		// Note: Actual token refresh logic is provider-specific and not yet implemented
+		// Each OAuth provider has different refresh token endpoints and requirements
+		// For now, users should disconnect and reconnect accounts to get fresh tokens
 		return json({
-			success: true,
-			message: 'Token refresh initiated. Please reconnect the account to get a new token.'
+			success: false,
+			error:
+				'Token refresh not yet implemented. Please disconnect and reconnect your account to get a new token.'
 		});
 	} catch (error) {
 		console.error('Error in refresh POST:', error);

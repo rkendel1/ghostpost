@@ -1,5 +1,7 @@
 -- Social Accounts Table for OAuth Integration
 -- Stores OAuth tokens and credentials for connected social media accounts
+-- SECURITY NOTE: In production, consider using pgcrypto or application-level
+-- encryption for access_token and refresh_token fields to protect sensitive data
 
 -- Table: social_accounts
 -- Stores user connections to social media platforms with OAuth tokens

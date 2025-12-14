@@ -35,6 +35,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (provider !== 'email') {
 			try {
 				// Check if we need to store this social account
+				// Note: This runs on every request with an OAuth session.
+				// For production, consider caching this check or using a flag
+				// to avoid unnecessary database queries
 				const { data: existingAccount } = await event.locals.supabase
 					.from('social_accounts')
 					.select('id')
