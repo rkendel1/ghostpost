@@ -135,7 +135,7 @@
 - **Effort:** 5 days | **Impact:** 🔥🔥🔥🔥🔥
 
 ### Cross-Platform Features
-- [ ] **Deep linking**: `ghostpost://decode?content=...`
+- [ ] **Deep linking**: Universal links and custom URL scheme for app integration
 - [ ] **Offline mode**: Cache WASM, work without internet
 - [ ] **Camera integration**: Scan QR codes with hidden content
 - [ ] **Face ID/Biometric**: Lock sensitive decodes

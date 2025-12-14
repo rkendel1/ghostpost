@@ -11,7 +11,7 @@
 
 ### Market Opportunity
 - **Social Media Creators**: 50M+ content creators seeking novel engagement tools
-- **Brand Marketing**: $500B+ digital marketing industry needs fresh viral tactics  
+- **Brand Marketing**: $500B+ digital marketing industry, needs fresh viral tactics  
 - **Privacy-Conscious Users**: Growing demand for discreet communication tools
 - **Enterprise Security**: Corporate communications requiring plausible deniability
 - **Gaming & Entertainment**: ARG (Alternate Reality Games) and treasure hunt communities
@@ -576,7 +576,7 @@
   - Hide data in music files (MP3, AAC)
   - Podcast secret messages
   - Spotify integration (hide in silence gaps)
-  - Ultrasonic encoding (inaudible to humans)
+  - Ultrasonic encoding (inaudible to humans, subject to compliance with regional regulations)
   
 - **Image Steganography**
   - LSB (Least Significant Bit) encoding
@@ -650,7 +650,7 @@
   - Instagram filter reveals
   
 - **Proximity Reveals**
-  - Bluetooth beacon triggered decoding
+  - Bluetooth beacon-triggered decoding
   - NFC tap to reveal
   - QR code hybrid (visible + hidden data)
   
