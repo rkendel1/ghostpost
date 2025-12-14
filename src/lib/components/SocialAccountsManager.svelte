@@ -34,13 +34,13 @@
 
 	async function loadAccounts() {
 		if (!user) return;
-		
+
 		loading = true;
 		error = '';
 		try {
 			const response = await fetch('/api/social-accounts');
 			const data = await response.json();
-			
+
 			if (data.success) {
 				accounts = data.accounts;
 			} else {
@@ -57,12 +57,12 @@
 	async function connectAccount(provider: string) {
 		connectingProvider = provider;
 		error = '';
-		
+
 		try {
 			const { data, error: authError } = await authStore.signInWithProvider(
 				provider as 'google' | 'github' | 'facebook' | 'discord' | 'twitter'
 			);
-			
+
 			if (authError) {
 				error = authError.message;
 				connectingProvider = null;
@@ -76,7 +76,11 @@
 	}
 
 	async function disconnectAccount(accountId: string, provider: string) {
-		if (!confirm(`Are you sure you want to disconnect your ${providerInfo[provider as keyof typeof providerInfo]?.name || provider} account?`)) {
+		if (
+			!confirm(
+				`Are you sure you want to disconnect your ${providerInfo[provider as keyof typeof providerInfo]?.name || provider} account?`
+			)
+		) {
 			return;
 		}
 
@@ -131,7 +135,7 @@
 	}
 
 	function getConnectedAccount(provider: string): SocialAccount | undefined {
-		return accounts.find(acc => acc.provider === provider && acc.is_active);
+		return accounts.find((acc) => acc.provider === provider && acc.is_active);
 	}
 </script>
 
@@ -158,8 +162,10 @@
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 			{#each Object.entries(providerInfo) as [provider, info]}
 				{@const connectedAccount = getConnectedAccount(provider)}
-				{@const isExpired = connectedAccount ? isTokenExpired(connectedAccount.token_expires_at) : false}
-				
+				{@const isExpired = connectedAccount
+					? isTokenExpired(connectedAccount.token_expires_at)
+					: false}
+
 				<div class="card p-4 space-y-3">
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-3">
@@ -168,14 +174,16 @@
 								<h3 class="font-bold">{info.name}</h3>
 								{#if connectedAccount}
 									<p class="text-xs opacity-75">
-										{connectedAccount.provider_username || connectedAccount.provider_email || 'Connected'}
+										{connectedAccount.provider_username ||
+											connectedAccount.provider_email ||
+											'Connected'}
 									</p>
 								{:else}
 									<p class="text-xs opacity-50">Not connected</p>
 								{/if}
 							</div>
 						</div>
-						
+
 						{#if connectedAccount}
 							<span class="badge variant-filled-success">✓</span>
 						{/if}

@@ -45,24 +45,24 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 				// Only insert if account doesn't exist
 				if (!existingAccount) {
-					await event.locals.supabase
-						.from('social_accounts')
-						.insert({
-							user_id: session.user.id,
-							provider: provider,
-							provider_user_id: session.user.user_metadata?.sub || session.user.id,
-							provider_username: session.user.user_metadata?.user_name || 
-											   session.user.user_metadata?.preferred_username ||
-											   session.user.user_metadata?.name,
-							provider_email: session.user.email,
-							access_token: session.provider_token || null,
-							refresh_token: session.provider_refresh_token || null,
-							scope: session.user.user_metadata?.scope ? 
-								   session.user.user_metadata.scope.split(' ') : [],
-							raw_user_meta_data: session.user.user_metadata,
-							is_active: true,
-							last_used_at: new Date().toISOString()
-						});
+					await event.locals.supabase.from('social_accounts').insert({
+						user_id: session.user.id,
+						provider: provider,
+						provider_user_id: session.user.user_metadata?.sub || session.user.id,
+						provider_username:
+							session.user.user_metadata?.user_name ||
+							session.user.user_metadata?.preferred_username ||
+							session.user.user_metadata?.name,
+						provider_email: session.user.email,
+						access_token: session.provider_token || null,
+						refresh_token: session.provider_refresh_token || null,
+						scope: session.user.user_metadata?.scope
+							? session.user.user_metadata.scope.split(' ')
+							: [],
+						raw_user_meta_data: session.user.user_metadata,
+						is_active: true,
+						last_used_at: new Date().toISOString()
+					});
 				}
 			} catch (error) {
 				console.error('Error storing OAuth tokens:', error);

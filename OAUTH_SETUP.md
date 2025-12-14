@@ -5,6 +5,7 @@ This guide explains how to configure OAuth social login providers for GhostPost.
 ## Overview
 
 GhostPost now supports modern OAuth-based social login with the following providers:
+
 - 🔵 Google
 - 🐙 GitHub
 - 📘 Facebook
@@ -34,6 +35,7 @@ supabase db push
 ```
 
 This creates:
+
 - `social_accounts` table for storing OAuth tokens
 - Proper indexes and RLS policies
 - Link to the existing `posts` table
@@ -114,6 +116,7 @@ For each provider you want to enable:
 ### User Account Management
 
 Users can manage their connected accounts at `/settings`:
+
 - View all connected social accounts
 - See connection status and last used date
 - Disconnect accounts
@@ -123,6 +126,7 @@ Users can manage their connected accounts at `/settings`:
 ### OAuth Token Storage
 
 When users connect a social account:
+
 1. OAuth flow is initiated via Supabase Auth
 2. On successful authentication, tokens are stored in `social_accounts` table
 3. Tokens include:
@@ -163,15 +167,18 @@ To test the OAuth integration:
 ## Troubleshooting
 
 ### "OAuth Error: Invalid Redirect URI"
+
 - Ensure the redirect URI in the provider settings matches exactly
 - Use: `https://gadnzoaqvpcwrmslmlje.supabase.co/auth/v1/callback`
 
 ### "Tokens not being stored"
+
 - Check Supabase logs for errors
 - Verify the `social_accounts` table exists
 - Ensure RLS policies allow inserts
 
 ### "Provider not appearing in login modal"
+
 - Verify the provider is enabled in Supabase Dashboard
 - Check that credentials are correctly configured
 - Clear browser cache and try again
@@ -179,6 +186,7 @@ To test the OAuth integration:
 ## Support
 
 For issues or questions:
+
 - Check Supabase documentation: https://supabase.com/docs/guides/auth
 - Review provider-specific OAuth documentation
 - Check the browser console for errors

@@ -32,7 +32,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// For now, we'll mark that a refresh attempt was made
 		const { error: updateError } = await supabase
 			.from('social_accounts')
-			.update({ 
+			.update({
 				updated_at: new Date().toISOString()
 			})
 			.eq('id', accountId)
@@ -43,9 +43,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ success: false, error: 'Failed to refresh token' }, { status: 500 });
 		}
 
-		return json({ 
-			success: true, 
-			message: 'Token refresh initiated. Please reconnect the account to get a new token.' 
+		return json({
+			success: true,
+			message: 'Token refresh initiated. Please reconnect the account to get a new token.'
 		});
 	} catch (error) {
 		console.error('Error in refresh POST:', error);

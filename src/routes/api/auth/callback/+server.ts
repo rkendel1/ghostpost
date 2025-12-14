@@ -25,25 +25,28 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Store or update the social account
 		const { data, error } = await supabase
 			.from('social_accounts')
-			.upsert({
-				user_id: session.user.id,
-				provider: provider,
-				provider_user_id: providerUser?.id || providerUser?.sub,
-				provider_username: providerUser?.user_name || providerUser?.preferred_username,
-				provider_email: providerUser?.email,
-				access_token: accessToken,
-				refresh_token: refreshToken,
-				token_expires_at: providerUser?.expires_at 
-					? new Date(providerUser.expires_at * 1000).toISOString() 
-					: null,
-				scope: providerUser?.scope ? providerUser.scope.split(' ') : [],
-				raw_user_meta_data: providerUser,
-				is_active: true,
-				last_used_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			}, {
-				onConflict: 'user_id,provider,provider_user_id'
-			})
+			.upsert(
+				{
+					user_id: session.user.id,
+					provider: provider,
+					provider_user_id: providerUser?.id || providerUser?.sub,
+					provider_username: providerUser?.user_name || providerUser?.preferred_username,
+					provider_email: providerUser?.email,
+					access_token: accessToken,
+					refresh_token: refreshToken,
+					token_expires_at: providerUser?.expires_at
+						? new Date(providerUser.expires_at * 1000).toISOString()
+						: null,
+					scope: providerUser?.scope ? providerUser.scope.split(' ') : [],
+					raw_user_meta_data: providerUser,
+					is_active: true,
+					last_used_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				},
+				{
+					onConflict: 'user_id,provider,provider_user_id'
+				}
+			)
 			.select()
 			.single();
 

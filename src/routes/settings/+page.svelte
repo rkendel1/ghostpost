@@ -77,13 +77,7 @@
 					<div class="space-y-4">
 						<label class="label">
 							<span>Email</span>
-							<input
-								type="email"
-								class="input"
-								value={user?.email || ''}
-								disabled
-								readonly
-							/>
+							<input type="email" class="input" value={user?.email || ''} disabled readonly />
 							<p class="text-xs opacity-75 mt-1">Email cannot be changed at this time.</p>
 						</label>
 
@@ -122,7 +116,9 @@
 							<h3 class="h3 mb-2">Authentication Method</h3>
 							<p class="text-sm opacity-75">
 								{#if user?.app_metadata?.provider}
-									You're signed in with: <strong class="capitalize">{user.app_metadata.provider}</strong>
+									You're signed in with: <strong class="capitalize"
+										>{user.app_metadata.provider}</strong
+									>
 								{:else}
 									You're signed in with email and password.
 								{/if}
@@ -133,8 +129,8 @@
 							<div class="card p-4 space-y-3">
 								<h3 class="font-bold">Change Password</h3>
 								<p class="text-sm opacity-75">
-									To change your password, sign out and use the "Forgot Password" option on the login
-									page.
+									To change your password, sign out and use the "Forgot Password" option on the
+									login page.
 								</p>
 							</div>
 						{/if}

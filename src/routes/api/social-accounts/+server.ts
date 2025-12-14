@@ -12,7 +12,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 		// Fetch user's connected social accounts
 		const { data: accounts, error } = await supabase
 			.from('social_accounts')
-			.select('id, provider, provider_username, provider_email, is_active, last_used_at, created_at, token_expires_at')
+			.select(
+				'id, provider, provider_username, provider_email, is_active, last_used_at, created_at, token_expires_at'
+			)
 			.eq('user_id', session.user.id)
 			.order('created_at', { ascending: false });
 

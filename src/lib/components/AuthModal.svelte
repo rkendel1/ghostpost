@@ -55,7 +55,9 @@
 		}
 	}
 
-	async function handleSocialLogin(provider: 'google' | 'github' | 'facebook' | 'discord' | 'twitter') {
+	async function handleSocialLogin(
+		provider: 'google' | 'github' | 'facebook' | 'discord' | 'twitter'
+	) {
 		error = '';
 		socialLoading = provider;
 
@@ -247,7 +249,11 @@
 			</div>
 		{/if}
 
-		<button type="submit" class="btn variant-filled-primary w-full" disabled={loading || !!socialLoading}>
+		<button
+			type="submit"
+			class="btn variant-filled-primary w-full"
+			disabled={loading || !!socialLoading}
+		>
 			{#if loading}
 				<span>⏳ Processing...</span>
 			{:else}
@@ -257,7 +263,11 @@
 	</form>
 
 	<div class="text-center">
-		<button class="btn btn-sm variant-ghost" on:click={toggleMode} disabled={loading || !!socialLoading}>
+		<button
+			class="btn btn-sm variant-ghost"
+			on:click={toggleMode}
+			disabled={loading || !!socialLoading}
+		>
 			{isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
 		</button>
 	</div>
