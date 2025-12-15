@@ -13,17 +13,18 @@ const AUTH_TAG_LENGTH = 16;
 
 /**
  * Derives an encryption key from a user's ID and a master secret
- * Uses scrypt for key derivation
+ * Uses scrypt for key derivation with cryptographically secure salt
  */
 export function deriveUserKey(userId: string, masterSecret: string): Buffer {
-	// Use userId as salt to ensure each user has a unique key
-	const salt = Buffer.from(userId.padEnd(SALT_LENGTH, '0'), 'utf8').subarray(0, SALT_LENGTH);
+	// Use a hash of the userId as salt to ensure uniqueness while avoiding patterns
+	const saltSource = createHash('sha256').update(userId).digest();
+	const salt = saltSource.subarray(0, SALT_LENGTH);
 	return scryptSync(masterSecret, salt, KEY_LENGTH);
 }
 
 /**
  * Encrypts a secret message using AES-256-GCM
- * Returns base64-encoded string with format: iv:authTag:encryptedData
+ * Returns hex-encoded string with format: iv:authTag:encryptedData
  */
 export function encryptSecret(plaintext: string, key: Buffer): string {
 	if (!plaintext) {
@@ -50,7 +51,7 @@ export function encryptSecret(plaintext: string, key: Buffer): string {
 
 /**
  * Decrypts a secret message encrypted with encryptSecret
- * Expects base64-encoded string with format: iv:authTag:encryptedData
+ * Expects hex-encoded string with format: iv:authTag:encryptedData
  */
 export function decryptSecret(encryptedData: string, key: Buffer): string {
 	if (!encryptedData) {

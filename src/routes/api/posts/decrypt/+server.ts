@@ -72,7 +72,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 				const userKey = deriveUserKey(user.id, masterSecret);
 				secretMessage = decryptSecret(post.secret_message, userKey);
 			} catch (decryptError) {
-				console.error('Decryption error:', decryptError);
+				// Log generic error without sensitive details
+				console.error('Decryption failed for post:', postId);
 				return json(
 					{
 						success: false,
