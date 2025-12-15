@@ -10,6 +10,9 @@ export const GET: RequestHandler = async ({ url, locals: { supabase } }) => {
 		if (!error) {
 			throw redirect(303, next);
 		}
+
+		// Log error for debugging but redirect to home to allow user to retry
+		console.error('OAuth callback error:', error);
 	}
 
 	// If there was an error or no code, redirect to home
