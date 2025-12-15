@@ -86,14 +86,30 @@
 				const response = await fetch(`/api/analytics/post?postId=${post.post_id}`);
 				const data = await response.json();
 				if (data.success && data.analytics) {
-					postAnalytics[post.post_id] = data.analytics;
+					// Pre-sort the data for better performance
+					const analytics = data.analytics;
+					analytics.platformsSorted = Object.entries(analytics.platforms || {})
+						.sort(([, a], [, b]) => (b as number) - (a as number))
+						.map(([platform, count]) => ({ platform, count }));
+					analytics.countriesSorted = Object.entries(analytics.countries || {})
+						.sort(([, a], [, b]) => (b as number) - (a as number))
+						.slice(0, 10)
+						.map(([country, count]) => ({ country, count }));
+					analytics.referrersSorted = Object.entries(analytics.referrers || {})
+						.sort(([, a], [, b]) => (b as number) - (a as number))
+						.slice(0, 5)
+						.map(([referrer, count]) => ({ referrer, count }));
+					postAnalytics[post.post_id] = analytics;
 				} else {
 					// Default empty analytics if none found
 					postAnalytics[post.post_id] = {
 						totalDecodes: 0,
 						uniqueUsers: 0,
 						platforms: {},
-						countries: {}
+						countries: {},
+						platformsSorted: [],
+						countriesSorted: [],
+						referrersSorted: []
 					};
 				}
 			} catch (err) {
@@ -102,7 +118,10 @@
 					totalDecodes: 0,
 					uniqueUsers: 0,
 					platforms: {},
-					countries: {}
+					countries: {},
+					platformsSorted: [],
+					countriesSorted: [],
+					referrersSorted: []
 				};
 			}
 		});
@@ -123,9 +142,21 @@
 
 	function copyPostLink(postId: string) {
 		const url = `${window.location.origin}/analytics?postId=${postId}`;
-		navigator.clipboard.writeText(url);
-		// Could add a toast notification here
-		alert('Analytics link copied to clipboard!');
+		if (navigator.clipboard && navigator.clipboard.writeText) {
+			navigator.clipboard
+				.writeText(url)
+				.then(() => {
+					// Success - could add a toast notification here
+					alert('Analytics link copied to clipboard!');
+				})
+				.catch((err) => {
+					console.error('Failed to copy link:', err);
+					alert('Failed to copy link. Please try again.');
+				});
+		} else {
+			// Fallback for browsers that don't support clipboard API
+			alert(`Copy this link: ${url}`);
+		}
 	}
 
 	function formatDate(dateString: string): string {
@@ -410,11 +441,11 @@
 							{#if expandedPostIds.has(post.post_id) && postAnalytics[post.post_id]}
 								<div class="px-4 pb-4 space-y-4 border-t border-surface-400 pt-4">
 									<!-- Platform breakdown -->
-									{#if Object.keys(postAnalytics[post.post_id].platforms || {}).length > 0}
+									{#if postAnalytics[post.post_id].platformsSorted?.length > 0}
 										<div>
 											<h4 class="font-semibold mb-2 text-sm">Platform Sources</h4>
 											<div class="flex flex-wrap gap-2">
-												{#each Object.entries(postAnalytics[post.post_id].platforms).sort(([, a], [, b]) => (b as number) - (a as number)) as [platform, count]}
+												{#each postAnalytics[post.post_id].platformsSorted as { platform, count }}
 													<span class="badge variant-filled-secondary capitalize">
 														{platform}: {count}
 													</span>
@@ -424,13 +455,11 @@
 									{/if}
 
 									<!-- Country breakdown -->
-									{#if Object.keys(postAnalytics[post.post_id].countries || {}).length > 0}
+									{#if postAnalytics[post.post_id].countriesSorted?.length > 0}
 										<div>
 											<h4 class="font-semibold mb-2 text-sm">Geographic Reach</h4>
 											<div class="flex flex-wrap gap-2">
-												{#each Object.entries(postAnalytics[post.post_id].countries)
-													.sort(([, a], [, b]) => (b as number) - (a as number))
-													.slice(0, 10) as [country, count]}
+												{#each postAnalytics[post.post_id].countriesSorted as { country, count }}
 													<span class="badge variant-filled-primary">
 														{country}: {count}
 													</span>
@@ -440,13 +469,11 @@
 									{/if}
 
 									<!-- Referrer breakdown -->
-									{#if Object.keys(postAnalytics[post.post_id].referrers || {}).length > 0}
+									{#if postAnalytics[post.post_id].referrersSorted?.length > 0}
 										<div>
 											<h4 class="font-semibold mb-2 text-sm">Traffic Sources</h4>
 											<div class="flex flex-wrap gap-2">
-												{#each Object.entries(postAnalytics[post.post_id].referrers)
-													.sort(([, a], [, b]) => (b as number) - (a as number))
-													.slice(0, 5) as [referrer, count]}
+												{#each postAnalytics[post.post_id].referrersSorted as { referrer, count }}
 													<span class="badge variant-filled-tertiary">
 														{referrer}: {count}
 													</span>
