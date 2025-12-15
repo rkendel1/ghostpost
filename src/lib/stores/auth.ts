@@ -90,13 +90,11 @@ function createAuthStore() {
 
 			return { data, error };
 		},
-		signInWithProvider: async (
-			provider: 'google' | 'github' | 'facebook' | 'discord' | 'twitter'
-		) => {
+		signInWithProvider: async (provider: 'google' | 'github' | 'discord' | 'twitter') => {
 			const { data, error } = await supabase.auth.signInWithOAuth({
 				provider,
 				options: {
-					redirectTo: `${window.location.origin}/dashboard`,
+					redirectTo: `${window.location.origin}/auth/callback`,
 					scopes: getProviderScopes(provider)
 				}
 			});
@@ -115,13 +113,10 @@ function createAuthStore() {
 }
 
 // Helper function to get appropriate scopes for each provider
-function getProviderScopes(
-	provider: 'google' | 'github' | 'facebook' | 'discord' | 'twitter'
-): string {
+function getProviderScopes(provider: 'google' | 'github' | 'discord' | 'twitter'): string {
 	const scopes = {
 		google: 'openid email profile',
 		github: 'user:email read:user',
-		facebook: 'email public_profile',
 		discord: 'identify email',
 		// Note: offline.access provides refresh tokens for long-lived access
 		// This is needed for future automated posting features
