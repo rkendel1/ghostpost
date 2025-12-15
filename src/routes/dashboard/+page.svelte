@@ -80,7 +80,9 @@
 	}
 
 	async function loadPostAnalytics() {
-		// Fetch analytics for all user posts
+		// Fetch analytics for all user posts in parallel
+		// Note: Limited to 10 posts by the query limit in loadUserPosts()
+		// For larger datasets, consider implementing batching or pagination
 		const analyticsPromises = userPosts.map(async (post) => {
 			try {
 				const response = await fetch(`/api/analytics/post?postId=${post.post_id}`);
@@ -146,15 +148,17 @@
 			navigator.clipboard
 				.writeText(url)
 				.then(() => {
-					// Success - could add a toast notification here
+					// TODO: Replace with toast notification for better UX
 					alert('Analytics link copied to clipboard!');
 				})
 				.catch((err) => {
 					console.error('Failed to copy link:', err);
+					// TODO: Replace with toast notification for better UX
 					alert('Failed to copy link. Please try again.');
 				});
 		} else {
 			// Fallback for browsers that don't support clipboard API
+			// TODO: Replace with modal or copyable text input for better UX
 			alert(`Copy this link: ${url}`);
 		}
 	}
