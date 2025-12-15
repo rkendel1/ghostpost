@@ -14,6 +14,7 @@
 	import Navigation from '$lib/navigation/Navigation.svelte';
 	import AuthModal from '$lib/components/AuthModal.svelte';
 	import { authStore } from '$lib/stores/auth';
+	import { goto } from '$app/navigation';
 
 	injectAnalytics();
 
@@ -38,6 +39,7 @@
 
 	async function handleSignOut(): Promise<void> {
 		await authStore.signOut();
+		await goto('/');
 	}
 
 	$: user = $authStore.user;
