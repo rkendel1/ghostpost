@@ -5,6 +5,9 @@
 	export let size: 'sm' | 'md' | 'lg' = 'md';
 	export let color: 'primary' | 'success' | 'warning' | 'error' = 'primary';
 
+	// Circle circumference constant based on radius of 45
+	const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 45; // 282.6
+
 	$: percentage = max > 0 ? Math.min((value / max) * 100, 100) : 0;
 	$: sizeClass = {
 		sm: 'w-20 h-20',
@@ -19,7 +22,7 @@
 		error: 'text-error-500'
 	}[color];
 
-	$: strokeDashoffset = 282.6 - (282.6 * percentage) / 100; // circumference - (circumference * percentage / 100)
+	$: strokeDashoffset = CIRCLE_CIRCUMFERENCE - (CIRCLE_CIRCUMFERENCE * percentage) / 100;
 </script>
 
 <div class="flex flex-col items-center gap-2">
@@ -44,7 +47,7 @@
 				stroke-width="8"
 				fill="none"
 				class="{colorClass} transition-all duration-500"
-				style="stroke-dasharray: 282.6; stroke-dashoffset: {strokeDashoffset}; stroke-linecap: round;"
+				style="stroke-dasharray: {CIRCLE_CIRCUMFERENCE}; stroke-dashoffset: {strokeDashoffset}; stroke-linecap: round;"
 			/>
 		</svg>
 		<!-- Center text -->

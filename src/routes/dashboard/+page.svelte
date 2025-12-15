@@ -54,12 +54,14 @@
 	}
 
 	async function loadUserPosts() {
+		if (!user) return;
+		
 		loadingPosts = true;
 		try {
 			const { data, error } = await supabase
 				.from('posts')
 				.select('*')
-				.eq('user_id', user!.id)
+				.eq('user_id', user.id)
 				.order('created_at', { ascending: false })
 				.limit(10);
 

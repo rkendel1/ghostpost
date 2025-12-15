@@ -56,29 +56,27 @@ export const GET: RequestHandler = async ({ locals }) => {
 		let activePosts = 0;
 		let expiredPosts = 0;
 
+		// Count posts with limited reveals
 		limitedReveals?.forEach((lr) => {
 			totalDecodes += lr.current_reveals || 0;
 			if (lr.is_expired) {
 				expiredPosts++;
-			} else if (lr.max_reveals && lr.current_reveals < lr.max_reveals) {
+			} else {
+				// Active if not expired (includes both limited and unlimited reveals)
 				activePosts++;
 			}
 		});
 
-		// Get encoded messages tracking data
-		const { data: encodedMessages, error: encodedMessagesError } = await supabase
-			.from('encoded_messages_tracking')
-			.select('*')
-			.eq('user_id', user.id);
+		// Add posts without limited reveals (unlimited posts) to active count
+		const postsWithLimitedReveals = new Set(limitedReveals?.map((lr) => lr.post_id) || []);
+		const unlimitedPostsCount =
+			(posts?.length || 0) - (limitedReveals?.length || 0);
+		activePosts += unlimitedPostsCount;
 
-		if (encodedMessagesError && encodedMessagesError.code !== 'PGRST116') {
-			throw encodedMessagesError;
-		}
-
-		// Calculate platform distribution
+		// Get encoded messages tracking data - use posts table for platform distribution
 		const platformCounts: Record<string, number> = {};
-		encodedMessages?.forEach((msg) => {
-			platformCounts[msg.platform] = (platformCounts[msg.platform] || 0) + 1;
+		posts?.forEach((post) => {
+			platformCounts[post.platform] = (platformCounts[post.platform] || 0) + 1;
 		});
 
 		// Get recent activity (last 7 days)
