@@ -16,6 +16,8 @@
 	let loadingTopPosts = true;
 	let loadingPosts = true;
 	let selectedPost: any = null;
+	let postAnalytics: Record<string, any> = {}; // Store analytics for each post
+	let expandedPostIds: Set<string> = new Set(); // Track which posts have expanded analytics
 
 	onMount(async () => {
 		if (user) {
@@ -55,7 +57,7 @@
 
 	async function loadUserPosts() {
 		if (!user) return;
-		
+
 		loadingPosts = true;
 		try {
 			const { data, error } = await supabase
@@ -67,11 +69,63 @@
 
 			if (error) throw error;
 			userPosts = data || [];
+
+			// Load analytics for each post
+			await loadPostAnalytics();
 		} catch (err) {
 			console.error('Failed to load user posts:', err);
 		} finally {
 			loadingPosts = false;
 		}
+	}
+
+	async function loadPostAnalytics() {
+		// Fetch analytics for all user posts
+		const analyticsPromises = userPosts.map(async (post) => {
+			try {
+				const response = await fetch(`/api/analytics/post?postId=${post.post_id}`);
+				const data = await response.json();
+				if (data.success && data.analytics) {
+					postAnalytics[post.post_id] = data.analytics;
+				} else {
+					// Default empty analytics if none found
+					postAnalytics[post.post_id] = {
+						totalDecodes: 0,
+						uniqueUsers: 0,
+						platforms: {},
+						countries: {}
+					};
+				}
+			} catch (err) {
+				console.error(`Failed to load analytics for post ${post.post_id}:`, err);
+				postAnalytics[post.post_id] = {
+					totalDecodes: 0,
+					uniqueUsers: 0,
+					platforms: {},
+					countries: {}
+				};
+			}
+		});
+
+		await Promise.all(analyticsPromises);
+		// Trigger reactivity
+		postAnalytics = { ...postAnalytics };
+	}
+
+	function toggleAnalytics(postId: string) {
+		if (expandedPostIds.has(postId)) {
+			expandedPostIds.delete(postId);
+		} else {
+			expandedPostIds.add(postId);
+		}
+		expandedPostIds = new Set(expandedPostIds);
+	}
+
+	function copyPostLink(postId: string) {
+		const url = `${window.location.origin}/analytics?postId=${postId}`;
+		navigator.clipboard.writeText(url);
+		// Could add a toast notification here
+		alert('Analytics link copied to clipboard!');
 	}
 
 	function formatDate(dateString: string): string {
@@ -95,13 +149,12 @@
 		return icons[platform.toLowerCase()] || '📱';
 	}
 
-	$: platformChartData =
-		overview?.platformDistribution
-			? Object.entries(overview.platformDistribution).map(([label, value]) => ({
-					label,
-					value: value as number
-				}))
-			: [];
+	$: platformChartData = overview?.platformDistribution
+		? Object.entries(overview.platformDistribution).map(([label, value]) => ({
+				label,
+				value: value as number
+			}))
+		: [];
 </script>
 
 <svelte:head>
@@ -281,52 +334,139 @@
 					{/each}
 				</div>
 			{:else if userPosts.length > 0}
-				<div class="table-container">
-					<table class="table table-hover">
-						<thead>
-							<tr>
-								<th>Platform</th>
-								<th>Message</th>
-								<th>Created</th>
-								<th>Post ID</th>
-								<th>Actions</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each userPosts as post}
-								<tr>
-									<td>
-										<div class="flex items-center gap-2">
-											<span class="text-xl">{getPlatformIcon(post.platform)}</span>
-											<span class="capitalize">{post.platform}</span>
+				<div class="space-y-4">
+					{#each userPosts as post}
+						<div class="card variant-ghost-surface">
+							<!-- Main post info -->
+							<div class="p-4">
+								<div class="flex items-start justify-between gap-4">
+									<div class="flex-1 min-w-0">
+										<div class="flex items-center gap-3 mb-2">
+											<span class="text-2xl">{getPlatformIcon(post.platform)}</span>
+											<div class="flex-1">
+												<div class="font-medium text-lg">{post.visible_message}</div>
+												<div class="flex items-center gap-2 text-sm opacity-75 mt-1">
+													<span class="capitalize">{post.platform}</span>
+													<span>•</span>
+													<span>{formatDate(post.created_at)}</span>
+													<span>•</span>
+													<code class="code text-xs">{post.post_id.slice(0, 8)}...</code>
+												</div>
+											</div>
 										</div>
-									</td>
-									<td>
-										<div class="max-w-xs truncate font-medium">{post.visible_message}</div>
-									</td>
-									<td>
-										<span class="text-sm opacity-75">{formatDate(post.created_at)}</span>
-									</td>
-									<td>
-										<code class="code text-xs">{post.post_id.slice(0, 8)}...</code>
-									</td>
-									<td>
-										<div class="flex items-center gap-2">
-											<a
-												href="/analytics?postId={post.post_id}"
-												class="btn btn-sm variant-ghost-primary"
-											>
-												📊 Analytics
-											</a>
-											<button class="btn btn-sm variant-ghost-surface" title="Share">
-												🔗
-											</button>
+									</div>
+									<div class="flex gap-2">
+										<button
+											class="btn btn-sm variant-ghost-primary"
+											on:click={() => toggleAnalytics(post.post_id)}
+											title="Toggle analytics"
+										>
+											{expandedPostIds.has(post.post_id) ? '📊 Hide' : '📊 Show'} Analytics
+										</button>
+										<button
+											class="btn btn-sm variant-ghost-surface"
+											on:click={() => copyPostLink(post.post_id)}
+											title="Copy analytics link"
+										>
+											🔗
+										</button>
+									</div>
+								</div>
+
+								<!-- Inline analytics summary (always visible) -->
+								{#if postAnalytics[post.post_id]}
+									<div
+										class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-surface-400"
+									>
+										<div class="text-center">
+											<div class="text-2xl font-bold">
+												{postAnalytics[post.post_id].totalDecodes || 0}
+											</div>
+											<div class="text-xs opacity-75">Total Reveals</div>
 										</div>
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
+										<div class="text-center">
+											<div class="text-2xl font-bold">
+												{postAnalytics[post.post_id].uniqueUsers || 0}
+											</div>
+											<div class="text-xs opacity-75">Unique Users</div>
+										</div>
+										<div class="text-center">
+											<div class="text-2xl font-bold">
+												{Object.keys(postAnalytics[post.post_id].countries || {}).length}
+											</div>
+											<div class="text-xs opacity-75">Countries</div>
+										</div>
+										<div class="text-center">
+											<div class="text-2xl font-bold">
+												{Object.keys(postAnalytics[post.post_id].platforms || {}).length}
+											</div>
+											<div class="text-xs opacity-75">Platforms</div>
+										</div>
+									</div>
+								{/if}
+							</div>
+
+							<!-- Expanded analytics details -->
+							{#if expandedPostIds.has(post.post_id) && postAnalytics[post.post_id]}
+								<div class="px-4 pb-4 space-y-4 border-t border-surface-400 pt-4">
+									<!-- Platform breakdown -->
+									{#if Object.keys(postAnalytics[post.post_id].platforms || {}).length > 0}
+										<div>
+											<h4 class="font-semibold mb-2 text-sm">Platform Sources</h4>
+											<div class="flex flex-wrap gap-2">
+												{#each Object.entries(postAnalytics[post.post_id].platforms).sort(([, a], [, b]) => (b as number) - (a as number)) as [platform, count]}
+													<span class="badge variant-filled-secondary capitalize">
+														{platform}: {count}
+													</span>
+												{/each}
+											</div>
+										</div>
+									{/if}
+
+									<!-- Country breakdown -->
+									{#if Object.keys(postAnalytics[post.post_id].countries || {}).length > 0}
+										<div>
+											<h4 class="font-semibold mb-2 text-sm">Geographic Reach</h4>
+											<div class="flex flex-wrap gap-2">
+												{#each Object.entries(postAnalytics[post.post_id].countries)
+													.sort(([, a], [, b]) => (b as number) - (a as number))
+													.slice(0, 10) as [country, count]}
+													<span class="badge variant-filled-primary">
+														{country}: {count}
+													</span>
+												{/each}
+											</div>
+										</div>
+									{/if}
+
+									<!-- Referrer breakdown -->
+									{#if Object.keys(postAnalytics[post.post_id].referrers || {}).length > 0}
+										<div>
+											<h4 class="font-semibold mb-2 text-sm">Traffic Sources</h4>
+											<div class="flex flex-wrap gap-2">
+												{#each Object.entries(postAnalytics[post.post_id].referrers)
+													.sort(([, a], [, b]) => (b as number) - (a as number))
+													.slice(0, 5) as [referrer, count]}
+													<span class="badge variant-filled-tertiary">
+														{referrer}: {count}
+													</span>
+												{/each}
+											</div>
+										</div>
+									{/if}
+
+									<div class="flex gap-2 pt-2">
+										<a
+											href="/analytics?postId={post.post_id}"
+											class="btn btn-sm variant-ghost-surface"
+										>
+											View Full Analytics Page
+										</a>
+									</div>
+								</div>
+							{/if}
+						</div>
+					{/each}
 				</div>
 			{:else}
 				<div class="text-center py-12 space-y-4">

@@ -42,10 +42,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		const { data: limitedReveals, error: limitedRevealsError } = await supabase
 			.from('limited_secrets')
 			.select('current_reveals, max_reveals, is_expired')
-			.in(
-				'post_id',
-				posts?.map((p) => p.post_id) || []
-			);
+			.in('post_id', posts?.map((p) => p.post_id) || []);
 
 		if (limitedRevealsError && limitedRevealsError.code !== 'PGRST116') {
 			throw limitedRevealsError;
@@ -69,8 +66,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		// Add posts without limited reveals (unlimited posts) to active count
 		const postsWithLimitedReveals = new Set(limitedReveals?.map((lr) => lr.post_id) || []);
-		const unlimitedPostsCount =
-			(posts?.length || 0) - (limitedReveals?.length || 0);
+		const unlimitedPostsCount = (posts?.length || 0) - (limitedReveals?.length || 0);
 		activePosts += unlimitedPostsCount;
 
 		// Get encoded messages tracking data - use posts table for platform distribution
