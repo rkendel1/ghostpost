@@ -129,27 +129,21 @@ fn encoded_to_base64(input: &str) -> String {
 }
 
 fn wrap(input: &str, secret: &str) -> String {
-    // Calculate middle index based on character count, not byte count
-    // This ensures we don't split in the middle of a multi-byte UTF-8 character
+    // Append the secret after the visible text to hide it in plain sight
+    // This makes the encoded message look more natural compared to splitting in the middle
+    // Format: visible_text + DELIMITER + secret + DELIMITER
+    // 
+    // IMPORTANT: This change improves stealth on platforms like Facebook where
+    // splitting text in the middle creates visible breaks/highlighting.
+    // Now "Test" remains "Test" with invisible characters appended at the end.
     
     // Handle empty string edge case
     if input.is_empty() {
         return format!("\u{FEFF}{}\u{FEFF}", secret);
     }
     
-    // Use char_indices to find the middle character position in a single pass
-    let chars_with_indices: Vec<(usize, char)> = input.char_indices().collect();
-    let middle_char_index = chars_with_indices.len() / 2;
-    
-    // Get the byte index for the middle character, or use input.len() for empty strings
-    let middle_byte_index = if middle_char_index < chars_with_indices.len() {
-        chars_with_indices[middle_char_index].0
-    } else {
-        input.len()
-    };
-    
-    let (first_half, second_half) = input.split_at(middle_byte_index);
-    format!("{}\u{FEFF}{}\u{FEFF}{}", first_half, secret, second_half)
+    // Append secret at the end for better stealth
+    format!("{}\u{FEFF}{}\u{FEFF}", input, secret)
 }
 
 fn unwrap(input: &str) -> String {

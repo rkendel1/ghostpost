@@ -194,10 +194,10 @@ function hasCompleteEncodedMessage(text) {
  *
  * STRATEGY: Try simple approaches first, use complex techniques as backups only when needed
  *
- * CONTEXT: X.com's GraphQL API preserves all invisible Unicode characters in the
- * full_text field. Most of the time (90%+), the complete encoded message is accessible
- * via simple text extraction. Only when X.com's DOM splits the content do we need
- * advanced aggregation techniques.
+ * CONTEXT: Some platforms (X.com, Facebook) split text nodes across multiple DOM elements.
+ * This function aggregates text from parent elements to reconstruct complete encoded messages.
+ * Most of the time (90%+), the complete encoded message is accessible via simple text extraction.
+ * Only when the DOM splits the content do we need advanced aggregation techniques.
  *
  * Extraction order (from simplest to most complex):
  * 1. Direct text node access - works 90%+ of the time
@@ -208,10 +208,17 @@ function hasCompleteEncodedMessage(text) {
  * See XCOM_API_BEHAVIOR.md for detailed explanation of X.com's behavior.
  */
 function extractCompleteText(node) {
+	const hostname = window.location.hostname.toLowerCase();
+	const siteName = hostname.includes('facebook') || hostname.includes('fb.com') 
+		? 'Facebook' 
+		: hostname.includes('twitter') || hostname.includes('x.com') 
+		? 'X.com' 
+		: 'Site';
+
 	// SIMPLE APPROACH #1: Try the text node itself first (works 90%+ of cases)
 	const nodeText = node.data || node.nodeValue || node.textContent || '';
 	if (nodeText && hasCompleteEncodedMessage(nodeText)) {
-		console.log('[Hidenly] [X.com] ✓ Complete message found in text node (simple)');
+		console.log(`[Hidenly] [${siteName}] ✓ Complete message found in text node (simple)`);
 		return nodeText;
 	}
 
@@ -219,7 +226,7 @@ function extractCompleteText(node) {
 	if (node.parentElement) {
 		const parentText = node.parentElement.textContent || '';
 		if (parentText && hasCompleteEncodedMessage(parentText)) {
-			console.log('[Hidenly] [X.com] ✓ Complete message found in parent.textContent (simple)');
+			console.log(`[Hidenly] [${siteName}] ✓ Complete message found in parent.textContent (simple)`);
 			return parentText;
 		}
 	}
@@ -242,7 +249,7 @@ function extractCompleteText(node) {
 		// Check if combined text has complete message (both delimiters + valid content)
 		if (combinedText && hasCompleteEncodedMessage(combinedText)) {
 			console.log(
-				'[Hidenly] [X.com] ✓ Complete message found at parent level',
+				`[Hidenly] [${siteName}] ✓ Complete message found at parent level`,
 				levelsChecked + 1,
 				'(advanced TreeWalker)'
 			);
@@ -269,18 +276,16 @@ function extractCompleteText(node) {
 		}
 
 		if (siblingText && hasCompleteEncodedMessage(siblingText)) {
-			console.log('[Hidenly] [X.com] ✓ Complete message found in sibling aggregation (advanced)');
+			console.log(`[Hidenly] [${siteName}] ✓ Complete message found in sibling aggregation (advanced)`);
 			return siblingText;
 		}
 	}
 
 	// All strategies exhausted - log debug info and return what we have
-	console.warn('[Hidenly] [X.com] ⚠ Could not find complete message after trying all strategies');
-	console.warn('[Hidenly] [X.com] Node text preview:', (nodeText || '').substring(0, 100));
-	console.warn('[Hidenly] [X.com] Has FEFF delimiter:', (nodeText || '').indexOf('\uFEFF') !== -1);
-	console.warn('[Hidenly] [X.com] Checked', MAX_PARENT_LEVELS, 'parent levels');
-	console.warn('[Hidenly] [X.com] NOTE: X.com preserves invisible chars in full_text field');
-	console.warn('[Hidenly] [X.com] See XCOM_API_BEHAVIOR.md for troubleshooting guidance');
+	console.warn(`[Hidenly] [${siteName}] ⚠ Could not find complete message after trying all strategies`);
+	console.warn(`[Hidenly] [${siteName}] Node text preview:`, (nodeText || '').substring(0, 100));
+	console.warn(`[Hidenly] [${siteName}] Has FEFF delimiter:`, (nodeText || '').indexOf('\uFEFF') !== -1);
+	console.warn(`[Hidenly] [${siteName}] Checked`, MAX_PARENT_LEVELS, 'parent levels');
 
 	// Return node text anyway - decoder will provide appropriate error message
 	return nodeText || '';
