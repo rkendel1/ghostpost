@@ -1,9 +1,11 @@
 # Supabase Configuration for OAuth Redirect Fix
 
 ## Issue
+
 After configuring OAuth providers in Supabase, users were being redirected to `localhost:3000` instead of the production domain after social login.
 
 ## Root Cause
+
 The Supabase **Site URL** configuration in the dashboard was set to `http://localhost:3000`, which is used as the default redirect URL for OAuth callbacks.
 
 ## Solution
@@ -42,6 +44,7 @@ A new auth callback route has been created at `/auth/callback` that properly han
 ### 4. OAuth Provider Configuration
 
 For each OAuth provider configured in Supabase, the callback URL should be:
+
 ```
 https://gadnzoaqvpcwrmslmlje.supabase.co/auth/v1/callback
 ```
@@ -51,6 +54,7 @@ This is Supabase's callback URL, which then redirects to your app's `/auth/callb
 ## Changes Made
 
 ### Code Changes:
+
 1. **Removed Facebook provider** from all authentication options
 2. **Updated auth store** (`src/lib/stores/auth.ts`):
    - Removed Facebook from provider types
@@ -65,6 +69,7 @@ This is Supabase's callback URL, which then redirects to your app's `/auth/callb
    - Redirects to dashboard after successful auth
 
 ### Configuration Required (Manual Steps):
+
 1. Update Supabase Site URL to production domain
 2. Add allowed redirect URLs in Supabase dashboard
 3. Optionally disable Facebook provider in Supabase dashboard
@@ -72,11 +77,13 @@ This is Supabase's callback URL, which then redirects to your app's `/auth/callb
 ## Testing
 
 ### Local Development:
+
 1. Ensure Supabase Site URL includes `http://localhost:3000` in allowed redirects
 2. Test OAuth login flows for Google, GitHub, Discord, and Twitter
 3. Verify redirect to `/dashboard` after successful login
 
 ### Production:
+
 1. Update Site URL to production domain
 2. Test each OAuth provider
 3. Verify users are redirected to production domain (not localhost)
@@ -92,6 +99,7 @@ This is Supabase's callback URL, which then redirects to your app's `/auth/callb
 ## Support
 
 If redirects are still going to localhost after these changes:
+
 1. Clear browser cookies and cache
 2. Verify Supabase Site URL is set correctly
 3. Check browser console for any errors

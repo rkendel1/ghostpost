@@ -90,9 +90,7 @@ function createAuthStore() {
 
 			return { data, error };
 		},
-		signInWithProvider: async (
-			provider: 'google' | 'github' | 'discord' | 'twitter'
-		) => {
+		signInWithProvider: async (provider: 'google' | 'github' | 'discord' | 'twitter') => {
 			const { data, error } = await supabase.auth.signInWithOAuth({
 				provider,
 				options: {
@@ -115,9 +113,7 @@ function createAuthStore() {
 }
 
 // Helper function to get appropriate scopes for each provider
-function getProviderScopes(
-	provider: 'google' | 'github' | 'discord' | 'twitter'
-): string {
+function getProviderScopes(provider: 'google' | 'github' | 'discord' | 'twitter'): string {
 	const scopes = {
 		google: 'openid email profile',
 		github: 'user:email read:user',

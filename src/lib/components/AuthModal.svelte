@@ -55,9 +55,7 @@
 		}
 	}
 
-	async function handleSocialLogin(
-		provider: 'google' | 'github' | 'discord' | 'twitter'
-	) {
+	async function handleSocialLogin(provider: 'google' | 'github' | 'discord' | 'twitter') {
 		error = '';
 		socialLoading = provider;
 
