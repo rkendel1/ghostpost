@@ -9,7 +9,7 @@ import init, { decode } from '../wasm/wasm.js';
 let wasmInitialized = false;
 
 // API Configuration
-const API_BASE_URL = 'https://ghostpost.vercel.app'; // Production API URL
+const API_BASE_URL = 'https://ghostpost-six.vercel.app'; // Production API URL
 
 // Delimiter for post ID in the secret payload
 const POST_ID_DELIMITER = '||ghostid:';
