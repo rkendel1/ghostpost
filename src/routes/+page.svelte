@@ -405,6 +405,14 @@
 					</p>
 				</div>
 
+				<div class="card p-6 space-y-3 hover:scale-105 transition-transform variant-ghost-primary">
+					<div class="text-4xl">🔐</div>
+					<h3 class="h3 text-lg font-semibold">Bank-Level Encryption</h3>
+					<p class="text-sm opacity-75">
+						Secrets encrypted with AES-256-GCM. Only you can decrypt your messages.
+					</p>
+				</div>
+
 				<div class="card p-6 space-y-3 hover:scale-105 transition-transform">
 					<div class="text-4xl">🤖</div>
 					<h3 class="h3 text-lg font-semibold">AI-Powered</h3>
@@ -516,13 +524,69 @@
 	<!-- Footer -->
 	<section class="container mx-auto px-4 py-12">
 		<div class="max-w-4xl mx-auto">
-			<div class="card p-6 variant-ghost-surface">
-				<div class="text-center space-y-4">
-					<h3 class="h3 font-semibold">💡 Privacy First</h3>
-					<p class="text-sm opacity-75">
-						All encoding and decoding happens in your browser. We don't see your secrets. Optional
-						analytics track decode events anonymously without personal information.
-					</p>
+			<div class="card p-8 variant-ghost-surface border-2 border-primary-500">
+				<div class="space-y-6">
+					<div class="text-center">
+						<div class="text-5xl mb-3">🔐</div>
+						<h3 class="h3 text-2xl font-semibold mb-2">Bank-Level Security</h3>
+						<p class="text-lg opacity-90 mb-4">
+							Your secrets are protected with the same encryption technology used by banks and
+							password managers
+						</p>
+					</div>
+
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+						<div class="space-y-2">
+							<h4 class="font-semibold text-lg flex items-center gap-2">
+								<span>🛡️</span>
+								<span>Encrypted at Rest</span>
+							</h4>
+							<p class="text-sm opacity-75">
+								All secret messages are encrypted using AES-256-GCM before being stored in our
+								database. Even our database administrators cannot read your secrets.
+							</p>
+						</div>
+
+						<div class="space-y-2">
+							<h4 class="font-semibold text-lg flex items-center gap-2">
+								<span>🔑</span>
+								<span>Your Eyes Only</span>
+							</h4>
+							<p class="text-sm opacity-75">
+								Only you can decrypt your secrets. Each user has a unique encryption key, ensuring
+								your messages remain private even in the event of a data breach.
+							</p>
+						</div>
+
+						<div class="space-y-2">
+							<h4 class="font-semibold text-lg flex items-center gap-2">
+								<span>🌐</span>
+								<span>Client-Side Encoding</span>
+							</h4>
+							<p class="text-sm opacity-75">
+								Message encoding and decoding happen in your browser using WebAssembly. Your
+								unencrypted secrets never leave your device during the encoding process.
+							</p>
+						</div>
+
+						<div class="space-y-2">
+							<h4 class="font-semibold text-lg flex items-center gap-2">
+								<span>📊</span>
+								<span>Anonymous Analytics</span>
+							</h4>
+							<p class="text-sm opacity-75">
+								Optional analytics track decode events anonymously without collecting personal
+								information. We value functionality AND privacy.
+							</p>
+						</div>
+					</div>
+
+					<div class="text-center pt-4 border-t border-surface-400">
+						<p class="text-xs opacity-60">
+							Industry-standard encryption • No plaintext storage • GDPR compliant • Privacy by
+							design
+						</p>
+					</div>
 				</div>
 			</div>
 		</div>

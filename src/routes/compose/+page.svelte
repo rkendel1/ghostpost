@@ -140,15 +140,27 @@
 			// Save to user's account if logged in
 			if (user) {
 				try {
-					await supabase.from('posts').insert({
-						user_id: user.id,
-						post_id: currentPostId,
-						content: encodedMessage,
-						platform: platform,
-						visible_message: visibleMessage,
-						secret_message: secretType === 'text' ? secretMessage : 'image',
-						secret_type: secretType
+					// Use API endpoint to save with encrypted secret
+					const saveResponse = await fetch('/api/posts/save', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						credentials: 'include',
+						body: JSON.stringify({
+							post_id: currentPostId,
+							content: encodedMessage,
+							platform: platform,
+							visible_message: visibleMessage,
+							secret_message: secretType === 'text' ? secretMessage : 'image',
+							secret_type: secretType
+						})
 					});
+
+					const saveData = await saveResponse.json();
+					if (!saveData.success) {
+						throw new Error(saveData.error || 'Failed to save post');
+					}
 
 					// Track encoded message creation
 					try {

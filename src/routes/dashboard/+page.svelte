@@ -18,6 +18,9 @@
 	let selectedPost: any = null;
 	let postAnalytics: Record<string, any> = {}; // Store analytics for each post
 	let expandedPostIds: Set<string> = new Set(); // Track which posts have expanded analytics
+	let decryptedSecrets: Record<string, string> = {}; // Store decrypted secrets
+	let loadingSecrets: Set<string> = new Set(); // Track which secrets are being loaded
+	let decryptErrors: Record<string, string> = {}; // Store decryption errors
 
 	onMount(async () => {
 		if (user) {
@@ -160,6 +163,43 @@
 			// Fallback for browsers that don't support clipboard API
 			// TODO: Replace with modal or copyable text input for better UX
 			alert(`Copy this link: ${url}`);
+		}
+	}
+
+	async function viewSecret(postId: string) {
+		// If already decrypted, hide it
+		if (decryptedSecrets[postId]) {
+			delete decryptedSecrets[postId];
+			delete decryptErrors[postId];
+			decryptedSecrets = { ...decryptedSecrets };
+			decryptErrors = { ...decryptErrors };
+			return;
+		}
+
+		// Start loading
+		loadingSecrets.add(postId);
+		loadingSecrets = new Set(loadingSecrets);
+		delete decryptErrors[postId];
+		decryptErrors = { ...decryptErrors };
+
+		try {
+			const response = await fetch(`/api/posts/decrypt?post_id=${postId}`);
+			const data = await response.json();
+
+			if (data.success) {
+				decryptedSecrets[postId] = data.secret_message;
+				decryptedSecrets = { ...decryptedSecrets };
+			} else {
+				decryptErrors[postId] = data.error || 'Failed to decrypt secret';
+				decryptErrors = { ...decryptErrors };
+			}
+		} catch (err) {
+			console.error('Decryption request failed');
+			decryptErrors[postId] = 'Network error. Please try again.';
+			decryptErrors = { ...decryptErrors };
+		} finally {
+			loadingSecrets.delete(postId);
+			loadingSecrets = new Set(loadingSecrets);
 		}
 	}
 
@@ -399,6 +439,20 @@
 											{expandedPostIds.has(post.post_id) ? '📊 Hide' : '📊 Show'} Analytics
 										</button>
 										<button
+											class="btn btn-sm variant-ghost-secondary"
+											on:click={() => viewSecret(post.post_id)}
+											title={decryptedSecrets[post.post_id] ? 'Hide secret' : 'View secret message'}
+											disabled={loadingSecrets.has(post.post_id)}
+										>
+											{#if loadingSecrets.has(post.post_id)}
+												⏳
+											{:else if decryptedSecrets[post.post_id]}
+												🔓 Hide
+											{:else}
+												🔒 View
+											{/if}
+										</button>
+										<button
 											class="btn btn-sm variant-ghost-surface"
 											on:click={() => copyPostLink(post.post_id)}
 											title="Copy analytics link"
@@ -407,6 +461,47 @@
 										</button>
 									</div>
 								</div>
+
+								<!-- Decrypted Secret Display -->
+								{#if decryptedSecrets[post.post_id]}
+									<div class="px-4 pb-4 border-t border-surface-400 pt-4">
+										<div class="card p-4 variant-soft-warning">
+											<div class="flex items-start gap-3">
+												<span class="text-2xl">🔓</span>
+												<div class="flex-1">
+													<h4 class="font-semibold mb-2 text-sm">Secret Message</h4>
+													<div class="bg-surface-900 p-3 rounded code text-sm break-words">
+														{decryptedSecrets[post.post_id]}
+													</div>
+													<p class="text-xs opacity-75 mt-2">
+														⚠️ This is your private secret. Only you can see this.
+													</p>
+												</div>
+											</div>
+										</div>
+									</div>
+								{/if}
+
+								<!-- Decryption Error Display -->
+								{#if decryptErrors[post.post_id]}
+									<div class="px-4 pb-4 border-t border-surface-400 pt-4">
+										<div class="card p-4 variant-soft-error">
+											<div class="flex items-start gap-3">
+												<span class="text-2xl">⚠️</span>
+												<div class="flex-1">
+													<h4 class="font-semibold mb-2 text-sm">Decryption Error</h4>
+													<p class="text-sm">{decryptErrors[post.post_id]}</p>
+													<button
+														class="btn btn-sm variant-ghost-surface mt-2"
+														on:click={() => viewSecret(post.post_id)}
+													>
+														Try Again
+													</button>
+												</div>
+											</div>
+										</div>
+									</div>
+								{/if}
 
 								<!-- Inline analytics summary (always visible) -->
 								{#if postAnalytics[post.post_id]}
