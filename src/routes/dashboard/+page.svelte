@@ -1,108 +1,69 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import type { DashboardStats } from '$lib/types/analytics';
+	import { onMount } from 'svelte';
 	import AuthGuard from '$lib/components/AuthGuard.svelte';
 	import { authStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
-	import { subscribeLimitedSecret, subscribeRevealEvents } from '$lib/realtime-limited-reveals';
-	import type { LimitedSecret } from '$lib/types/limited-reveals';
-
-	let postId = '';
-	let analytics: DashboardStats | null = null;
-	let isLoading = false;
-	let error = '';
-	let userPosts: any[] = [];
-	let loadingPosts = true;
-
-	// Limited reveals analytics
-	let limitedRevealsAnalytics: any = null;
-	let loadingLimitedReveals = false;
-	let realtimeUnsubscribe: (() => void) | null = null;
-	let realtimeEventsUnsubscribe: (() => void) | null = null;
+	import BarChart from '$lib/components/charts/BarChart.svelte';
+	import CircularProgress from '$lib/components/charts/CircularProgress.svelte';
 
 	$: user = $authStore.user;
 
+	// Dashboard state
+	let overview: any = null;
+	let topPosts: any[] = [];
+	let userPosts: any[] = [];
+	let loadingOverview = true;
+	let loadingTopPosts = true;
+	let loadingPosts = true;
+	let selectedPost: any = null;
+
 	onMount(async () => {
 		if (user) {
-			await loadUserPosts();
+			await Promise.all([loadOverview(), loadTopPosts(), loadUserPosts()]);
 		}
 	});
 
-	onDestroy(() => {
-		// Cleanup realtime subscriptions
-		if (realtimeUnsubscribe) {
-			realtimeUnsubscribe();
-		}
-		if (realtimeEventsUnsubscribe) {
-			realtimeEventsUnsubscribe();
-		}
-	});
-
-	// Setup realtime updates for limited reveals
-	function setupRealtimeUpdates(post_id: string) {
-		// Cleanup existing subscriptions
-		if (realtimeUnsubscribe) {
-			realtimeUnsubscribe();
-		}
-		if (realtimeEventsUnsubscribe) {
-			realtimeEventsUnsubscribe();
-		}
-
-		// Subscribe to limited secret updates
-		realtimeUnsubscribe = subscribeLimitedSecret(post_id, (updatedSecret: LimitedSecret) => {
-			if (limitedRevealsAnalytics && limitedRevealsAnalytics.post_id === post_id) {
-				const remaining = updatedSecret.max_reveals
-					? updatedSecret.max_reveals - updatedSecret.current_reveals
-					: null;
-
-				const percentage = updatedSecret.max_reveals
-					? (updatedSecret.current_reveals / updatedSecret.max_reveals) * 100
-					: null;
-
-				limitedRevealsAnalytics = {
-					...limitedRevealsAnalytics,
-					current_reveals: updatedSecret.current_reveals,
-					is_expired: updatedSecret.is_expired,
-					remaining_reveals: remaining,
-					percentage_revealed: percentage
-				};
+	async function loadOverview() {
+		loadingOverview = true;
+		try {
+			const response = await fetch('/api/dashboard/overview');
+			const data = await response.json();
+			if (data.success) {
+				overview = data.overview;
 			}
-		});
+		} catch (err) {
+			console.error('Failed to load overview:', err);
+		} finally {
+			loadingOverview = false;
+		}
+	}
 
-		// Subscribe to new reveal events
-		realtimeEventsUnsubscribe = subscribeRevealEvents(post_id, (revealNumber: number) => {
-			if (limitedRevealsAnalytics && limitedRevealsAnalytics.post_id === post_id) {
-				// Add to timeline if not already present
-				const existingEvent = limitedRevealsAnalytics.reveal_timeline?.find(
-					(e: any) => e.reveal_number === revealNumber
-				);
-
-				if (!existingEvent) {
-					const newEvent = {
-						reveal_number: revealNumber,
-						timestamp: new Date().toISOString()
-					};
-
-					limitedRevealsAnalytics = {
-						...limitedRevealsAnalytics,
-						reveal_timeline: [...(limitedRevealsAnalytics.reveal_timeline || []), newEvent]
-					};
-				}
+	async function loadTopPosts() {
+		loadingTopPosts = true;
+		try {
+			const response = await fetch('/api/dashboard/top-posts?limit=5');
+			const data = await response.json();
+			if (data.success) {
+				topPosts = data.posts;
 			}
-		});
+		} catch (err) {
+			console.error('Failed to load top posts:', err);
+		} finally {
+			loadingTopPosts = false;
+		}
 	}
 
 	async function loadUserPosts() {
-		if (!user) return;
-
+		loadingPosts = true;
 		try {
-			const { data, error: fetchError } = await supabase
+			const { data, error } = await supabase
 				.from('posts')
 				.select('*')
-				.eq('user_id', user.id)
-				.order('created_at', { ascending: false });
+				.eq('user_id', user!.id)
+				.order('created_at', { ascending: false })
+				.limit(10);
 
-			if (fetchError) throw fetchError;
+			if (error) throw error;
 			userPosts = data || [];
 		} catch (err) {
 			console.error('Failed to load user posts:', err);
@@ -111,106 +72,220 @@
 		}
 	}
 
-	async function loadAnalytics() {
-		if (!postId.trim()) {
-			error = 'Please enter a post ID';
-			return;
-		}
-
-		isLoading = true;
-		error = '';
-		analytics = null;
-		limitedRevealsAnalytics = null;
-
-		try {
-			const response = await fetch(`/api/analytics/post?postId=${encodeURIComponent(postId)}`);
-			const data = await response.json();
-
-			if (data.success) {
-				analytics = data.analytics;
-				error = '';
-			} else {
-				error = data.error || 'No analytics found for this post';
-			}
-
-			// Also load limited reveals analytics if available
-			await loadLimitedRevealsAnalytics(postId);
-		} catch (err) {
-			error = 'Failed to load analytics';
-			console.error(err);
-		} finally {
-			isLoading = false;
-		}
+	function formatDate(dateString: string): string {
+		return new Date(dateString).toLocaleDateString('en-US', {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric'
+		});
 	}
 
-	async function loadLimitedRevealsAnalytics(post_id: string) {
-		loadingLimitedReveals = true;
-		try {
-			const response = await fetch(
-				`/api/limited-reveals/analytics?post_id=${encodeURIComponent(post_id)}`
-			);
-			const data = await response.json();
-
-			if (data.success) {
-				limitedRevealsAnalytics = data.analytics;
-
-				// Setup realtime updates for this post
-				setupRealtimeUpdates(post_id);
-			}
-		} catch (err) {
-			console.log('No limited reveals data for this post (might be unlimited)');
-		} finally {
-			loadingLimitedReveals = false;
-		}
+	function getPlatformIcon(platform: string): string {
+		const icons: Record<string, string> = {
+			twitter: '𝕏',
+			linkedin: '💼',
+			facebook: '📘',
+			instagram: '📷',
+			tiktok: '🎵',
+			discord: '💬',
+			reddit: '🤖'
+		};
+		return icons[platform.toLowerCase()] || '📱';
 	}
 
-	function formatDate(timestamp: number): string {
-		return new Date(timestamp).toLocaleString();
-	}
-
-	function formatTimeSeries(data: { timestamp: number; count: number }[]): string {
-		if (!data || data.length === 0) return '';
-		return data.map((d) => `${new Date(d.timestamp).toLocaleDateString()}: ${d.count}`).join('\n');
-	}
+	$: platformChartData =
+		overview?.platformDistribution
+			? Object.entries(overview.platformDistribution).map(([label, value]) => ({
+					label,
+					value: value as number
+				}))
+			: [];
 </script>
 
 <svelte:head>
-	<title>My Posts - GhostPost</title>
+	<title>Dashboard - GhostPost</title>
 </svelte:head>
 
 <AuthGuard>
-	<div class="container mx-auto p-8 max-w-6xl space-y-6">
-		<div class="flex justify-between items-center">
-			<h1 class="h1">📊 My Posts</h1>
-			<a href="/compose" class="btn variant-ghost-surface">
+	<div class="container mx-auto p-4 md:p-8 max-w-7xl">
+		<!-- Header -->
+		<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+			<div>
+				<h1 class="h1 flex items-center gap-3">
+					<span>📊</span>
+					<span>Dashboard</span>
+				</h1>
+				<p class="text-sm opacity-75 mt-2">
+					Welcome back! Here's your GhostPost creator analytics.
+				</p>
+			</div>
+			<a href="/compose" class="btn variant-filled-primary">
 				<span>✍️</span>
-				<span>Compose New</span>
+				<span>Compose New Post</span>
 			</a>
 		</div>
 
-		<!-- User's Posts List -->
-		<div class="card p-6 space-y-4">
-			<h2 class="h2">Your GhostPosts</h2>
+		<!-- Overview Stats -->
+		{#if loadingOverview}
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+				{#each Array(4) as _}
+					<div class="card p-6 animate-pulse">
+						<div class="h-8 bg-surface-700 rounded w-3/4 mb-2" />
+						<div class="h-4 bg-surface-700 rounded w-1/2" />
+					</div>
+				{/each}
+			</div>
+		{:else if overview}
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+				<!-- Total Posts -->
+				<div class="card p-6 variant-ghost-primary hover:variant-soft-primary transition-all">
+					<div class="flex items-center justify-between mb-2">
+						<h3 class="text-sm font-semibold uppercase tracking-wide opacity-75">Total Posts</h3>
+						<span class="text-2xl">📝</span>
+					</div>
+					<div class="text-4xl font-bold mb-1">{overview.totalPosts}</div>
+					<div class="text-xs opacity-75">
+						{overview.recentPosts} created this week
+					</div>
+				</div>
+
+				<!-- Total Decodes -->
+				<div class="card p-6 variant-ghost-secondary hover:variant-soft-secondary transition-all">
+					<div class="flex items-center justify-between mb-2">
+						<h3 class="text-sm font-semibold uppercase tracking-wide opacity-75">Total Reveals</h3>
+						<span class="text-2xl">🔓</span>
+					</div>
+					<div class="text-4xl font-bold mb-1">{overview.totalDecodes}</div>
+					<div class="text-xs opacity-75">Secrets revealed by users</div>
+				</div>
+
+				<!-- Active Posts -->
+				<div class="card p-6 variant-ghost-success hover:variant-soft-success transition-all">
+					<div class="flex items-center justify-between mb-2">
+						<h3 class="text-sm font-semibold uppercase tracking-wide opacity-75">Active Posts</h3>
+						<span class="text-2xl">⚡</span>
+					</div>
+					<div class="text-4xl font-bold mb-1">{overview.activePosts}</div>
+					<div class="text-xs opacity-75">Posts with reveals available</div>
+				</div>
+
+				<!-- Expired Posts -->
+				<div class="card p-6 variant-ghost-warning hover:variant-soft-warning transition-all">
+					<div class="flex items-center justify-between mb-2">
+						<h3 class="text-sm font-semibold uppercase tracking-wide opacity-75">Sold Out</h3>
+						<span class="text-2xl">🔥</span>
+					</div>
+					<div class="text-4xl font-bold mb-1">{overview.expiredPosts}</div>
+					<div class="text-xs opacity-75">Limited edition secrets</div>
+				</div>
+			</div>
+		{/if}
+
+		<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+			<!-- Platform Distribution -->
+			<div class="card p-6">
+				<h2 class="h2 mb-4 flex items-center gap-2">
+					<span>📱</span>
+					<span>Platform Distribution</span>
+				</h2>
+				{#if loadingOverview}
+					<div class="space-y-3">
+						{#each Array(3) as _}
+							<div class="h-12 bg-surface-700 rounded animate-pulse" />
+						{/each}
+					</div>
+				{:else if platformChartData.length > 0}
+					<BarChart data={platformChartData} showPercentage={true} />
+				{:else}
+					<div class="text-center py-8 opacity-75">
+						<p>No posts created yet</p>
+						<a href="/compose" class="btn btn-sm variant-ghost-primary mt-4">
+							Create Your First Post
+						</a>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Top Performing Posts -->
+			<div class="card p-6">
+				<h2 class="h2 mb-4 flex items-center gap-2">
+					<span>🏆</span>
+					<span>Top Performing Posts</span>
+				</h2>
+				{#if loadingTopPosts}
+					<div class="space-y-3">
+						{#each Array(5) as _}
+							<div class="h-16 bg-surface-700 rounded animate-pulse" />
+						{/each}
+					</div>
+				{:else if topPosts.length > 0}
+					<div class="space-y-3">
+						{#each topPosts as post, index}
+							<div
+								class="card p-4 variant-ghost-surface hover:variant-soft-primary transition-all cursor-pointer"
+								on:click={() => (selectedPost = post)}
+								on:keydown={(e) => e.key === 'Enter' && (selectedPost = post)}
+								role="button"
+								tabindex="0"
+							>
+								<div class="flex items-center gap-4">
+									<div
+										class="flex-shrink-0 w-10 h-10 rounded-full variant-filled-primary flex items-center justify-center font-bold"
+									>
+										#{index + 1}
+									</div>
+									<div class="flex-1 min-w-0">
+										<div class="font-medium truncate">{post.visible_message}</div>
+										<div class="flex items-center gap-2 text-xs opacity-75 mt-1">
+											<span>{getPlatformIcon(post.platform)} {post.platform}</span>
+											<span>•</span>
+											<span>{formatDate(post.created_at)}</span>
+										</div>
+									</div>
+									<div class="text-right">
+										<div class="text-xl font-bold">{post.decodes}</div>
+										<div class="text-xs opacity-75">reveals</div>
+									</div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<div class="text-center py-8 opacity-75">
+						<p>No posts with reveals yet</p>
+						<p class="text-xs mt-2">Share your posts to start tracking engagement!</p>
+					</div>
+				{/if}
+			</div>
+		</div>
+
+		<!-- Recent Posts -->
+		<div class="card p-6">
+			<div class="flex justify-between items-center mb-6">
+				<h2 class="h2 flex items-center gap-2">
+					<span>📋</span>
+					<span>Recent Posts</span>
+				</h2>
+				<a href="/compose" class="btn btn-sm variant-ghost-primary">
+					<span>➕</span>
+					<span>New Post</span>
+				</a>
+			</div>
+
 			{#if loadingPosts}
-				<div class="text-center py-8">
-					<p class="opacity-75">Loading your posts...</p>
+				<div class="space-y-3">
+					{#each Array(5) as _}
+						<div class="h-20 bg-surface-700 rounded animate-pulse" />
+					{/each}
 				</div>
-			{:else if userPosts.length === 0}
-				<div class="text-center py-8 space-y-4">
-					<p class="opacity-75">You haven't created any GhostPosts yet.</p>
-					<a href="/compose" class="btn variant-filled-primary">
-						<span>✨</span>
-						<span>Create Your First Post</span>
-					</a>
-				</div>
-			{:else}
+			{:else if userPosts.length > 0}
 				<div class="table-container">
 					<table class="table table-hover">
 						<thead>
 							<tr>
-								<th>Created</th>
-								<th>Visible Message</th>
 								<th>Platform</th>
+								<th>Message</th>
+								<th>Created</th>
 								<th>Post ID</th>
 								<th>Actions</th>
 							</tr>
@@ -218,349 +293,73 @@
 						<tbody>
 							{#each userPosts as post}
 								<tr>
-									<td>{new Date(post.created_at).toLocaleDateString()}</td>
-									<td class="max-w-xs truncate">{post.visible_message}</td>
-									<td class="capitalize">{post.platform}</td>
+									<td>
+										<div class="flex items-center gap-2">
+											<span class="text-xl">{getPlatformIcon(post.platform)}</span>
+											<span class="capitalize">{post.platform}</span>
+										</div>
+									</td>
+									<td>
+										<div class="max-w-xs truncate font-medium">{post.visible_message}</div>
+									</td>
+									<td>
+										<span class="text-sm opacity-75">{formatDate(post.created_at)}</span>
+									</td>
 									<td>
 										<code class="code text-xs">{post.post_id.slice(0, 8)}...</code>
 									</td>
 									<td>
-										<button
-											class="btn btn-sm variant-ghost-primary"
-											on:click={() => {
-												postId = post.post_id;
-												loadAnalytics();
-											}}
-										>
-											View Analytics
-										</button>
+										<div class="flex items-center gap-2">
+											<a
+												href="/analytics?postId={post.post_id}"
+												class="btn btn-sm variant-ghost-primary"
+											>
+												📊 Analytics
+											</a>
+											<button class="btn btn-sm variant-ghost-surface" title="Share">
+												🔗
+											</button>
+										</div>
 									</td>
 								</tr>
 							{/each}
 						</tbody>
 					</table>
 				</div>
+			{:else}
+				<div class="text-center py-12 space-y-4">
+					<div class="text-6xl">👻</div>
+					<div>
+						<h3 class="h3 mb-2">No Posts Yet</h3>
+						<p class="opacity-75 mb-4">Create your first GhostPost to get started!</p>
+						<a href="/compose" class="btn variant-filled-primary">
+							<span>✨</span>
+							<span>Create Your First Post</span>
+						</a>
+					</div>
+				</div>
 			{/if}
 		</div>
 
-		<div class="card p-6 space-y-4">
-			<h2 class="h2">View Post Analytics</h2>
-			<p class="text-sm opacity-75">
-				Enter your post ID to see detailed analytics about who's decoding your secret messages.
-			</p>
+		<!-- Quick Actions -->
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+			<a href="/compose" class="card p-6 hover:variant-soft-primary transition-all text-center">
+				<div class="text-4xl mb-2">✍️</div>
+				<h3 class="h3 mb-2">Compose Post</h3>
+				<p class="text-sm opacity-75">Create a new secret message</p>
+			</a>
 
-			<label class="label">
-				<span>Post ID</span>
-				<input
-					class="input"
-					type="text"
-					bind:value={postId}
-					placeholder="Enter your post ID (UUID)"
-					on:keydown={(e) => e.key === 'Enter' && loadAnalytics()}
-				/>
-			</label>
+			<a href="/analytics" class="card p-6 hover:variant-soft-secondary transition-all text-center">
+				<div class="text-4xl mb-2">📊</div>
+				<h3 class="h3 mb-2">View Analytics</h3>
+				<p class="text-sm opacity-75">Deep dive into post performance</p>
+			</a>
 
-			<button class="btn variant-filled-primary" on:click={loadAnalytics} disabled={isLoading}>
-				{#if isLoading}
-					<span>⏳ Loading...</span>
-				{:else}
-					<span>📊 Load Analytics</span>
-				{/if}
-			</button>
-		</div>
-
-		{#if error}
-			<div class="card p-4 variant-ghost-error">
-				<p>❌ {error}</p>
-			</div>
-		{/if}
-
-		{#if analytics}
-			<div class="space-y-6">
-				<!-- Limited Reveals Analytics (if applicable) -->
-				{#if limitedRevealsAnalytics}
-					<div
-						class="card p-6 space-y-4"
-						class:variant-ghost-error={limitedRevealsAnalytics.is_expired}
-						class:variant-ghost-warning={limitedRevealsAnalytics.percentage_revealed >= 80 &&
-							!limitedRevealsAnalytics.is_expired}
-						class:variant-ghost-success={limitedRevealsAnalytics.percentage_revealed < 80}
-					>
-						<div class="flex items-center justify-between">
-							<h2 class="h2">🔥 Limited Edition Status</h2>
-							{#if limitedRevealsAnalytics.is_expired}
-								<span class="badge variant-filled-error text-lg px-4 py-2">SOLD OUT FOREVER</span>
-							{:else}
-								<span class="badge variant-filled-primary text-lg px-4 py-2">ACTIVE</span>
-							{/if}
-						</div>
-
-						<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-							<div class="card p-4 variant-ghost-surface text-center">
-								<div class="text-3xl font-bold">{limitedRevealsAnalytics.current_reveals}</div>
-								<div class="text-xs opacity-75 mt-1">Current Reveals</div>
-							</div>
-							<div class="card p-4 variant-ghost-surface text-center">
-								<div class="text-3xl font-bold">{limitedRevealsAnalytics.max_reveals || '∞'}</div>
-								<div class="text-xs opacity-75 mt-1">Max Reveals</div>
-							</div>
-							<div class="card p-4 variant-ghost-surface text-center">
-								<div
-									class="text-3xl font-bold"
-									class:text-error-500={limitedRevealsAnalytics.remaining_reveals <= 5}
-									class:animate-pulse={limitedRevealsAnalytics.remaining_reveals <= 20}
-								>
-									{limitedRevealsAnalytics.remaining_reveals ?? '∞'}
-								</div>
-								<div class="text-xs opacity-75 mt-1">Remaining</div>
-							</div>
-							<div class="card p-4 variant-ghost-surface text-center">
-								<div class="text-3xl font-bold">
-									{limitedRevealsAnalytics.percentage_revealed
-										? limitedRevealsAnalytics.percentage_revealed.toFixed(1)
-										: '0'}%
-								</div>
-								<div class="text-xs opacity-75 mt-1">Revealed</div>
-							</div>
-						</div>
-
-						<!-- Progress Ring/Bar -->
-						{#if limitedRevealsAnalytics.max_reveals}
-							<div class="space-y-2">
-								<div class="flex justify-between text-sm">
-									<span>Progress to Sold Out</span>
-									<span
-										class:text-error-500={limitedRevealsAnalytics.percentage_revealed >= 80}
-										class:font-bold={limitedRevealsAnalytics.percentage_revealed >= 80}
-									>
-										{limitedRevealsAnalytics.percentage_revealed.toFixed(1)}%
-									</span>
-								</div>
-								<div class="w-full bg-surface-700 rounded-full h-6 overflow-hidden">
-									<div
-										class="h-full transition-all duration-500 flex items-center justify-end pr-2"
-										class:bg-success-500={limitedRevealsAnalytics.percentage_revealed < 50}
-										class:bg-warning-500={limitedRevealsAnalytics.percentage_revealed >= 50 &&
-											limitedRevealsAnalytics.percentage_revealed < 80}
-										class:bg-error-500={limitedRevealsAnalytics.percentage_revealed >= 80}
-										class:animate-pulse={limitedRevealsAnalytics.percentage_revealed >= 80}
-										style="width: {limitedRevealsAnalytics.percentage_revealed}%"
-									>
-										{#if limitedRevealsAnalytics.percentage_revealed >= 10}
-											<span class="text-xs text-white font-bold"
-												>{limitedRevealsAnalytics.current_reveals}/{limitedRevealsAnalytics.max_reveals}</span
-											>
-										{/if}
-									</div>
-								</div>
-							</div>
-						{/if}
-
-						{#if limitedRevealsAnalytics.is_expired}
-							<div class="card p-4 variant-ghost-error text-center">
-								<p class="font-bold text-lg">🔒 This secret is now permanently locked!</p>
-								<p class="text-sm opacity-75 mt-1">
-									All {limitedRevealsAnalytics.max_reveals} reveals have been claimed.
-								</p>
-							</div>
-						{:else if limitedRevealsAnalytics.remaining_reveals <= 10}
-							<div class="card p-4 variant-ghost-warning text-center animate-pulse">
-								<p class="font-bold">
-									⚠️ EXTREMELY LIMITED! Only {limitedRevealsAnalytics.remaining_reveals} reveals left!
-								</p>
-							</div>
-						{/if}
-
-						<!-- Reveal Timeline -->
-						{#if limitedRevealsAnalytics.reveal_timeline && limitedRevealsAnalytics.reveal_timeline.length > 0}
-							<div class="space-y-2">
-								<h3 class="font-bold">📈 Reveal Timeline</h3>
-								<div class="max-h-60 overflow-y-auto space-y-1">
-									{#each limitedRevealsAnalytics.reveal_timeline.slice(-20) as event}
-										<div
-											class="flex items-center justify-between text-sm p-2 card variant-ghost-surface"
-										>
-											<span class="font-mono text-xs">Reveal #{event.reveal_number}</span>
-											<span class="text-xs opacity-75"
-												>{new Date(event.timestamp).toLocaleString()}</span
-											>
-										</div>
-									{/each}
-								</div>
-							</div>
-						{/if}
-					</div>
-				{/if}
-
-				<!-- Summary Stats -->
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-					<div class="card p-6 variant-ghost-primary">
-						<h3 class="h3 text-center">{analytics.totalDecodes}</h3>
-						<p class="text-center text-sm opacity-75">Total Decodes</p>
-					</div>
-					<div class="card p-6 variant-ghost-secondary">
-						<h3 class="h3 text-center">{analytics.uniqueUsers}</h3>
-						<p class="text-center text-sm opacity-75">Unique Users</p>
-					</div>
-					<div class="card p-6 variant-ghost-tertiary">
-						<h3 class="h3 text-center">
-							{analytics.lastDecoded ? formatDate(analytics.lastDecoded) : 'N/A'}
-						</h3>
-						<p class="text-center text-sm opacity-75">Last Decoded</p>
-					</div>
-				</div>
-
-				<!-- Platform Breakdown -->
-				{#if Object.keys(analytics.platforms).length > 0}
-					<div class="card p-6 space-y-4">
-						<h2 class="h2">📱 Platform Breakdown</h2>
-						<div class="table-container">
-							<table class="table table-hover">
-								<thead>
-									<tr>
-										<th>Platform</th>
-										<th class="text-right">Decodes</th>
-										<th class="text-right">Percentage</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each Object.entries(analytics.platforms)
-										.sort(([, a], [, b]) => b - a)
-										.slice(0, 10) as [platform, count]}
-										<tr>
-											<td class="capitalize">{platform}</td>
-											<td class="text-right">{count}</td>
-											<td class="text-right"
-												>{((count / analytics.totalDecodes) * 100).toFixed(1)}%</td
-											>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
-					</div>
-				{/if}
-
-				<!-- Country Breakdown -->
-				{#if Object.keys(analytics.countries).length > 0}
-					<div class="card p-6 space-y-4">
-						<h2 class="h2">🌍 Geographic Distribution</h2>
-						<div class="table-container">
-							<table class="table table-hover">
-								<thead>
-									<tr>
-										<th>Country</th>
-										<th class="text-right">Decodes</th>
-										<th class="text-right">Percentage</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each Object.entries(analytics.countries)
-										.sort(([, a], [, b]) => b - a)
-										.slice(0, 10) as [country, count]}
-										<tr>
-											<td>{country}</td>
-											<td class="text-right">{count}</td>
-											<td class="text-right"
-												>{((count / analytics.totalDecodes) * 100).toFixed(1)}%</td
-											>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
-					</div>
-				{/if}
-
-				<!-- Referrer Breakdown -->
-				{#if Object.keys(analytics.referrers).length > 0}
-					<div class="card p-6 space-y-4">
-						<h2 class="h2">🔗 Referral Sources</h2>
-						<div class="table-container">
-							<table class="table table-hover">
-								<thead>
-									<tr>
-										<th>Source</th>
-										<th class="text-right">Decodes</th>
-										<th class="text-right">Percentage</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each Object.entries(analytics.referrers)
-										.sort(([, a], [, b]) => b - a)
-										.slice(0, 10) as [referrer, count]}
-										<tr>
-											<td>{referrer}</td>
-											<td class="text-right">{count}</td>
-											<td class="text-right"
-												>{((count / analytics.totalDecodes) * 100).toFixed(1)}%</td
-											>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
-					</div>
-				{/if}
-
-				<!-- Time Series -->
-				{#if analytics.timeSeriesData.length > 0}
-					<div class="card p-6 space-y-4">
-						<h2 class="h2">📈 Decodes Over Time</h2>
-						<div class="space-y-2">
-							{#each analytics.timeSeriesData.slice(-20) as dataPoint}
-								<div class="flex items-center gap-4">
-									<span class="text-sm opacity-75 w-40">{formatDate(dataPoint.timestamp)}</span>
-									<div class="flex-1 bg-surface-700 rounded-full h-6 relative overflow-hidden">
-										<div
-											class="bg-primary-500 h-full rounded-full flex items-center justify-end pr-2"
-											style="width: {(dataPoint.count /
-												Math.max(...analytics.timeSeriesData.map((d) => d.count))) *
-												100}%"
-										>
-											<span class="text-xs text-white font-bold">{dataPoint.count}</span>
-										</div>
-									</div>
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
-			</div>
-		{/if}
-
-		<div class="card p-6 variant-ghost-surface">
-			<h3 class="h3 mb-2">💡 About Analytics</h3>
-			<div class="space-y-2 text-sm">
-				<p>
-					When you create a secret message with analytics enabled (default), we embed a unique post
-					ID in the invisible payload. This allows us to track:
-				</p>
-				<ul class="list-disc list-inside space-y-1 ml-4">
-					<li>How many times your message has been decoded</li>
-					<li>Unique users who decoded it (anonymously tracked)</li>
-					<li>Which platforms people came from</li>
-					<li>Geographic distribution of your audience</li>
-					<li>When your message was decoded over time</li>
-				</ul>
-				<p class="opacity-75 mt-4">
-					All tracking is privacy-focused and doesn't collect personally identifiable information.
-					Users are tracked anonymously via fingerprinting.
-				</p>
-			</div>
-		</div>
-
-		<div class="card p-6">
-			<h3 class="h3 mb-4">🔍 Where to Find Your Post ID</h3>
-			<p class="text-sm mb-2">
-				Your post ID is automatically generated when you encode a message. You can find it:
-			</p>
-			<ul class="list-disc list-inside space-y-1 text-sm ml-4">
-				<li>In the browser console after encoding (we'll add a visible display soon)</li>
-				<li>
-					By decoding your own message on the <a href="/decode" class="anchor">Decode page</a>
-				</li>
-			</ul>
+			<a href="/settings" class="card p-6 hover:variant-soft-tertiary transition-all text-center">
+				<div class="text-4xl mb-2">⚙️</div>
+				<h3 class="h3 mb-2">Settings</h3>
+				<p class="text-sm opacity-75">Manage your account</p>
+			</a>
 		</div>
 	</div>
 </AuthGuard>
