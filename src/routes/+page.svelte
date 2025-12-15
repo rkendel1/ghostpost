@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { decodeMessage, encodeMessage, initWasm } from '$lib/ghostpost';
+	import { authStore } from '$lib/stores/auth';
 
 	// Demo state
 	let demoVisibleMessage = $state('Just shipped our latest feature! 🚀');
@@ -13,6 +15,15 @@
 	let showDecoded = $state(false);
 	let errorMessage = $state('');
 	let installUrl = $state('/install');
+
+	// Redirect authenticated users to dashboard
+	let redirected = false;
+	$effect(() => {
+		if ($authStore.user && !$authStore.loading && !redirected) {
+			redirected = true;
+			goto('/dashboard');
+		}
+	});
 
 	onMount(async () => {
 		await initWasm();
