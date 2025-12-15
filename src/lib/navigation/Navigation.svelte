@@ -7,22 +7,24 @@
 		drawerStore.close();
 	}
 
-	// Public pages accessible to everyone
-	const publicMenus = [
+	// Navigation for unauthenticated users
+	const unauthMenus = [
 		{ href: '/', label: '🏠 Home' },
 		{ href: '/decode', label: '🔍 Decode' },
 		{ href: '/analytics', label: '🌐 Analytics' }
 	];
 
-	// Pages that require authentication
+	// Navigation for authenticated users (Dashboard is their home)
 	const authMenus = [
+		{ href: '/dashboard', label: '🏠 Dashboard' },
 		{ href: '/compose', label: '✍️ Compose' },
-		{ href: '/dashboard', label: '📊 My Posts' },
+		{ href: '/decode', label: '🔍 Decode' },
+		{ href: '/analytics', label: '🌐 Analytics' },
 		{ href: '/settings', label: '⚙️ Settings' }
 	];
 
 	$: user = $authStore.user;
-	$: menus = user ? [...publicMenus, ...authMenus] : publicMenus;
+	$: menus = user ? authMenus : unauthMenus;
 </script>
 
 <nav class="list-nav p-4">

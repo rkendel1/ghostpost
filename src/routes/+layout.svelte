@@ -58,7 +58,11 @@
 		<AppBar>
 			<svelte:fragment slot="lead">
 				<div class="flex items-center">
-					<button class="lg:hidden btn btn-sm mr-4" on:click={drawerOpen}>
+					<button
+						class="lg:hidden btn btn-sm mr-4"
+						on:click={drawerOpen}
+						aria-label="Open navigation menu"
+					>
 						<span>
 							<svg viewBox="0 0 100 80" class="fill-token w-4 h-4">
 								<rect width="100" height="20" />
@@ -67,11 +71,34 @@
 							</svg>
 						</span>
 					</button>
-					<a href="/" class="no-underline hover:no-underline text-inherit flex items-center gap-2">
+					<a
+						href={user ? '/dashboard' : '/'}
+						class="no-underline hover:no-underline text-inherit flex items-center gap-2"
+					>
 						<span class="text-2xl">👻</span>
 						<strong class="text-xl uppercase"> GhostPost </strong>
 					</a>
 				</div>
+			</svelte:fragment>
+			<svelte:fragment slot="default">
+				<!-- Desktop Navigation Menu -->
+				{#if mounted}
+					<nav class="hidden lg:flex items-center gap-1 mx-4">
+						{#if user}
+							<!-- Authenticated user navigation -->
+							<a href="/dashboard" class="btn btn-sm variant-ghost-surface"> 🏠 Dashboard </a>
+							<a href="/compose" class="btn btn-sm variant-ghost-surface"> ✍️ Compose </a>
+							<a href="/decode" class="btn btn-sm variant-ghost-surface"> 🔍 Decode </a>
+							<a href="/analytics" class="btn btn-sm variant-ghost-surface"> 🌐 Analytics </a>
+							<a href="/settings" class="btn btn-sm variant-ghost-surface"> ⚙️ Settings </a>
+						{:else}
+							<!-- Unauthenticated user navigation -->
+							<a href="/" class="btn btn-sm variant-ghost-surface"> 🏠 Home </a>
+							<a href="/decode" class="btn btn-sm variant-ghost-surface"> 🔍 Decode </a>
+							<a href="/analytics" class="btn btn-sm variant-ghost-surface"> 🌐 Analytics </a>
+						{/if}
+					</nav>
+				{/if}
 			</svelte:fragment>
 			<svelte:fragment slot="trail">
 				<div class="flex items-center gap-4">
