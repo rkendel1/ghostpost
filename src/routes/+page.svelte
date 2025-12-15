@@ -17,7 +17,7 @@
 	let installUrl = $state('/install');
 
 	// Redirect authenticated users to dashboard
-	let redirected = false;
+	let redirected = $state(false);
 	$effect(() => {
 		if ($authStore.user && !$authStore.loading && !redirected) {
 			redirected = true;
