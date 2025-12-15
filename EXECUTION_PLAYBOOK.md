@@ -1,4 +1,5 @@
 # 🎯 GhostPost - Execution Playbook
+
 ## 90-Day Sprint to Viral Growth
 
 ---
@@ -6,6 +7,7 @@
 ## 📋 Quick Wins (Next 30 Days)
 
 ### Week 1: Viral Mechanics
+
 **Goal:** Make sharing irresistible
 
 - [ ] **Viral Share Buttons**
@@ -29,6 +31,7 @@
   - **Effort:** 1 day | **Impact:** 🔥🔥🔥
 
 ### Week 2: Reduce Friction
+
 **Goal:** Get users to first encode faster
 
 - [ ] **Interactive Onboarding**
@@ -56,6 +59,7 @@
   - **Effort:** 2 days | **Impact:** 🔥🔥🔥🔥🔥
 
 ### Week 3: Gamification
+
 **Goal:** Make users compete and return
 
 - [ ] **Decode Leaderboard**
@@ -73,6 +77,7 @@
   - **Effort:** 2 days | **Impact:** 🔥🔥🔥
 
 ### Week 4: Content & Launch Prep
+
 **Goal:** Build content for launch
 
 - [ ] **Gallery of Cool Secrets**
@@ -95,9 +100,11 @@
 ## 📱 Mobile Apps (Days 31-90)
 
 ### Month 2: iOS App
+
 **Goal:** Ship iOS app to App Store
 
 **Week 5-6: Core Functionality**
+
 - [ ] Swift/SwiftUI project setup
 - [ ] WASM integration (via JavaScript bridge)
 - [ ] Encode flow (text + image)
@@ -107,6 +114,7 @@
 - **Effort:** 10 days | **Impact:** 🔥🔥🔥🔥🔥
 
 **Week 7: Polish & Submit**
+
 - [ ] App icon + splash screen
 - [ ] Onboarding flow (3 screens)
 - [ ] Settings page (account, notifications, about)
@@ -116,9 +124,11 @@
 - **Effort:** 5 days | **Impact:** 🔥🔥🔥🔥🔥
 
 ### Month 3: Android App
+
 **Goal:** Ship Android app to Play Store
 
 **Week 8-9: Core Functionality**
+
 - [ ] Kotlin/Jetpack Compose project
 - [ ] WASM integration
 - [ ] Match iOS feature parity
@@ -127,6 +137,7 @@
 - **Effort:** 10 days | **Impact:** 🔥🔥🔥🔥🔥
 
 **Week 10: Polish & Submit**
+
 - [ ] Adaptive icons + splash
 - [ ] Onboarding
 - [ ] Push notifications (FCM)
@@ -135,6 +146,7 @@
 - **Effort:** 5 days | **Impact:** 🔥🔥🔥🔥🔥
 
 ### Cross-Platform Features
+
 - [ ] **Deep linking**: Universal links and custom URL scheme for app integration
 - [ ] **Offline mode**: Cache WASM, work without internet
 - [ ] **Camera integration**: Scan QR codes with hidden content
@@ -148,6 +160,7 @@
 ### Subscription Tiers
 
 **Week 9-10: Backend Setup**
+
 - [ ] Stripe integration (payment processing)
 - [ ] Subscription plans in Supabase:
   - `free`: 10 encodes/month, basic analytics
@@ -158,6 +171,7 @@
 - **Effort:** 5 days | **Impact:** 🔥🔥🔥🔥🔥
 
 **Week 11: Frontend UI**
+
 - [ ] Pricing page (compare features)
 - [ ] Upgrade prompts (when hitting limits)
 - [ ] Account page (manage subscription)
@@ -166,6 +180,7 @@
 - **Effort:** 3 days | **Impact:** 🔥🔥🔥🔥
 
 **Week 12: Premium Features**
+
 - [ ] Remove encode limits for Pro users
 - [ ] Advanced analytics dashboard:
   - Demographics (estimated location, device)
@@ -177,6 +192,7 @@
 - **Effort:** 5 days | **Impact:** 🔥🔥🔥🔥
 
 ### Paid Reveals (Creator Monetization)
+
 - [ ] Add "price" field to encode flow
 - [ ] Payment page before decode (for paid secrets)
 - [ ] Revenue split: 80% creator, 20% platform
@@ -191,24 +207,28 @@
 ### Essential Metrics Dashboard
 
 **Acquisition:**
+
 - Daily/Weekly/Monthly active users (DAU/WAU/MAU)
 - New signups per day
 - Traffic sources (organic, social, referral)
 - Conversion rate (visitor → signup → first encode)
 
 **Engagement:**
+
 - Average session time
 - Encodes per user per week
 - Decodes per user per week
 - Return rate (D1, D7, D30)
 
 **Monetization:**
+
 - Free → Paid conversion rate
 - Average revenue per user (ARPU)
 - Monthly recurring revenue (MRR)
 - Churn rate
 
 **Viral:**
+
 - Viral coefficient (K-factor)
 - Shares per encode
 - Decode attribution (who referred)
@@ -242,6 +262,7 @@
 ## 🎯 Marketing Launch Plan
 
 ### Pre-Launch (2 Weeks Before)
+
 - [ ] Tease on Twitter (founder account): "Building something cool with invisible text 👀"
 - [ ] Create waitlist landing page
 - [ ] Reach out to 50 micro-influencers (10K-100K followers)
@@ -249,6 +270,7 @@
 - [ ] Write blog post: "Why we built GhostPost"
 
 ### Launch Week
+
 - [ ] **Product Hunt launch** (Tuesday 12:01 AM PST)
   - Prepare 10 friends for upvote + comment
   - Respond to every comment within 1 hour
@@ -267,6 +289,7 @@
   - Press kit with screenshots, demo video, founder quotes
 
 ### Post-Launch (2 Weeks After)
+
 - [ ] Thank you post (featured on PH, X users, etc.)
 - [ ] Case study blog posts (creative uses)
 - [ ] Influencer follow-up (send swag, PRO codes)
@@ -277,6 +300,7 @@
 ## 🔧 Technical Priorities
 
 ### Performance
+
 - [ ] CDN for WASM files (CloudFlare/AWS CloudFront)
 - [ ] Edge functions for decode API (reduce latency)
 - [ ] Database query optimization (indexes on hot paths)
@@ -284,6 +308,7 @@
 - [ ] Lazy loading for dashboard charts
 
 ### Security
+
 - [ ] Rate limiting on API endpoints (prevent abuse)
 - [ ] Content moderation (hide illegal/harmful content)
 - [ ] GDPR compliance (data export, deletion)
@@ -291,6 +316,7 @@
 - [ ] Bug bounty program ($50-500 rewards)
 
 ### Reliability
+
 - [ ] Uptime monitoring (UptimeRobot, Pingdom)
 - [ ] Error tracking (Sentry, Bugsnag)
 - [ ] Database backups (daily, tested restores)
@@ -302,6 +328,7 @@
 ## 📈 Success Metrics (90-Day Goals)
 
 ### By Day 30 (After Quick Wins)
+
 - ✅ 5,000 MAU
 - ✅ 50,000 total encodes
 - ✅ 10 min average session time
@@ -309,6 +336,7 @@
 - ✅ Product Hunt Top 10
 
 ### By Day 60 (After Mobile Launch)
+
 - ✅ 25,000 MAU
 - ✅ 500,000 total encodes
 - ✅ 12 min average session time
@@ -316,6 +344,7 @@
 - ✅ 1,000 app downloads (iOS)
 
 ### By Day 90 (After Monetization)
+
 - ✅ 100,000 MAU
 - ✅ 2,000,000 total encodes
 - ✅ 15 min average session time
@@ -330,22 +359,27 @@
 ### What Could Go Wrong?
 
 **Low Adoption:**
+
 - **Mitigation:** Aggressive influencer seeding, run paid ads ($5K budget)
 - **Pivot:** Focus on B2B (brand campaigns) instead of consumer
 
 **Platform Detection/Bans:**
+
 - **Mitigation:** Rotate encoding algorithms quarterly, stay low-key
 - **Pivot:** Pivot to enterprise (internal comms), private communities
 
 **Copycats:**
+
 - **Mitigation:** File patents Q1 2025, move fast and own the category
 - **Pivot:** Compete on UX, community, network effects
 
 **Technical Issues:**
+
 - **Mitigation:** Over-provision servers, have backup WASM fallback
 - **Pivot:** Partner with CDN/infra company for support
 
 **Monetization Failure:**
+
 - **Mitigation:** Test multiple pricing tiers, add enterprise features
 - **Pivot:** Go freemium forever, monetize via ads or data licensing
 
@@ -354,20 +388,24 @@
 ## 👥 Team & Hiring
 
 ### Current Team (Assumed)
+
 - 1 Full-stack engineer (you)
 - 1 Designer (contract/part-time)
 
 ### Hires Needed (Next 6 Months)
 
 **Month 1-2:**
+
 - Mobile developer (iOS + Android) - $80K-120K
 - Growth marketer (part-time) - $50K-80K
 
 **Month 3-4:**
+
 - Backend engineer (scale systems) - $100K-150K
 - Customer success (handle brands) - $60K-80K
 
 **Month 5-6:**
+
 - Sales executive (enterprise) - $80K + commission
 - Product manager - $100K-130K
 
@@ -376,12 +414,14 @@
 ## ✅ Daily Checklist (Founder)
 
 **Every Morning:**
+
 - [ ] Check analytics (DAU, signups, MRR)
 - [ ] Review error logs (Sentry)
 - [ ] Answer support tickets (< 2 hour response time)
 - [ ] Post on Twitter (build in public)
 
 **Every Week:**
+
 - [ ] Ship 1 new feature or improvement
 - [ ] Run 1 growth experiment (A/B test)
 - [ ] Interview 3 users (understand pain points)
@@ -389,6 +429,7 @@
 - [ ] Reach out to 5 potential brand clients
 
 **Every Month:**
+
 - [ ] Review metrics vs goals
 - [ ] Adjust roadmap priorities
 - [ ] Team retrospective (what went well/poorly)
@@ -400,6 +441,7 @@
 ## 🎬 Let's Execute!
 
 **Remember:**
+
 - Ship fast, iterate faster
 - Talk to users every day
 - Focus on metrics that matter (activation, retention, revenue)
