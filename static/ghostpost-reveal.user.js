@@ -796,7 +796,7 @@
 				return nodeText || '';
 			},
 			description:
-				'Facebook text extraction with parent traversal. Aggregates text nodes from parent elements to handle Facebook\'s split DOM structure.'
+				'Facebook text extraction with parent traversal. Aggregates text nodes from parent elements to handle Facebook's split DOM structure.'
 		};
 
 		/**
