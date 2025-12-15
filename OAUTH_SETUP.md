@@ -8,7 +8,6 @@ GhostPost now supports modern OAuth-based social login with the following provid
 
 - 🔵 Google
 - 🐙 GitHub
-- 📘 Facebook
 - 💬 Discord
 - 𝕏 Twitter/X
 
@@ -46,7 +45,7 @@ For each provider you want to enable:
 
 1. Go to your Supabase Dashboard
 2. Navigate to **Authentication > Providers**
-3. Enable the provider
+3. Enable the provider (Google, GitHub, Discord, or Twitter)
 4. Add the OAuth credentials (see provider-specific instructions below)
 5. Set the redirect URL (handled automatically by Supabase)
 
@@ -76,18 +75,6 @@ For each provider you want to enable:
 5. In Supabase Dashboard:
    - Paste Client ID and Client Secret
    - Scopes: `user:email read:user` (default)
-
-#### Facebook OAuth
-
-1. Go to [Facebook Developers](https://developers.facebook.com/apps/)
-2. Create a new app or select an existing one
-3. Add "Facebook Login" product
-4. Configure OAuth redirect URIs:
-   - Valid OAuth Redirect URIs: `https://gadnzoaqvpcwrmslmlje.supabase.co/auth/v1/callback`
-5. Copy the App ID and App Secret
-6. In Supabase Dashboard:
-   - Paste App ID (as Client ID) and App Secret (as Client Secret)
-   - Scopes: `email public_profile` (default)
 
 #### Discord OAuth
 

@@ -23,7 +23,6 @@
 	const providerInfo = {
 		google: { name: 'Google', icon: '🔵', color: 'bg-blue-500' },
 		github: { name: 'GitHub', icon: '🐙', color: 'bg-gray-700' },
-		facebook: { name: 'Facebook', icon: '📘', color: 'bg-blue-600' },
 		discord: { name: 'Discord', icon: '💬', color: 'bg-indigo-600' },
 		twitter: { name: 'X (Twitter)', icon: '𝕏', color: 'bg-black' }
 	};
@@ -60,7 +59,7 @@
 
 		try {
 			const { data, error: authError } = await authStore.signInWithProvider(
-				provider as 'google' | 'github' | 'facebook' | 'discord' | 'twitter'
+				provider as 'google' | 'github' | 'discord' | 'twitter'
 			);
 
 			if (authError) {
