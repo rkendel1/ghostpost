@@ -3,6 +3,9 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync, createHash }
 /**
  * Encryption utilities for protecting secret messages
  * Uses AES-256-GCM for authenticated encryption
+ * 
+ * NOTE: This module uses Node.js crypto and is server-side only.
+ * Import only in server-side files (+server.ts, API endpoints, etc.)
  */
 
 const ALGORITHM = 'aes-256-gcm';

@@ -194,7 +194,7 @@
 				decryptErrors = { ...decryptErrors };
 			}
 		} catch (err) {
-			console.error('Failed to decrypt secret for post:', postId);
+			console.error('Decryption request failed');
 			decryptErrors[postId] = 'Network error. Please try again.';
 			decryptErrors = { ...decryptErrors };
 		} finally {
