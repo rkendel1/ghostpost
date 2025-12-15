@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync, createHash } from 'crypto';
 
 /**
  * Encryption utilities for protecting secret messages
@@ -88,8 +88,7 @@ export function decryptSecret(encryptedData: string, key: Buffer): string {
  * Uses SHA-256 for one-way hashing
  */
 export function hashSecret(secret: string): string {
-	const crypto = require('crypto');
-	return crypto.createHash('sha256').update(secret).digest('hex');
+	return createHash('sha256').update(secret).digest('hex');
 }
 
 /**
