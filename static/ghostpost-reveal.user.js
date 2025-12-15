@@ -723,6 +723,83 @@
 		}
 
 		/**
+		 * Facebook adapter - handles Facebook's complex DOM structure
+		 * 
+		 * CONTEXT: Facebook often splits text nodes across multiple elements, especially
+		 * in post content areas. Similar to X.com, we need to aggregate text from parent
+		 * elements to reconstruct the complete encoded message.
+		 * 
+		 * Extraction order:
+		 * 1. Direct text node - works for simple cases
+		 * 2. Parent element textContent - fast and works for most cases
+		 * 3. Parent traversal up to 5 levels - handles nested structures
+		 */
+		const facebookAdapter = {
+			extractText: (node) => {
+				// APPROACH #1: Try the text node itself first
+				const nodeText = node.data || node.nodeValue || '';
+				if (nodeText && hasCompleteEncodedMessage(nodeText)) {
+					if (DEBUG_MODE) {
+						console.log('[Ghostpost] [Facebook] ✓ Complete message found in text node');
+					}
+					return nodeText;
+				}
+
+				// APPROACH #2: Try parent element's textContent
+				if (node.parentElement) {
+					const parentText = node.parentElement.textContent || '';
+					if (parentText && hasCompleteEncodedMessage(parentText)) {
+						if (DEBUG_MODE) {
+							console.log('[Ghostpost] [Facebook] ✓ Complete message found in parent.textContent');
+						}
+						return parentText;
+					}
+				}
+
+				// APPROACH #3: Walk up DOM tree to find complete message
+				let currentElement = node.parentElement;
+				let levelsChecked = 0;
+				const MAX_PARENT_LEVELS = 5;
+
+				while (currentElement && levelsChecked < MAX_PARENT_LEVELS) {
+					// Get all text from this element by aggregating child text nodes
+					let combinedText = '';
+					const walker = document.createTreeWalker(currentElement, NodeFilter.SHOW_TEXT, null);
+					let textNode;
+					while ((textNode = walker.nextNode())) {
+						combinedText += textNode.data || textNode.nodeValue || '';
+					}
+
+					// Check if combined text has complete message
+					if (combinedText && hasCompleteEncodedMessage(combinedText)) {
+						if (DEBUG_MODE) {
+							console.log(
+								'[Ghostpost] [Facebook] ✓ Complete message found at parent level',
+								levelsChecked + 1
+							);
+						}
+						return combinedText;
+					}
+
+					// Move up to parent
+					currentElement = currentElement.parentElement;
+					levelsChecked++;
+				}
+
+				if (DEBUG_MODE) {
+					console.warn(
+						'[Ghostpost] [Facebook] ⚠ Could not find complete message after trying all strategies'
+					);
+				}
+
+				// Return node text anyway - decoder will provide appropriate error message
+				return nodeText || '';
+			},
+			description:
+				'Facebook text extraction with parent traversal. Aggregates text nodes from parent elements to handle Facebook\'s split DOM structure.'
+		};
+
+		/**
 		 * Site-specific text extraction strategies
 		 * Each site can define how to best extract text from nodes
 		 *
@@ -737,6 +814,9 @@
 			// X.com/Twitter - uses shared adapter
 			'x.com': twitterAdapter,
 			'twitter.com': twitterAdapter,
+			// Facebook - uses Facebook adapter
+			'facebook.com': facebookAdapter,
+			'fb.com': facebookAdapter,
 			// Default strategy for all other sites
 			default: {
 				extractText: defaultTextExtraction,
