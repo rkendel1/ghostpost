@@ -30,6 +30,7 @@ export interface RevealStatus {
 	remaining_reveals: number | null; // null if unlimited
 	percentage_revealed: number | null; // null if unlimited
 	can_reveal: boolean;
+	unique_revealers?: number;
 }
 
 export interface RevealResult {

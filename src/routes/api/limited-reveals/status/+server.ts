@@ -45,6 +45,11 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		// If no record exists, this is an unlimited post
 		if (error || !limitedSecret) {
+			const { count: uniqueCount } = await supabase
+				.from('reveal_events')
+				.select('user_fingerprint', { count: 'exact', head: true })
+				.eq('post_id', post_id);
+
 			return json(
 				{
 					success: true,
@@ -55,7 +60,8 @@ export const GET: RequestHandler = async ({ url }) => {
 						is_expired: false,
 						remaining_reveals: null,
 						percentage_revealed: null,
-						can_reveal: true
+						can_reveal: true,
+						unique_revealers: uniqueCount || 0
 					} as RevealStatus
 				},
 				{ headers: corsHeaders }
@@ -74,6 +80,11 @@ export const GET: RequestHandler = async ({ url }) => {
 			!limitedSecret.is_expired &&
 			(!limitedSecret.max_reveals || limitedSecret.current_reveals < limitedSecret.max_reveals);
 
+		const { count: uniqueCount } = await supabase
+			.from('reveal_events')
+			.select('user_fingerprint', { count: 'exact', head: true })
+			.eq('post_id', post_id);
+
 		const status: RevealStatus = {
 			post_id: limitedSecret.post_id,
 			max_reveals: limitedSecret.max_reveals,
@@ -81,7 +92,8 @@ export const GET: RequestHandler = async ({ url }) => {
 			is_expired: limitedSecret.is_expired,
 			remaining_reveals: remaining,
 			percentage_revealed: percentage,
-			can_reveal: canReveal
+			can_reveal: canReveal,
+			unique_revealers: uniqueCount || 0
 		};
 
 		return json(
