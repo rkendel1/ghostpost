@@ -1,19 +1,38 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
+import { createServerClient } from '@supabase/ssr';
 import { encryptSecret, deriveUserKey, getMasterSecret } from '$lib/encryption';
 
 /**
  * POST /api/posts/save
  * Saves a post with encrypted secret message
  */
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 	try {
 		// Get user from session
 		const session = locals.session;
 
+		// Create server Supabase client
+		const supabaseServer = createServerClient(
+			process.env.SUPABASE_URL!,
+			process.env.SUPABASE_ANON_KEY!,
+			{
+				cookies: {
+					get(name) {
+						return cookies.get(name);
+					},
+					set(name, value, options) {
+						cookies.set(name, value, { ...options, path: '/' });
+					},
+					remove(name, options) {
+						cookies.delete(name, { ...options, path: '/' });
+					}
+				}
+			}
+		);
+
 		// Verify user with Supabase Auth server for security
-		const { data: { user }, error: authError } = await supabase.auth.getUser();
+		const { data: { user }, error: authError } = await supabaseServer.auth.getUser();
 
 		if (authError || !user) {
 			return json(
@@ -45,7 +64,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const encryptedSecret = encryptSecret(secret_message, userKey);
 
 		// Save to database with encrypted secret
-		const { data, error } = await supabase.from('posts').insert({
+		const { data, error } = await supabaseServer.from('posts').insert({
 			user_id: user.id,
 			post_id: post_id,
 			content: content,
