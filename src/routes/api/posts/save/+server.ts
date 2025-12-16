@@ -11,9 +11,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		// Get user from session
 		const session = locals.session;
-		const user = session?.user;
 
-		if (!user) {
+		// Verify user with Supabase Auth server for security
+		const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+		if (authError || !user) {
 			return json(
 				{
 					success: false,
@@ -55,11 +57,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 
 		if (error) {
-			console.error('Database error:', error);
+			console.error('Database error:', {
+				message: error.message,
+				details: error.details,
+				hint: error.hint,
+				code: error.code
+			});
 			return json(
 				{
 					success: false,
-					error: 'Failed to save post'
+					error: error.message || 'Failed to save post'
 				},
 				{ status: 500 }
 			);
