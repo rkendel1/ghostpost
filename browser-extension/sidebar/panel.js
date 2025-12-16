@@ -405,6 +405,32 @@ class DetectionPanel {
 				}
 			}
 
+			// Track universal decode (all successful decodes, limited or unlimited)
+			const fingerprint = generateFingerprint();
+			if (decoded.postId) {
+				try {
+					const trackResponse = await fetch(`${API_BASE_URL}/api/decode/track`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							post_id: decoded.postId,
+							user_fingerprint: fingerprint
+						})
+					});
+					const trackData = await trackResponse.json();
+					if (trackData.success) {
+						console.log(`[Hidenly Sidebar] Decode tracked: attempt #${trackData.decode_count}`);
+						// Optional: Append decode count to UI if desired
+					} else {
+						console.warn('[Hidenly Sidebar] Failed to track decode:', trackData.message);
+					}
+				} catch (trackError) {
+					console.warn('[Hidenly Sidebar] Error tracking decode:', trackError);
+				}
+			}
+
 			// Show the decoded content container
 			decodedContainer.classList.remove('hidden');
 

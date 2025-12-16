@@ -91,6 +91,45 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 			);
 		}
 
+		// Log creation stats to encoded_messages_tracking for all posts
+		const visible_length = visible_message.length;
+		const hidden_length = secret_message.length; // Pre-encryption length
+		const total_length = content.length;
+		const has_limited_reveals = body.has_limited_reveals || false;
+		const max_reveals = body.max_reveals || null;
+
+		const { error: trackingError } = await supabaseServer.from('encoded_messages_tracking').insert({
+			user_id: user.id,
+			post_id: post_id, // Use same post_id (as TEXT)
+			platform: platform,
+			secret_type: secret_type || 'text',
+			visible_length,
+			hidden_length,
+			total_length,
+			has_limited_reveals,
+			max_reveals
+		});
+
+		if (trackingError) {
+			console.error('Tracking insert error:', trackingError);
+			// Don't fail the whole save, but log
+		}
+
+		// If limited reveals, create limited_secrets entry
+		if (has_limited_reveals && max_reveals) {
+			const { error: limitedError } = await supabaseServer.from('limited_secrets').insert({
+				post_id: post_id,
+				user_id: user.id,
+				max_reveals,
+				current_reveals: 0,
+				is_expired: false
+			});
+
+			if (limitedError) {
+				console.error('Limited secrets insert error:', limitedError);
+			}
+		}
+
 		return json({
 			success: true,
 			message: 'Post saved successfully with encrypted secret'

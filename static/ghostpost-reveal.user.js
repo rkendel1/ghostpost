@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.5.0
+// @version      2.5.2
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -1526,6 +1526,37 @@
 									'[Ghostpost] Limited reveals API error (showing message anyway):',
 									apiError
 								);
+							}
+						}
+					}
+
+					// Track universal decode (all successful decodes, limited or unlimited)
+					if (postId) {
+						try {
+							const userFingerprint = generateFingerprint();
+							const trackResponse = await fetch('https://ghostpost-six.vercel.app/api/decode/track', {
+								method: 'POST',
+								headers: {
+									'Content-Type': 'application/json'
+								},
+								body: JSON.stringify({
+									post_id: postId,
+									user_fingerprint: userFingerprint
+								})
+							});
+							const trackData = await trackResponse.json();
+							if (trackData.success) {
+								if (DEBUG_MODE) {
+									console.log(`[Ghostpost] Decode tracked: attempt #${trackData.decode_count}`);
+								}
+							} else {
+								if (DEBUG_MODE) {
+									console.warn('[Ghostpost] Failed to track decode:', trackData.message);
+								}
+							}
+						} catch (trackError) {
+							if (DEBUG_MODE) {
+								console.warn('[Ghostpost] Error tracking decode:', trackError);
 							}
 						}
 					}
