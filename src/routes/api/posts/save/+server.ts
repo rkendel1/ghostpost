@@ -51,7 +51,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			visible_message: visible_message,
 			secret_message: encryptedSecret,
 			secret_type: secret_type || 'text',
-			secret_encrypted: true // Mark as encrypted
+			secret_encrypted: true
 		});
 
 		if (error) {
