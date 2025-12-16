@@ -23,13 +23,10 @@ export const GET: RequestHandler = async ({ url }) => {
 		const analytics = await getPostAnalytics(postId);
 
 		if (!analytics) {
-			return json(
-				{
-					success: false,
-					error: 'No analytics found for this post'
-				},
-				{ status: 404 }
-			);
+			return json({
+				success: true,
+				analytics: null
+			});
 		}
 
 		return json({
