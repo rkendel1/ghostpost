@@ -1335,9 +1335,11 @@
 
 			if (revealData.expired) {
 				return `
-				<div style="margin-top: 12px; padding: 10px; background: #fef2f2; border-radius: 6px; border: 1px solid #ef4444;">
-					<div style="font-size: 12px; font-weight: 600; color: #b91c1c;">
-						💔 ${revealData.message}
+				<div class="reveal-stats">
+					<div style="margin-top: 12px; padding: 10px; background: #fef2f2; border-radius: 6px; border: 1px solid #ef4444;">
+						<div style="font-size: 12px; font-weight: 600; color: #b91c1c;">
+							💔 ${revealData.message}
+						</div>
 					</div>
 				</div>
 			`;
@@ -1373,54 +1375,56 @@
 				revealData.remaining !== null && revealData.remaining <= WARNING_COUNT_THRESHOLD;
 
 			return `
-			<div style="margin-top: 12px; padding: 12px; background: ${bgColor}; border-radius: 6px; border: 1px solid ${borderColor};">
-				<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-					<div style="flex: 1;">
-						<div style="font-size: 13px; font-weight: 700; color: ${titleColor}; margin-bottom: 2px;">
-							${isSoldOut ? '🔥 SOLD OUT FOREVER! 🔥' : isLowCount ? `⚠️ ONLY ${revealData.remaining} LEFT! ⚠️` : '🎉 Limited Edition Reveal!'}
+			<div class="reveal-stats">
+				<div style="margin-top: 12px; padding: 12px; background: ${bgColor}; border-radius: 6px; border: 1px solid ${borderColor};">
+					<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+						<div style="flex: 1;">
+							<div style="font-size: 13px; font-weight: 700; color: ${titleColor}; margin-bottom: 2px;">
+								${isSoldOut ? '🔥 SOLD OUT FOREVER! 🔥' : isLowCount ? `⚠️ ONLY ${revealData.remaining} LEFT! ⚠️` : '🎉 Limited Edition Reveal!'}
+							</div>
+							<div style="font-size: 11px; color: ${textColor};">
+								${revealData.message}
+							</div>
 						</div>
-						<div style="font-size: 11px; color: ${textColor};">
-							${revealData.message}
+						<div style="text-align: right; margin-left: 8px;">
+							<div style="font-size: 18px; font-weight: 700; color: ${titleColor}; ${shouldPulse ? 'animation: pulse 2s infinite;' : ''}">
+								${revealData.reveal_number}/${revealData.total_reveals}
+							</div>
+							<div style="font-size: 10px; opacity: 0.75;">
+								reveals
+							</div>
 						</div>
 					</div>
-					<div style="text-align: right; margin-left: 8px;">
-						<div style="font-size: 18px; font-weight: 700; color: ${titleColor}; ${shouldPulse ? 'animation: pulse 2s infinite;' : ''}">
-							${revealData.reveal_number}/${revealData.total_reveals}
+					${
+						revealData.total_reveals
+							? `
+						<div style="width: 100%; height: 12px; background: rgba(0, 0, 0, 0.1); border-radius: 6px; overflow: hidden; margin-top: 8px;">
+							<div style="height: 100%; background: ${progressBarColor}; width: ${percentage}%; transition: width 0.5s ease;"></div>
 						</div>
-						<div style="font-size: 10px; opacity: 0.75;">
-							reveals
+					`
+							: ''
+					}
+					${
+						revealData.remaining !== null &&
+						revealData.remaining > 0 &&
+						revealData.remaining <= URGENT_MESSAGE_THRESHOLD
+							? `
+						<div style="font-size: 10px; text-align: center; margin-top: 6px; opacity: 0.85; animation: pulse 2s infinite;">
+							⚡ Only ${revealData.remaining} ${revealData.remaining === 1 ? 'person' : 'people'} can reveal this secret before it's gone forever!
 						</div>
-					</div>
+					`
+							: ''
+					}
+					${
+						isSoldOut
+							? `
+						<div style="font-size: 10px; text-align: center; margin-top: 6px; font-weight: 600;">
+							💎 You got the LAST reveal! This secret is now locked forever.
+						</div>
+					`
+							: ''
+					}
 				</div>
-				${
-					revealData.total_reveals
-						? `
-					<div style="width: 100%; height: 12px; background: rgba(0, 0, 0, 0.1); border-radius: 6px; overflow: hidden; margin-top: 8px;">
-						<div style="height: 100%; background: ${progressBarColor}; width: ${percentage}%; transition: width 0.5s ease;"></div>
-					</div>
-				`
-						: ''
-				}
-				${
-					revealData.remaining !== null &&
-					revealData.remaining > 0 &&
-					revealData.remaining <= URGENT_MESSAGE_THRESHOLD
-						? `
-					<div style="font-size: 10px; text-align: center; margin-top: 6px; opacity: 0.85; animation: pulse 2s infinite;">
-						⚡ Only ${revealData.remaining} ${revealData.remaining === 1 ? 'person' : 'people'} can reveal this secret before it's gone forever!
-					</div>
-				`
-						: ''
-				}
-				${
-					isSoldOut
-						? `
-					<div style="font-size: 10px; text-align: center; margin-top: 6px; font-weight: 600;">
-						💎 You got the LAST reveal! This secret is now locked forever.
-					</div>
-				`
-						: ''
-				}
 			</div>
 		`;
 		}
@@ -1584,7 +1588,30 @@
 							<img src="${decodedMessage}" style="max-width: 100%; border-radius: 4px; margin-top: 8px;" alt="Decoded hidden image" />
 							${revealStatsHtml}
 						</div>
-					`;
+						`;
+
+						// Start live polling if limited
+						if (postId && revealData && revealData.total_reveals !== null) {
+							const statusUrl = `https://ghostpost-six.vercel.app/api/limited-reveals/status?post_id=${postId}`;
+							const pollInterval = setInterval(async () => {
+								try {
+									const res = await fetch(statusUrl);
+									if (!res.ok) return;
+									const data = await res.json();
+									if (data.success && data.status.remaining !== revealData.remaining && !data.status.is_expired) {
+										const newHtml = generateRevealStatsHtml(data.status);
+										const statsDiv = itemElement.querySelector('.reveal-stats');
+										if (statsDiv) {
+											statsDiv.innerHTML = newHtml.innerHTML || newHtml;
+										}
+										revealData.remaining = data.status.remaining; // Update local
+									}
+								} catch (e) {
+									// Silent error
+								}
+							}, 5000);
+							item.dataset.pollInterval = pollInterval.toString();
+						}
 					} else {
 						const escapedMessage = escapeHtml(decodedMessage);
 
@@ -1604,7 +1631,30 @@
 								<span>Copy Secret</span>
 							</button>
 						</div>
-					`;
+						`;
+
+						// Start live polling if limited
+						if (postId && revealData && revealData.total_reveals !== null) {
+							const statusUrl = `https://ghostpost-six.vercel.app/api/limited-reveals/status?post_id=${postId}`;
+							const pollInterval = setInterval(async () => {
+								try {
+									const res = await fetch(statusUrl);
+									if (!res.ok) return;
+									const data = await res.json();
+									if (data.success && data.status.remaining !== revealData.remaining && !data.status.is_expired) {
+										const newHtml = generateRevealStatsHtml(data.status);
+										const statsDiv = itemElement.querySelector('.reveal-stats');
+										if (statsDiv) {
+											statsDiv.innerHTML = newHtml.innerHTML || newHtml;
+										}
+										revealData.remaining = data.status.remaining; // Update local
+									}
+								} catch (e) {
+									// Silent error
+								}
+							}, 5000);
+							item.dataset.pollInterval = pollInterval.toString();
+						}
 
 						// Add copy functionality
 						setTimeout(() => {
@@ -1884,6 +1934,13 @@
 
 			// Close button handler
 			const closeModal = () => {
+				// Clear polling intervals
+				document.querySelectorAll('[data-poll-interval]').forEach(el => {
+					const interval = parseInt(el.dataset.pollInterval);
+					if (!isNaN(interval)) clearInterval(interval);
+					el.removeAttribute('data-poll-interval');
+				});
+
 				modal.style.animation = 'modalSlideDown 0.2s ease';
 				backdrop.style.animation = 'fadeOut 0.2s ease';
 				setTimeout(() => {

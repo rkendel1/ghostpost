@@ -6,7 +6,7 @@
 
 	// Demo state
 	let demoVisibleMessage = $state('Just shipped our latest feature! 🚀');
-	let demoSecretMessage = $state('Beta access code: GHOST2024');
+	let demoSecretMessage = $state('Beta access code: GHOST2026');
 	let demoEncodedMessage = $state('');
 	let demoDecodedSecret = $state('');
 	let isEncoding = $state(false);

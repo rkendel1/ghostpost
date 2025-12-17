@@ -45,10 +45,16 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		// If no record exists, this is an unlimited post
 		if (error || !limitedSecret) {
+			const { data: unlimitedCount } = await supabase.rpc('get_decode_count', {
+				p_post_id: post_id,
+				p_limited_only: false
+			});
+
 			const { count: uniqueCount } = await supabase
-				.from('reveal_events')
+				.from('decode_events')
 				.select('user_fingerprint', { count: 'exact', head: true })
-				.eq('post_id', post_id);
+				.eq('post_id', post_id)
+				.eq('is_limited', false);
 
 			return json(
 				{
@@ -56,7 +62,7 @@ export const GET: RequestHandler = async ({ url }) => {
 					status: {
 						post_id,
 						max_reveals: null,
-						current_reveals: 0,
+						current_reveals: unlimitedCount || 0,
 						is_expired: false,
 						remaining_reveals: null,
 						percentage_revealed: null,
@@ -80,10 +86,16 @@ export const GET: RequestHandler = async ({ url }) => {
 			!limitedSecret.is_expired &&
 			(!limitedSecret.max_reveals || limitedSecret.current_reveals < limitedSecret.max_reveals);
 
+		const { data: limitedCount } = await supabase.rpc('get_decode_count', {
+			p_post_id: post_id,
+			p_limited_only: true
+		});
+
 		const { count: uniqueCount } = await supabase
-			.from('reveal_events')
+			.from('decode_events')
 			.select('user_fingerprint', { count: 'exact', head: true })
-			.eq('post_id', post_id);
+			.eq('post_id', post_id)
+			.eq('is_limited', true);
 
 		const status: RevealStatus = {
 			post_id: limitedSecret.post_id,

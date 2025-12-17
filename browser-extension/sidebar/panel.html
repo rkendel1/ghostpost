@@ -3,16 +3,19 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Hidenly - Hidden Content</title>
+		<title>Ghost Post - Hidden Content</title>
 		<link rel="stylesheet" href="../styles/panel.css" />
 	</head>
 	<body>
 		<div class="panel-container">
 			<!-- Header -->
 			<header class="panel-header">
-				<div class="header-content">
-					<h1 class="panel-title">🎭 Hidenly</h1>
-					<p class="panel-subtitle">Hidden Content Detector</p>
+				<div class="header-content flex justify-between items-center">
+					<div>
+						<h1 class="panel-title h1">🔍 Ghost Post</h1>
+						<p class="panel-subtitle text-sm opacity-75">Decode & Encode Hidden Messages</p>
+					</div>
+					<a href="https://github.com/rkendel1/ghostpost" target="_blank" class="btn variant-ghost btn-sm">ℹ️ About</a>
 				</div>
 			</header>
 
@@ -22,13 +25,13 @@
 					<span class="tab-icon">🔔</span>
 					<span>Detection</span>
 				</button>
-				<button class="tab-button" data-tab="decoder">
+				<button class="tab-button" data-tab="decoding">
 					<span class="tab-icon">🔓</span>
-					<span>Decoder</span>
+					<span>Decoding</span>
 				</button>
-				<button class="tab-button" data-tab="about">
-					<span class="tab-icon">ℹ️</span>
-					<span>About</span>
+				<button class="tab-button" data-tab="encoding">
+					<span class="tab-icon">✍️</span>
+					<span>Encoding</span>
 				</button>
 			</div>
 
@@ -36,89 +39,293 @@
 			<div class="tab-content">
 				<!-- Detection Tab -->
 				<div class="tab-panel active" id="detection-panel">
-					<div class="section">
-						<h2 class="section-title">Current Page Status</h2>
-						<div id="status-container" class="status-container">
-							<div class="loading">
-								<div class="spinner"></div>
-								<p>Scanning page...</p>
+					<div class="space-y-6">
+						<!-- Status Card -->
+						<div class="card p-6">
+							<h2 class="h2 mb-4">Current Page Status</h2>
+							<div id="status-container" class="status-container">
+								<div class="loading flex flex-col items-center justify-center p-10">
+									<div class="spinner w-8 h-8 border-2 border-slate-700 border-t-blue-500 rounded-full animate-spin"></div>
+									<p class="mt-2 text-sm opacity-75">Scanning page...</p>
+								</div>
 							</div>
 						</div>
-					</div>
 
-					<div class="section">
-						<h2 class="section-title">Detected Messages</h2>
-						<div class="warning-banner">
-							<strong>⚠️ Privacy Notice:</strong> Hidden content may contain sensitive information
-							not intended for you. Click "Decode" only if you trust the source.
+						<!-- Privacy Warning Card -->
+						<div class="card p-4 variant-ghost-warning">
+							<p class="text-sm"><strong>⚠️ Privacy Notice:</strong> Hidden content may contain sensitive information not intended for you. Click "Decode" only if you trust the source.</p>
 						</div>
-						<div id="messages-container" class="messages-container">
-							<p class="empty-state">No hidden messages detected yet.</p>
+
+						<!-- Messages Card -->
+						<div class="card p-6">
+							<h2 class="h2 mb-4">Detected Messages</h2>
+							<div id="messages-container" class="messages-container space-y-3">
+								<p class="empty-state text-center p-10 text-sm opacity-75">No hidden messages detected yet.</p>
+							</div>
 						</div>
-					</div>
 
-					<div class="section">
-						<button id="rescan-button" class="button button-primary">
-							<span>🔄</span>
-							<span>Rescan Page</span>
-						</button>
-					</div>
-				</div>
-
-				<!-- Decoder Tab -->
-				<div class="tab-panel" id="decoder-panel">
-					<div class="section">
-						<h2 class="section-title">Decode Hidden Message</h2>
-						<p class="helper-text">Paste any text that may contain hidden content below:</p>
-
-						<textarea
-							id="decode-input"
-							class="textarea"
-							placeholder="Paste encoded text here..."
-							rows="6"
-						></textarea>
-
-						<button id="decode-button" class="button button-primary">
-							<span>🔓</span>
-							<span>Decode Message</span>
-						</button>
-
-						<div id="decode-result" class="result-container hidden">
-							<h3 class="result-title">Decoded Content:</h3>
-							<div id="decode-output" class="result-output"></div>
+						<!-- Rescan Button -->
+						<div class="card p-4">
+							<button id="rescan-button" class="btn variant-filled-primary w-full">
+								<span>🔄</span>
+								<span>Rescan Page</span>
+							</button>
 						</div>
 					</div>
 				</div>
 
-				<!-- About Tab -->
-				<div class="tab-panel" id="about-panel">
-					<div class="section">
-						<h2 class="section-title">About Hidenly</h2>
-						<p class="about-text">
-							Hidenly detects and reveals hidden messages encoded using invisible Unicode
-							characters.
-						</p>
+				<!-- Decoding Tab -->
+				<div class="tab-panel" id="decoding-panel">
+					<div class="space-y-6">
+						<!-- Input Card -->
+						<div class="card p-6">
+							<h2 class="h2 mb-4">Reveal the Secret</h2>
+							<p class="text-sm opacity-75 mb-4">Paste any message that might contain a hidden secret, and we'll reveal what's hidden inside.</p>
+							<label class="label block mb-4">
+								<span class="text-sm fw-500 mb-1 block">Paste Encoded Message Here</span>
+								<textarea
+									id="decode-input"
+									class="textarea"
+									placeholder="Paste the encoded message here to reveal its hidden secret..."
+									rows="6"
+								></textarea>
+							</label>
+							<div class="flex gap-4">
+								<button id="decode-button" class="btn variant-filled-primary flex-1">
+									<span>🔓</span>
+									<span>Decode Secret</span>
+								</button>
+								<button id="clear-button" class="btn variant-ghost flex-1">Clear</button>
+							</div>
+						</div>
 
-						<h3 class="about-subtitle">How it works:</h3>
-						<ul class="about-list">
-							<li>🔍 Automatically scans web pages for hidden content</li>
-							<li>🔔 Shows badge notification when content is found</li>
-							<li>🔓 Decode hidden messages directly in the sidebar</li>
-							<li>⚡ Uses WebAssembly for fast processing</li>
-						</ul>
+						<!-- Result Card (hidden initially) -->
+						<div id="decode-result" class="card p-6 variant-ghost-success hidden space-y-4">
+							<h2 class="h2">✨ Hidden Secret Revealed!</h2>
+							<label class="label block">
+								<span class="text-sm fw-500 mb-1 block">Decoded Message</span>
+								<textarea
+									id="decode-output"
+									class="textarea"
+									rows="5"
+									readonly
+									data-clipboard="decoded"
+								></textarea>
+							</label>
+							<button class="btn variant-filled w-full" data-clipboard="decoded">
+								Copy Secret
+							</button>
+						</div>
+					</div>
+				</div>
 
-						<h3 class="about-subtitle">Features:</h3>
-						<ul class="about-list">
-							<li>Real-time page monitoring</li>
-							<li>Support for text and image decoding</li>
-							<li>Tab-based interface for easy navigation</li>
-							<li>Privacy-focused: all processing happens locally</li>
-						</ul>
+				<!-- Encoding Tab -->
+				<div class="tab-panel" id="encoding-panel">
+					<div class="space-y-6">
+						<!-- Auth Gate -->
+						<div id="auth-gate" class="card p-6 variant-ghost-warning">
+							<h2 class="h2 mb-4">Authentication Required</h2>
+							<p class="text-sm opacity-75 mb-4">Sign in to your account to create encoded messages and track analytics.</p>
+							<button id="login-button" class="btn variant-filled-primary w-full">
+								<span>🔐</span>
+								<span>Sign In</span>
+							</button>
+							<p class="text-xs opacity-75 mt-2 text-center">Or <a href="/auth" target="_blank" class="anchor text-blue-400">sign in on web</a></p>
+						</div>
 
-						<div class="about-links">
-							<a href="https://github.com/rkendel1/ghostpost" target="_blank" class="link">
-								View on GitHub
-							</a>
+						<!-- Encoding Content (hidden until auth) -->
+						<div id="encoding-content" class="hidden">
+							<!-- AI Toggle Card -->
+							<div class="card p-6 variant-ghost-primary">
+								<div class="flex items-center justify-between">
+									<div>
+										<h3 class="h3 mb-2">Need help writing your post?</h3>
+										<p class="text-sm opacity-75">Use AI to generate platform-optimized content, or write your own message</p>
+									</div>
+									<label class="flex items-center gap-3">
+										<span class="text-sm fw-500">AI Mode</span>
+										<input type="checkbox" id="ai-toggle" class="toggle" />
+									</label>
+								</div>
+							</div>
+
+							<div class="grid grid-cols-1 gap-6">
+								<!-- Left: Composition -->
+								<div class="space-y-6">
+									<!-- Step 1: Visible Message -->
+									<div class="card p-6">
+										<div class="flex items-center gap-2 mb-4">
+											<span class="badge variant-filled-primary">Step 1</span>
+											<h2 class="h2">Create Your Visible Message</h2>
+										</div>
+										<!-- AI Mode -->
+										<div id="ai-mode" class="space-y-4">
+											<label class="label">
+												<span class="text-sm fw-500 mb-1 block">Platform</span>
+												<select id="platform-select" class="select">
+													<option value="twitter">Twitter/X</option>
+													<option value="linkedin">LinkedIn</option>
+													<option value="facebook">Facebook</option>
+													<option value="tiktok">TikTok</option>
+												</select>
+											</label>
+											<label class="label">
+												<span class="text-sm fw-500 mb-1 block">What do you want to post about?</span>
+												<textarea
+													id="prompt-input"
+													class="textarea"
+													rows="3"
+													placeholder="e.g., Share my excitement about learning AI..."
+												></textarea>
+											</label>
+											<div class="flex gap-4">
+												<button id="generate-btn" class="btn variant-filled-primary flex-1">
+													<span>✨</span>
+													<span>Generate with AI</span>
+												</button>
+												<button id="manual-btn" class="btn variant-ghost flex-1">Write Manually</button>
+											</div>
+										</div>
+										<!-- Manual Mode -->
+										<div id="manual-mode" class="space-y-4 hidden">
+											<label class="label">
+												<span class="text-sm fw-500 mb-1 block">Write your visible message</span>
+												<textarea
+													id="visible-textarea"
+													class="textarea"
+													rows="5"
+													placeholder="Enter the message everyone will see..."
+												></textarea>
+											</label>
+										</div>
+									</div>
+
+									<!-- Step 2: Secret -->
+									<div class="card p-6">
+										<div class="flex items-center gap-2 mb-4">
+											<span class="badge variant-filled-secondary">Step 2</span>
+											<h2 class="h2">Add Your Secret</h2>
+										</div>
+										<label class="label">
+											<span class="text-sm fw-500 mb-1 block">Secret Type</span>
+											<select id="secret-type" class="select">
+												<option value="text">Text Message</option>
+												<option value="image">Image File</option>
+											</select>
+										</label>
+										<!-- Text Secret -->
+										<div id="text-secret" class="space-y-4">
+											<label class="label">
+												<span class="text-sm fw-500 mb-1 block">Secret Message (hidden in the post)</span>
+												<textarea
+													id="secret-textarea"
+													class="textarea"
+													rows="4"
+													placeholder="Enter your secret message here..."
+												></textarea>
+											</label>
+										</div>
+										<!-- Image Secret -->
+										<div id="image-secret" class="space-y-4 hidden">
+											<label class="label">
+												<span class="text-sm fw-500 mb-1 block">Secret Image</span>
+												<p class="text-sm opacity-75 mb-2">⚠️ Images will be compressed to ~25KB.</p>
+												<input type="file" id="secret-file" accept="image/*" class="file-input" />
+												<div id="image-preview" class="mt-2 hidden">
+													<img id="preview-img" class="max-w-full rounded" alt="Preview" />
+													<p id="image-size" class="text-xs opacity-75 mt-1"></p>
+												</div>
+											</label>
+										</div>
+
+										<!-- Limited Reveals -->
+										<div class="card p-4 variant-ghost-tertiary space-y-3">
+											<div class="flex items-center justify-between">
+												<div>
+													<h3 class="font-bold text-sm">🔥 Limited Edition Secret</h3>
+													<p class="text-xs opacity-75 mt-1">Set a reveal cap for scarcity</p>
+												</div>
+												<label class="flex items-center gap-2">
+													<input type="checkbox" id="limited-toggle" class="checkbox" />
+													<span class="text-xs">Enable</span>
+												</label>
+											</div>
+											<div id="limited-input" class="hidden">
+												<label class="label">
+													<span class="text-sm fw-500 mb-1 block">Max Reveals</span>
+													<input
+														type="number"
+														id="max-reveals"
+														class="input"
+														min="1"
+														max="10000"
+														placeholder="e.g., 100"
+													/>
+												</label>
+												<div class="card p-3 variant-ghost-warning text-xs">
+													<p><strong>💎 What happens:</strong> Once limit reached, secret is gone forever!</p>
+												</div>
+											</div>
+										</div>
+
+										<button id="encode-button" class="btn variant-filled-primary w-full">
+											<span>🔒</span>
+											<span>Encode Secret</span>
+										</button>
+									</div>
+								</div>
+
+								<!-- Right: Preview/Output -->
+								<div class="space-y-6">
+									<!-- Preview Card -->
+									<div id="preview-card" class="card p-6">
+										<h2 class="h2 mb-4">📝 Preview</h2>
+										<div id="preview-content" class="space-y-3">
+											<div class="card p-8 variant-ghost-surface text-center">
+												<p class="text-sm opacity-50">Your message preview will appear here...</p>
+											</div>
+										</div>
+									</div>
+
+									<!-- Output Card (hidden) -->
+									<div id="output-card" class="card p-6 variant-glass-success hidden space-y-4">
+										<div class="flex items-center gap-2 mb-4">
+											<span class="badge variant-filled-success">Step 3</span>
+											<h2 class="h2">✅ Your GhostPost is Ready!</h2>
+										</div>
+										<label class="label">
+											<span class="text-sm fw-500 mb-1 block">Encoded Message</span>
+											<textarea
+												id="encoded-output"
+												class="textarea"
+												rows="6"
+												readonly
+												data-clipboard="encoded"
+											></textarea>
+										</label>
+										<div class="card p-4 variant-ghost-surface">
+											<h3 class="h3 mb-2 text-sm">📊 Character Count</h3>
+											<div id="stats" class="text-sm space-y-1"></div>
+										</div>
+										<div class="flex gap-2">
+											<button id="copy-btn" class="btn variant-filled-primary flex-1" data-clipboard="encoded">
+												📋 Copy
+											</button>
+											<button id="reset-btn" class="btn variant-filled-secondary flex-1">
+												✨ New
+											</button>
+										</div>
+										<div class="card p-4 variant-ghost-surface">
+											<h3 class="h3 mb-2 text-sm">📤 Next Steps</h3>
+											<ol class="list-decimal list-inside space-y-1 text-sm">
+												<li>Copy the encoded message</li>
+												<li>Paste on social media</li>
+												<li>Share decode link with recipients</li>
+											</ol>
+										</div>
+									</div>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>

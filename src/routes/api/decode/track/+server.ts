@@ -51,12 +51,21 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 		);
 
-		// Insert decode event (post_id as UUID)
+		// Check if limited to set is_limited flag
+		const { count: limitedCheck } = await supabase
+			.from('limited_secrets')
+			.select('id', { count: 'exact', head: true })
+			.eq('post_id', post_id);
+
+		const is_limited = (limitedCheck ?? 0) > 0;
+
+		// Insert decode event with is_limited
 		const { error: insertError } = await supabase
 			.from('decode_events')
 			.insert({
-				post_id: post_id, // Cast handled by DB (TEXT input to UUID column)
-				user_fingerprint: user_fingerprint || null
+				post_id: post_id,
+				user_fingerprint: user_fingerprint || null,
+				is_limited
 			});
 
 		if (insertError) {
