@@ -1,0 +1,23 @@
+{
+  "name": "@stacklive/overlay-runtime",
+  "version": "1.0.0",
+  "description": "StackLive Overlay Runtime - Pattern detection and experience integration",
+  "type": "module",
+  "main": "./stacklive-adapter/adapter.ts",
+  "exports": {
+    ".": "./stacklive-adapter/adapter.ts",
+    "./adapter": "./stacklive-adapter/adapter.ts",
+    "./detector": "./pattern-detector/detector.ts",
+    "./runtime-bridge": "./overlay-core/stackliveRuntimeBridge.ts",
+    "./state-machine": "./overlay-core/overlayStateMachine.ts"
+  },
+  "keywords": [
+    "stacklive",
+    "overlay",
+    "runtime",
+    "pattern-detection",
+    "wasm"
+  ],
+  "author": "StackLive",
+  "license": "MIT"
+}

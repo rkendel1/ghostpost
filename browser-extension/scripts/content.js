@@ -190,6 +190,34 @@ function hasCompleteEncodedMessage(text) {
 }
 
 /**
+ * Extract experience ID from encoded text
+ * Looks for ||stacklive: or ||ghostid: delimiters
+ */
+function extractExperienceId(text) {
+	// Look for StackLive delimiter with proper closing ||
+	const stackliveMatch = text.match(/\|\|stacklive:([^|]+(?:\|(?!\|)[^|]+)*)\|\|/);
+	if (stackliveMatch) {
+		return stackliveMatch[1];
+	}
+	
+	// Fallback to Ghost delimiter for backward compatibility
+	const ghostMatch = text.match(/\|\|ghostid:([^|]+(?:\|(?!\|)[^|]+)*)\|\|/);
+	if (ghostMatch) {
+		return ghostMatch[1];
+	}
+	
+	// Generate ID from text hash if no delimiter found
+	let hash = 0;
+	for (let i = 0; i < text.length; i++) {
+		const char = text.charCodeAt(i);
+		hash = ((hash << 5) - hash) + char;
+		hash = hash | 0; // Convert to 32bit integer
+	}
+	return `exp_${Math.abs(hash).toString(36)}`;
+}
+
+
+/**
  * Extract complete encoded text from a text node - SIMPLIFIED with advanced fallbacks
  *
  * STRATEGY: Try simple approaches first, use complex techniques as backups only when needed
@@ -355,16 +383,18 @@ function performInitialScan() {
 	totalDetectedCount = results.length;
 
 	if (results.length > 0) {
-		console.log(`[Hidenly] Found ${results.length} elements with hidden content`);
+		console.log(`[StackLive] Found ${results.length} experiences with hidden content`);
 
-		// Notify background script
+		// Notify background script with EXPERIENCE_DETECTED event
 		chrome.runtime.sendMessage({
-			type: 'HIDDEN_CONTENT_FOUND',
+			type: 'EXPERIENCE_DETECTED',
 			count: results.length,
 			url: window.location.href,
-			results: results.map((r) => ({
+			experiences: results.map((r) => ({
 				text: r.text,
-				location: r.location
+				location: r.location,
+				experienceId: extractExperienceId(r.text),
+				detectedAt: Date.now()
 			}))
 		});
 
@@ -374,7 +404,7 @@ function performInitialScan() {
 			count: results.length
 		});
 	} else {
-		console.log('[Hidenly] No hidden content detected on this page');
+		console.log('[StackLive] No experiences detected on this page');
 		chrome.runtime.sendMessage({
 			type: 'UPDATE_BADGE',
 			count: 0

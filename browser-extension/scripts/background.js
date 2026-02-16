@@ -10,6 +10,25 @@ const tabData = new Map();
  * Handle messages from content scripts and sidebar
  */
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+	// Handle EXPERIENCE_DETECTED event (new StackLive format)
+	if (request.type === 'EXPERIENCE_DETECTED') {
+		const tabId = sender.tab?.id;
+		if (tabId) {
+			tabData.set(tabId, {
+				count: request.count,
+				url: request.url,
+				experiences: request.experiences,
+				timestamp: Date.now()
+			});
+
+			console.log(`[StackLive Background] Stored experience data for tab ${tabId}:`, {
+				count: request.count,
+				experienceIds: request.experiences.map(e => e.experienceId)
+			});
+		}
+	}
+	
+	// Handle legacy HIDDEN_CONTENT_FOUND event for backward compatibility
 	if (request.type === 'HIDDEN_CONTENT_FOUND') {
 		// Store data for this tab
 		const tabId = sender.tab?.id;
@@ -21,7 +40,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				timestamp: Date.now()
 			});
 
-			console.log(`[Hidenly Background] Stored hidden content data for tab ${tabId}`);
+			console.log(`[StackLive Background] Stored hidden content data for tab ${tabId}`);
 		}
 	}
 
@@ -45,7 +64,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				}
 			})
 			.catch((error) => {
-				console.error('[Hidenly Background] Error querying tabs:', error);
+				console.error('[StackLive Background] Error querying tabs:', error);
 				sendResponse({ success: false, data: null, error: error.message });
 			});
 		return true; // Keep channel open for async response
@@ -63,11 +82,11 @@ function updateBadge(tabId, count) {
 		});
 		chrome.action.setBadgeBackgroundColor({
 			tabId: tabId,
-			color: '#4CAF50'
+			color: '#667eea' // StackLive purple
 		});
 		chrome.action.setTitle({
 			tabId: tabId,
-			title: `Hidenly - ${count} hidden message${count > 1 ? 's' : ''} found`
+			title: `StackLive - ${count} experience${count > 1 ? 's' : ''} detected`
 		});
 	} else {
 		chrome.action.setBadgeText({
@@ -76,7 +95,7 @@ function updateBadge(tabId, count) {
 		});
 		chrome.action.setTitle({
 			tabId: tabId,
-			title: 'Hidenly - No hidden content detected'
+			title: 'StackLive - No experiences detected'
 		});
 	}
 }
@@ -95,4 +114,4 @@ chrome.action.onClicked.addListener((tab) => {
 	chrome.sidePanel.open({ tabId: tab.id });
 });
 
-console.log('[Hidenly Background] Service worker initialized');
+console.log('[StackLive Background] Service worker initialized');
