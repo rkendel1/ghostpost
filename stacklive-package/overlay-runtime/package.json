@@ -1,0 +1,44 @@
+{
+  "name": "@ghostpost/overlay-runtime",
+  "version": "1.0.0",
+  "description": "Pattern detection and overlay runtime for StackLive integration",
+  "type": "module",
+  "main": "index.ts",
+  "types": "index.ts",
+  "exports": {
+    ".": {
+      "import": "./index.ts",
+      "types": "./index.ts"
+    },
+    "./detector": {
+      "import": "./pattern-detector/detector.ts"
+    },
+    "./adapter": {
+      "import": "./stacklive-adapter/adapter.ts"
+    },
+    "./state-machine": {
+      "import": "./overlay-core/overlayStateMachine.ts"
+    },
+    "./runtime-bridge": {
+      "import": "./overlay-core/stackliveRuntimeBridge.ts"
+    }
+  },
+  "files": [
+    "pattern-detector/",
+    "overlay-core/",
+    "stacklive-adapter/",
+    "assets/",
+    "index.ts",
+    "README.md"
+  ],
+  "keywords": [
+    "pattern-detection",
+    "overlay",
+    "runtime",
+    "stacklive",
+    "unicode",
+    "zero-width"
+  ],
+  "author": "GhostPost",
+  "license": "MIT"
+}

@@ -1,0 +1,66 @@
+{
+  "name": "@ghostpost/stacklive-integration",
+  "version": "1.0.0",
+  "description": "GhostPost integration package for StackLive - Hidden message encoding/decoding with WASM",
+  "type": "module",
+  "main": "stacklive-integration.ts",
+  "types": "stacklive-integration.ts",
+  "files": [
+    "wasm/",
+    "overlay-runtime/",
+    "userscript/",
+    "web-components/",
+    "examples/",
+    "stacklive-integration.ts",
+    "README.md",
+    "INTEGRATION_GUIDE.md"
+  ],
+  "exports": {
+    ".": {
+      "import": "./stacklive-integration.ts",
+      "types": "./stacklive-integration.ts"
+    },
+    "./wasm": {
+      "import": "./wasm/wasm.js",
+      "types": "./wasm/wasm.d.ts"
+    },
+    "./overlay-runtime": {
+      "import": "./overlay-runtime/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo 'No build step needed - WASM is pre-compiled'",
+    "test": "echo 'See examples/ directory for integration tests'",
+    "serve": "npx serve examples -p 3000"
+  },
+  "keywords": [
+    "stacklive",
+    "ghostpost",
+    "steganography",
+    "hidden-messages",
+    "wasm",
+    "webassembly",
+    "encoding",
+    "decoding",
+    "invisible-characters",
+    "zero-width"
+  ],
+  "author": "GhostPost",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rkendel1/ghostpost.git",
+    "directory": "stacklive-package"
+  },
+  "bugs": {
+    "url": "https://github.com/rkendel1/ghostpost/issues"
+  },
+  "homepage": "https://github.com/rkendel1/ghostpost#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "peerDependencies": {},
+  "optionalDependencies": {}
+}

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vanilla JS - StackLive Integration</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 { color: #333; }
+    textarea, input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover { background: #5568d3; }
+    .output {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 10px 0;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <h1>Simple StackLive Test</h1>
+  
+  <h2>Step 1: Encode</h2>
+  <input id="visible" placeholder="Visible message" value="Hello World">
+  <textarea id="secret" placeholder="Secret message">This is hidden!</textarea>
+  <button onclick="encode()">Encode</button>
+  
+  <h2>Result:</h2>
+  <div id="result" class="output">Click encode to see result...</div>
+  
+  <h2>Step 2: Decode</h2>
+  <button onclick="decode()">Decode Above Result</button>
+  <div id="decoded" class="output">Click decode to reveal secret...</div>
+  
+  <script type="module">
+    import { 
+      initStackLive,
+      encodeForStackLive,
+      decodeForStackLive 
+    } from '../stacklive-integration.ts';
+    
+    // Initialize immediately
+    initStackLive().then(() => {
+      console.log('Ready!');
+    });
+    
+    // Make functions global for onclick
+    window.encode = async function() {
+      const visible = document.getElementById('visible').value;
+      const secret = document.getElementById('secret').value;
+      
+      const result = await encodeForStackLive(visible, secret, true);
+      
+      document.getElementById('result').innerHTML = `
+        <strong>Encoded:</strong> ${result.encoded}<br>
+        <strong>Experience ID:</strong> ${result.experienceId}<br>
+        <strong>Total length:</strong> ${result.totalLength} chars
+      `;
+      
+      // Store for decoding
+      window.lastEncoded = result.encoded;
+    };
+    
+    window.decode = async function() {
+      if (!window.lastEncoded) {
+        alert('Encode a message first!');
+        return;
+      }
+      
+      const result = await decodeForStackLive(window.lastEncoded, false);
+      
+      document.getElementById('decoded').innerHTML = `
+        <strong>Secret Message:</strong> ${result.message}<br>
+        <strong>Experience ID:</strong> ${result.experienceId || 'None'}
+      `;
+    };
+  </script>
+</body>
+</html>
