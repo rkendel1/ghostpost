@@ -61,7 +61,7 @@ class StackLiveRuntimeBridge {
       experienceId,
       context: {
         experienceId,
-        detectedAt: Date.now(),
+        detectedAt: context.detectedAt ?? Date.now(), // Preserve if provided
         ...context,
       },
       timestamp: Date.now(),

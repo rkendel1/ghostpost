@@ -194,14 +194,14 @@ function hasCompleteEncodedMessage(text) {
  * Looks for ||stacklive: or ||ghostid: delimiters
  */
 function extractExperienceId(text) {
-	// Look for StackLive delimiter
-	const stackliveMatch = text.match(/\|\|stacklive:([^|]+)/);
+	// Look for StackLive delimiter with proper closing ||
+	const stackliveMatch = text.match(/\|\|stacklive:([^|]+(?:\|(?!\|)[^|]+)*)\|\|/);
 	if (stackliveMatch) {
 		return stackliveMatch[1];
 	}
 	
 	// Fallback to Ghost delimiter for backward compatibility
-	const ghostMatch = text.match(/\|\|ghostid:([^|]+)/);
+	const ghostMatch = text.match(/\|\|ghostid:([^|]+(?:\|(?!\|)[^|]+)*)\|\|/);
 	if (ghostMatch) {
 		return ghostMatch[1];
 	}
@@ -211,7 +211,7 @@ function extractExperienceId(text) {
 	for (let i = 0; i < text.length; i++) {
 		const char = text.charCodeAt(i);
 		hash = ((hash << 5) - hash) + char;
-		hash = hash & hash;
+		hash = hash | 0; // Convert to 32bit integer
 	}
 	return `exp_${Math.abs(hash).toString(36)}`;
 }

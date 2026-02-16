@@ -18,6 +18,9 @@ const HIDENLY_CHARS = [
   '\uFEFF'  // Zero Width No-Break Space (delimiter)
 ];
 
+// Pre-compute filtered array for performance
+const INVISIBLE_CHARS_ONLY = HIDENLY_CHARS.filter((char) => char !== '\uFEFF');
+
 // Detection thresholds
 const MIN_INVISIBLE_CHAR_COUNT = 8;
 const MAX_INVISIBLE_RATIO = 0.5;
@@ -97,9 +100,9 @@ export function hasCompleteEncodedMessage(text: string): boolean {
   if (betweenDelimiters.length === 0) return false;
 
   // Validate that content between delimiters contains only invisible characters
-  const invisibleCharsOnly = HIDENLY_CHARS.filter((char) => char !== '\uFEFF');
+  // Use pre-computed array for performance
   const hasOnlyInvisible = [...betweenDelimiters].every((char) =>
-    invisibleCharsOnly.includes(char)
+    INVISIBLE_CHARS_ONLY.includes(char)
   );
 
   if (!hasOnlyInvisible) {

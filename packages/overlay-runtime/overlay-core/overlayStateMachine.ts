@@ -139,7 +139,7 @@ class OverlayStateMachine {
    */
   reset(): void {
     this.transition('idle', 'manual_reset');
-    this.detectionCount = 0;
+    this.detectionCount = 0; // Reset detection count
   }
 
   /**

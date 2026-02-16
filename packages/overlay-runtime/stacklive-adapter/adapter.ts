@@ -168,9 +168,9 @@ class StackLiveAdapter {
    * Extract experience ID from encoded text
    */
   private extractExperienceId(text: string): string | null {
-    // Look for ||stacklive: or ||ghostid: delimiter
-    const stackliveMatch = text.match(/\|\|stacklive:([^|]+)/);
-    const ghostMatch = text.match(/\|\|ghostid:([^|]+)/);
+    // Look for ||stacklive: or ||ghostid: delimiter with proper closing ||
+    const stackliveMatch = text.match(/\|\|stacklive:([^|]+(?:\|(?!\|)[^|]+)*)\|\|/);
+    const ghostMatch = text.match(/\|\|ghostid:([^|]+(?:\|(?!\|)[^|]+)*)\|\|/);
     
     if (stackliveMatch) {
       return stackliveMatch[1];
@@ -193,7 +193,7 @@ class StackLiveAdapter {
     for (let i = 0; i < text.length; i++) {
       const char = text.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32bit integer
+      hash = hash | 0; // Convert to 32bit integer
     }
     return `exp_${Math.abs(hash).toString(36)}`;
   }
