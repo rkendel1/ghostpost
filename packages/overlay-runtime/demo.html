@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StackLive Overlay Demo</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      color: #667eea;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 2rem;
+    }
+
+    .demo-section {
+      margin-bottom: 2rem;
+      padding: 1.5rem;
+      background: #f9fafb;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .demo-section h2 {
+      margin-top: 0;
+      color: #374151;
+      font-size: 1.25rem;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      resize: vertical;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-right: 0.5rem;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: #5568d3;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .result {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: white;
+      border-radius: 6px;
+      border: 2px solid #e5e7eb;
+      font-family: monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+    }
+
+    .result.success {
+      border-color: #10b981;
+      background: #ecfdf5;
+    }
+
+    .result.error {
+      border-color: #ef4444;
+      background: #fef2f2;
+    }
+
+    .overlay-indicator {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .overlay-indicator.idle {
+      background: #9ca3af;
+    }
+
+    .overlay-indicator.signal_detected {
+      background: #667eea;
+      animation: pulse 1.5s infinite;
+    }
+
+    .overlay-indicator.experience_available {
+      background: #10b981;
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4),
+                  0 4px 20px rgba(0,0,0,0.2);
+    }
+
+    .overlay-indicator.runtime_active {
+      background: #667eea;
+      width: 300px;
+      height: 200px;
+      border-radius: 12px;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      }
+      50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 20px rgba(102, 126, 234, 0),
+                    0 4px 20px rgba(0,0,0,0.2);
+      }
+    }
+
+    .state-info {
+      padding: 1rem;
+      background: #eff6ff;
+      border-radius: 6px;
+      margin-top: 1rem;
+    }
+
+    .state-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+
+    .events-log {
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .event-item {
+      padding: 0.5rem;
+      margin-bottom: 0.25rem;
+      background: white;
+      border-radius: 4px;
+      border-left: 3px solid #667eea;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌟 StackLive Overlay Demo</h1>
+    <p class="subtitle">Test pattern detection, overlay states, and runtime integration</p>
+
+    <!-- Test Area -->
+    <div class="demo-section">
+      <h2>Test Pattern Detection</h2>
+      <p>Paste or type text with hidden content to test detection:</p>
+      <textarea id="testInput" placeholder="Paste encoded text here...">Test message​‌‍‏﻿‌‍​‌‏﻿ with hidden content</textarea>
+      <div style="margin-top: 1rem;">
+        <button onclick="testDetection()">Detect Pattern</button>
+        <button onclick="clearResults()">Clear</button>
+      </div>
+      <div id="detectionResult" class="result" style="display: none;"></div>
+    </div>
+
+    <!-- State Monitor -->
+    <div class="demo-section">
+      <h2>Overlay State Monitor</h2>
+      <div class="state-info">
+        <div>
+          <strong>Current State:</strong>
+          <span class="state-badge" id="currentState">idle</span>
+        </div>
+        <div style="margin-top: 0.5rem;">
+          <strong>Description:</strong> <span id="stateDescription">Monitoring for signals</span>
+        </div>
+        <div style="margin-top: 0.5rem;">
+          <strong>Detection Count:</strong> <span id="detectionCount">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Events Log -->
+    <div class="demo-section">
+      <h2>Events Log</h2>
+      <button onclick="clearEvents()">Clear Events</button>
+      <div id="eventsLog" class="events-log"></div>
+    </div>
+  </div>
+
+  <!-- Overlay Indicator -->
+  <div id="overlayIndicator" class="overlay-indicator idle" onclick="handleOverlayClick()">
+    <svg width="40" height="40" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="32" r="24" fill="white" opacity="0.9"/>
+    </svg>
+  </div>
+
+  <script type="module">
+    // Note: In production, this would import from the actual package
+    // For demo purposes, we'll simulate the behavior
+
+    let currentState = 'idle';
+    let detectionCount = 0;
+    const events = [];
+
+    // Simulate pattern detection
+    window.testDetection = function() {
+      const text = document.getElementById('testInput').value;
+      const result = simulateDetection(text);
+      
+      const resultDiv = document.getElementById('detectionResult');
+      resultDiv.style.display = 'block';
+      
+      if (result.detected) {
+        resultDiv.className = 'result success';
+        resultDiv.textContent = JSON.stringify(result, null, 2);
+        
+        // Update state
+        updateState('signal_detected', 'Pattern detected');
+        detectionCount++;
+        
+        // Log event
+        logEvent('PATTERN_DETECTED', { charCount: result.charCount, ratio: result.ratio });
+        
+        // Simulate progression
+        setTimeout(() => {
+          updateState('experience_available', 'Experience ready');
+          logEvent('EXPERIENCE_RESOLVED', { experienceId: 'exp_demo123' });
+        }, 1500);
+        
+      } else {
+        resultDiv.className = 'result error';
+        resultDiv.textContent = 'No pattern detected in the text.';
+      }
+    };
+
+    function simulateDetection(text) {
+      // Simple detection simulation
+      const invisibleChars = '\u200B\u200C\u200D\u200E\u200F\u202C\u202D\u2060\uFEFF';
+      let count = 0;
+      
+      for (const char of text) {
+        if (invisibleChars.includes(char)) {
+          count++;
+        }
+      }
+      
+      const detected = count >= 8;
+      
+      return {
+        detected,
+        charCount: count,
+        ratio: count / text.length,
+        isClustered: detected,
+        hasCompleteMessage: detected,
+      };
+    }
+
+    function updateState(newState, description) {
+      currentState = newState;
+      
+      // Update state badge
+      const stateBadge = document.getElementById('currentState');
+      stateBadge.textContent = newState;
+      stateBadge.style.background = getStateColor(newState);
+      stateBadge.style.color = 'white';
+      
+      // Update description
+      document.getElementById('stateDescription').textContent = description;
+      
+      // Update detection count
+      document.getElementById('detectionCount').textContent = detectionCount;
+      
+      // Update overlay indicator
+      const indicator = document.getElementById('overlayIndicator');
+      indicator.className = `overlay-indicator ${newState}`;
+    }
+
+    function getStateColor(state) {
+      switch(state) {
+        case 'idle': return '#9ca3af';
+        case 'signal_detected': return '#667eea';
+        case 'experience_available': return '#10b981';
+        case 'runtime_active': return '#667eea';
+        default: return '#9ca3af';
+      }
+    }
+
+    function logEvent(type, data) {
+      const event = {
+        type,
+        data,
+        timestamp: new Date().toISOString(),
+      };
+      
+      events.unshift(event);
+      
+      const eventsLog = document.getElementById('eventsLog');
+      const eventItem = document.createElement('div');
+      eventItem.className = 'event-item';
+      eventItem.innerHTML = `
+        <strong>${type}</strong><br>
+        <small>${new Date().toLocaleTimeString()}</small><br>
+        ${JSON.stringify(data, null, 2)}
+      `;
+      
+      eventsLog.insertBefore(eventItem, eventsLog.firstChild);
+      
+      // Keep only last 10 events
+      while (eventsLog.children.length > 10) {
+        eventsLog.removeChild(eventsLog.lastChild);
+      }
+    }
+
+    window.handleOverlayClick = function() {
+      if (currentState === 'experience_available') {
+        updateState('runtime_active', 'Experience active');
+        logEvent('RUNTIME_LAUNCHED', { experienceId: 'exp_demo123' });
+        
+        // Auto-complete after 3 seconds
+        setTimeout(() => {
+          updateState('idle', 'Monitoring for signals');
+          logEvent('RUNTIME_COMPLETE', {});
+          detectionCount = 0;
+        }, 3000);
+      }
+    };
+
+    window.clearResults = function() {
+      document.getElementById('detectionResult').style.display = 'none';
+      document.getElementById('testInput').value = '';
+    };
+
+    window.clearEvents = function() {
+      document.getElementById('eventsLog').innerHTML = '';
+      events.length = 0;
+    };
+
+    // Initialize
+    updateState('idle', 'Monitoring for signals');
+    logEvent('INITIALIZED', { version: '1.0.0' });
+  </script>
+</body>
+</html>
