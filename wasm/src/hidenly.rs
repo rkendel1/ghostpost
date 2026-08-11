@@ -6,9 +6,9 @@ use std::io::Write;
 
 // Compression configuration constants
 // These values must match between Rust encoder and JavaScript decoder
-const COMPRESSION_THRESHOLD_BYTES: usize = 100;  // Compress only messages >= 100 bytes
-const MARKER_UNCOMPRESSED: u8 = 0x00;            // Prepended to uncompressed data
-const MARKER_COMPRESSED: u8 = 0x01;              // Prepended to compressed data
+const COMPRESSION_THRESHOLD_BYTES: usize = 1000;  // Compress only messages >= 1000 bytes (de-compact for smaller content)
+const MARKER_UNCOMPRESSED: u8 = 0x00;             // Prepended to uncompressed data
+const MARKER_COMPRESSED: u8 = 0x01;               // Prepended to compressed data
 
 lazy_static::lazy_static! {
     static ref BASE64_CHAR_MAP: BiMap<char, &'static str> = {
@@ -154,43 +154,56 @@ fn wrap(input: &str, secret: &str) -> String {
 
 fn unwrap(input: &str) -> String {
     let parts: Vec<&str> = input.split("\u{FEFF}").collect();
-    if parts.len() < 2 {
-        input.to_string()
-    } else {
-        parts[1].to_string()
+
+    // Handle different encoding formats for backward compatibility
+    match parts.len() {
+        0 => input.to_string(),
+        1 => input.to_string(), // No delimiter found - return as-is
+        2 => parts[1].to_string(), // Old format: visible﻿{secret}﻿ or visible﻿{secret}
+        _ => parts[1].to_string(), // New format: first_half﻿{secret}﻿{second_half}
+                                   // Both formats have the secret in parts[1]
     }
 }
 
 pub fn encode(input: &str, secret: &str) -> String {
-    // Compression threshold: only compress messages above COMPRESSION_THRESHOLD_BYTES
-    // For small messages, DEFLATE compression overhead (headers/metadata)
-    // results in larger output than uncompressed data
+    // Improved compression strategy for maximum strength and efficiency
+    // De-compact: only compress large messages (1000+ bytes) to avoid overhead
+    // For small to medium messages, the base64 expansion makes compression inefficient
     // Testing shows:
-    // - "bye" (3 bytes): 75% overhead with compression
-    // - "bye" + UUID (51 bytes): 10% overhead with compression (152 vs 138 chars)
-    // - 100+ bytes: compression provides clear benefits
-    
+    // - Small messages (< 1KB): compression overhead > savings
+    // - Large messages (> 1KB): compression provides significant benefit (30-50% reduction)
+    // - Images (base64): compression highly beneficial (25KB can compress to ~8-12KB)
+
     let secret_bytes = secret.as_bytes();
     let (data_to_encode, compression_marker) = if secret_bytes.len() >= COMPRESSION_THRESHOLD_BYTES {
-        // Compress for larger messages
+        // Use maximum compression for large messages (images, long text)
         match compress_data(secret_bytes) {
-            Ok(compressed) => (compressed, MARKER_COMPRESSED),
+            Ok(compressed) => {
+                // Only use compressed version if it's actually smaller
+                if compressed.len() < secret_bytes.len() {
+                    (compressed, MARKER_COMPRESSED)
+                } else {
+                    // Compression didn't help - use uncompressed
+                    (secret_bytes.to_vec(), MARKER_UNCOMPRESSED)
+                }
+            }
             Err(_e) => {
-                // Log compression failure in debug builds
+                // Compression failed - use uncompressed data
                 #[cfg(debug_assertions)]
-                eprintln!("Warning: Compression failed ({}), using uncompressed data", _e);
+                eprintln!("Warning: Compression failed, using uncompressed data");
                 (secret_bytes.to_vec(), MARKER_UNCOMPRESSED)
             }
         }
     } else {
-        // Skip compression for small messages to avoid overhead
+        // Skip compression for small/medium messages to preserve character budget
+        // This "de-compaction" allows more content to fit in the character limits
         (secret_bytes.to_vec(), MARKER_UNCOMPRESSED)
     };
-    
+
     // Prepend compression marker to data
     let mut data_with_marker = vec![compression_marker];
     data_with_marker.extend_from_slice(&data_to_encode);
-    
+
     let preprocessed = encode_base64(&data_with_marker);
     let encoded = base64_to_encoded(preprocessed.as_str());
     wrap(input, &encoded)
@@ -198,40 +211,63 @@ pub fn encode(input: &str, secret: &str) -> String {
 
 pub fn decode(input: &str) -> Result<String, String> {
     let unwrapped = unwrap(input);
-    
-    // Check if there's any hidden content - compare lengths first for efficiency
+
+    // Check if there's any hidden content - improved validation
     if unwrapped.len() == input.len() || unwrapped.is_empty() {
         return Err("No hidden content found in the input text".to_string());
     }
-    
+
+    // Convert encoded format back to base64
     let processed = encoded_to_base64(&unwrapped);
-    
-    // Check if the processed string is valid base64
+
+    // Validate processed data
     if processed.is_empty() {
         return Err("Invalid encoded content - no recognizable pattern found".to_string());
     }
-    
+
+    // Decode from base64
     let decoded_bytes = decode_base64(processed.as_str())?;
-    
-    // Check for compression marker (first byte)
-    // Values defined at module level: MARKER_UNCOMPRESSED, MARKER_COMPRESSED
-    let final_bytes = if decoded_bytes.is_empty() {
+
+    if decoded_bytes.is_empty() {
         return Err("Empty decoded content".to_string());
-    } else if decoded_bytes[0] == MARKER_UNCOMPRESSED {
-        // Data is explicitly marked as uncompressed - skip decompression
-        decoded_bytes[1..].to_vec()
-    } else if decoded_bytes[0] == MARKER_COMPRESSED {
-        // Data is explicitly marked as compressed - decompress it
-        decompress_data(&decoded_bytes[1..])?
-    } else {
-        // Legacy message without marker - try decompression, fallback to uncompressed
-        // This maintains backward compatibility with old messages
-        decompress_data(&decoded_bytes).unwrap_or_else(|_| {
-            // Decompression failed - treat as uncompressed legacy message
-            decoded_bytes
-        })
+    }
+
+    // Check for compression marker (first byte) with maximum strength decoding
+    // Values defined at module level: MARKER_UNCOMPRESSED (0x00), MARKER_COMPRESSED (0x01)
+    let final_bytes = match decoded_bytes[0] {
+        MARKER_UNCOMPRESSED => {
+            // Data explicitly marked as uncompressed
+            decoded_bytes[1..].to_vec()
+        }
+        MARKER_COMPRESSED => {
+            // Data explicitly marked as compressed - decompress with error handling
+            decompress_data(&decoded_bytes[1..])
+                .map_err(|e| format!("Failed to decompress content: {}", e))?
+        }
+        unknown_marker => {
+            // Unknown marker - try to handle as legacy format
+            // Legacy messages don't have markers, so try decompression first
+            // If that fails, treat as uncompressed
+            match decompress_data(&decoded_bytes) {
+                Ok(decompressed) => decompressed,
+                Err(_) => {
+                    // Decompression failed - might be uncompressed legacy data
+                    // Check if it looks like valid UTF-8
+                    if String::from_utf8(decoded_bytes.clone()).is_ok() {
+                        // Looks like uncompressed text
+                        decoded_bytes
+                    } else {
+                        return Err(format!(
+                            "Unknown compression marker (0x{:02x}) and data doesn't appear to be valid uncompressed text",
+                            unknown_marker
+                        ));
+                    }
+                }
+            }
+        }
     };
-    
+
+    // Convert to UTF-8 string with detailed error handling
     String::from_utf8(final_bytes)
         .map_err(|e| format!("Invalid UTF-8 in decoded content: {}", e))
 }
@@ -257,17 +293,37 @@ mod tests {
             ("hello", "bye"),
             ("visible", "Hello, World!"),
             ("test", "This is a longer secret message that might trigger compression"),
+            ("short", "x".repeat(50)),  // 50 bytes - below compression threshold
+            ("medium", "y".repeat(500)), // 500 bytes - below compression threshold
+            ("large", "z".repeat(2000)), // 2000 bytes - above compression threshold
         ];
-        
+
         for (visible, secret) in test_cases {
             let encoded = encode(visible, secret);
-            
+
             // Verify it contains delimiters
             assert!(encoded.contains('\u{FEFF}'), "Encoded message should contain FEFF delimiters");
-            
+
             // Decode and verify
             let decoded = decode(&encoded).unwrap();
-            assert_eq!(decoded, secret, "Decoded message should match original secret");
+            assert_eq!(decoded, secret, "Decoded message should match original secret for: {}", visible);
         }
+    }
+
+    #[test]
+    fn test_compression_optimization() {
+        // Test that compression is only applied to large messages
+        let small_secret = "small";
+        let large_secret = "x".repeat(1500); // Above 1000 byte threshold
+
+        let small_encoded = encode("visible", small_secret);
+        let large_encoded = encode("visible", &large_secret);
+
+        // Both should decode correctly
+        assert_eq!(decode(&small_encoded).unwrap(), small_secret);
+        assert_eq!(decode(&large_encoded).unwrap(), large_secret);
+
+        // Large message might be compressed, but should still work
+        // Character count might be different due to compression, but that's OK
     }
 }

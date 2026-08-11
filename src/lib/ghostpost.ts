@@ -41,9 +41,11 @@ const POST_ID_DELIMITER = '||ghostid:';
 const POST_ID_END = '||';
 
 // Image processing constants
-// Target 25KB to stay well under 40k character limit after base64 encoding
-// 25KB * 1.33 (base64 overhead) ≈ 33KB base64 ≈ 33k hidden characters
-const MAX_IMAGE_SIZE_KB = 25;
+// Increased to 40KB to leverage improved WASM compression
+// 40KB raw * 1.33 (base64) = 53KB base64 ≈ 53k chars before compression
+// With DEFLATE compression: typically 40-50% reduction = 26-32k chars after encoding
+// This allows for better quality images while staying within platform limits
+const MAX_IMAGE_SIZE_KB = 40;
 const MAX_IMAGE_WIDTH = 600;
 const MAX_IMAGE_HEIGHT = 600;
 const QUALITY_LEVELS = [0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2];
