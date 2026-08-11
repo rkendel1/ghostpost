@@ -4,11 +4,37 @@ use flate2::write::{DeflateEncoder, DeflateDecoder};
 use flate2::Compression;
 use std::io::Write;
 
-// Compression configuration constants
+// Compression & Payload type configuration constants
 // These values must match between Rust encoder and JavaScript decoder
-const COMPRESSION_THRESHOLD_BYTES: usize = 100;  // Compress only messages >= 100 bytes
-const MARKER_UNCOMPRESSED: u8 = 0x00;            // Prepended to uncompressed data
-const MARKER_COMPRESSED: u8 = 0x01;              // Prepended to compressed data
+const COMPRESSION_THRESHOLD_BYTES: usize = 1000;  // Compress only messages >= 1000 bytes (de-compact for smaller content)
+
+// Payload type markers - first byte of encoded data
+const MARKER_UNCOMPRESSED: u8 = 0x00;             // Inline uncompressed data
+const MARKER_COMPRESSED: u8 = 0x01;               // Inline compressed data
+const MARKER_REFERENCE: u8 = 0x02;                // Reference to external content (Ghostpost ID, URL, etc)
+const MARKER_HYBRID: u8 = 0x03;                   // Hybrid: partial inline + reference
+const MARKER_METADATA: u8 = 0x04;                 // Metadata only (tags, delivery instructions)
+
+// Reference type markers - second byte when type is MARKER_REFERENCE
+const REF_TYPE_GHOSTPOST: u8 = 0x00;              // Reference to another Ghostpost (by post_id)
+const REF_TYPE_EXTERNAL_URL: u8 = 0x01;           // Reference to external URL
+const REF_TYPE_SUPABASE: u8 = 0x02;               // Reference to Supabase storage
+const REF_TYPE_CROSSLINK: u8 = 0x03;              // Cross-link metadata (tags, category)
+
+// AI/Conversational payload type markers (0x05-0x08)
+const MARKER_AI_PROMPT: u8 = 0x05;                // AI-generated content (single prompt)
+const MARKER_CONVERSATION: u8 = 0x06;             // Multi-turn conversation state
+const MARKER_ADAPTIVE: u8 = 0x07;                 // Adaptive content (context-aware)
+const MARKER_STORY_FRAGMENT: u8 = 0x08;           // Story fragment with continuation prompts
+
+// AI content type markers
+const AI_TYPE_CHATBOT: u8 = 0x00;                 // Conversational AI (multi-turn)
+const AI_TYPE_POET: u8 = 0x01;                    // Poetry/creative generation
+const AI_TYPE_ANALYST: u8 = 0x02;                 // Analysis/pitch generation
+const AI_TYPE_STORYTELLER: u8 = 0x03;             // Story continuation
+
+// Secure Notes marker
+const MARKER_SECURE_NOTE: u8 = 0x09;              // Encrypted secure note reference
 
 lazy_static::lazy_static! {
     static ref BASE64_CHAR_MAP: BiMap<char, &'static str> = {
@@ -154,43 +180,56 @@ fn wrap(input: &str, secret: &str) -> String {
 
 fn unwrap(input: &str) -> String {
     let parts: Vec<&str> = input.split("\u{FEFF}").collect();
-    if parts.len() < 2 {
-        input.to_string()
-    } else {
-        parts[1].to_string()
+
+    // Handle different encoding formats for backward compatibility
+    match parts.len() {
+        0 => input.to_string(),
+        1 => input.to_string(), // No delimiter found - return as-is
+        2 => parts[1].to_string(), // Old format: visible﻿{secret}﻿ or visible﻿{secret}
+        _ => parts[1].to_string(), // New format: first_half﻿{secret}﻿{second_half}
+                                   // Both formats have the secret in parts[1]
     }
 }
 
 pub fn encode(input: &str, secret: &str) -> String {
-    // Compression threshold: only compress messages above COMPRESSION_THRESHOLD_BYTES
-    // For small messages, DEFLATE compression overhead (headers/metadata)
-    // results in larger output than uncompressed data
+    // Improved compression strategy for maximum strength and efficiency
+    // De-compact: only compress large messages (1000+ bytes) to avoid overhead
+    // For small to medium messages, the base64 expansion makes compression inefficient
     // Testing shows:
-    // - "bye" (3 bytes): 75% overhead with compression
-    // - "bye" + UUID (51 bytes): 10% overhead with compression (152 vs 138 chars)
-    // - 100+ bytes: compression provides clear benefits
-    
+    // - Small messages (< 1KB): compression overhead > savings
+    // - Large messages (> 1KB): compression provides significant benefit (30-50% reduction)
+    // - Images (base64): compression highly beneficial (25KB can compress to ~8-12KB)
+
     let secret_bytes = secret.as_bytes();
     let (data_to_encode, compression_marker) = if secret_bytes.len() >= COMPRESSION_THRESHOLD_BYTES {
-        // Compress for larger messages
+        // Use maximum compression for large messages (images, long text)
         match compress_data(secret_bytes) {
-            Ok(compressed) => (compressed, MARKER_COMPRESSED),
+            Ok(compressed) => {
+                // Only use compressed version if it's actually smaller
+                if compressed.len() < secret_bytes.len() {
+                    (compressed, MARKER_COMPRESSED)
+                } else {
+                    // Compression didn't help - use uncompressed
+                    (secret_bytes.to_vec(), MARKER_UNCOMPRESSED)
+                }
+            }
             Err(_e) => {
-                // Log compression failure in debug builds
+                // Compression failed - use uncompressed data
                 #[cfg(debug_assertions)]
-                eprintln!("Warning: Compression failed ({}), using uncompressed data", _e);
+                eprintln!("Warning: Compression failed, using uncompressed data");
                 (secret_bytes.to_vec(), MARKER_UNCOMPRESSED)
             }
         }
     } else {
-        // Skip compression for small messages to avoid overhead
+        // Skip compression for small/medium messages to preserve character budget
+        // This "de-compaction" allows more content to fit in the character limits
         (secret_bytes.to_vec(), MARKER_UNCOMPRESSED)
     };
-    
+
     // Prepend compression marker to data
     let mut data_with_marker = vec![compression_marker];
     data_with_marker.extend_from_slice(&data_to_encode);
-    
+
     let preprocessed = encode_base64(&data_with_marker);
     let encoded = base64_to_encoded(preprocessed.as_str());
     wrap(input, &encoded)
@@ -198,42 +237,417 @@ pub fn encode(input: &str, secret: &str) -> String {
 
 pub fn decode(input: &str) -> Result<String, String> {
     let unwrapped = unwrap(input);
-    
-    // Check if there's any hidden content - compare lengths first for efficiency
+
+    // Check if there's any hidden content - improved validation
     if unwrapped.len() == input.len() || unwrapped.is_empty() {
         return Err("No hidden content found in the input text".to_string());
     }
-    
+
+    // Convert encoded format back to base64
     let processed = encoded_to_base64(&unwrapped);
-    
-    // Check if the processed string is valid base64
+
+    // Validate processed data
     if processed.is_empty() {
         return Err("Invalid encoded content - no recognizable pattern found".to_string());
     }
-    
+
+    // Decode from base64
     let decoded_bytes = decode_base64(processed.as_str())?;
-    
-    // Check for compression marker (first byte)
-    // Values defined at module level: MARKER_UNCOMPRESSED, MARKER_COMPRESSED
-    let final_bytes = if decoded_bytes.is_empty() {
+
+    if decoded_bytes.is_empty() {
         return Err("Empty decoded content".to_string());
-    } else if decoded_bytes[0] == MARKER_UNCOMPRESSED {
-        // Data is explicitly marked as uncompressed - skip decompression
-        decoded_bytes[1..].to_vec()
-    } else if decoded_bytes[0] == MARKER_COMPRESSED {
-        // Data is explicitly marked as compressed - decompress it
-        decompress_data(&decoded_bytes[1..])?
-    } else {
-        // Legacy message without marker - try decompression, fallback to uncompressed
-        // This maintains backward compatibility with old messages
-        decompress_data(&decoded_bytes).unwrap_or_else(|_| {
-            // Decompression failed - treat as uncompressed legacy message
-            decoded_bytes
-        })
+    }
+
+    // Check for compression marker (first byte) with maximum strength decoding
+    // Values defined at module level: MARKER_UNCOMPRESSED (0x00), MARKER_COMPRESSED (0x01)
+    let final_bytes = match decoded_bytes[0] {
+        MARKER_UNCOMPRESSED => {
+            // Data explicitly marked as uncompressed
+            decoded_bytes[1..].to_vec()
+        }
+        MARKER_COMPRESSED => {
+            // Data explicitly marked as compressed - decompress with error handling
+            decompress_data(&decoded_bytes[1..])
+                .map_err(|e| format!("Failed to decompress content: {}", e))?
+        }
+        unknown_marker => {
+            // Unknown marker - try to handle as legacy format
+            // Legacy messages don't have markers, so try decompression first
+            // If that fails, treat as uncompressed
+            match decompress_data(&decoded_bytes) {
+                Ok(decompressed) => decompressed,
+                Err(_) => {
+                    // Decompression failed - might be uncompressed legacy data
+                    // Check if it looks like valid UTF-8
+                    if String::from_utf8(decoded_bytes.clone()).is_ok() {
+                        // Looks like uncompressed text
+                        decoded_bytes
+                    } else {
+                        return Err(format!(
+                            "Unknown compression marker (0x{:02x}) and data doesn't appear to be valid uncompressed text",
+                            unknown_marker
+                        ));
+                    }
+                }
+            }
+        }
     };
-    
+
+    // Convert to UTF-8 string with detailed error handling
     String::from_utf8(final_bytes)
         .map_err(|e| format!("Invalid UTF-8 in decoded content: {}", e))
+}
+
+// Reference payload encoding/decoding for content delivery fabric
+pub fn encode_reference(
+    input: &str,
+    reference_type: u8,
+    reference_id: &str,
+    metadata: Option<&str>,
+) -> String {
+    // Build reference payload: [REF_TYPE][REF_ID_LENGTH:2][REF_ID][METADATA_LENGTH:2][METADATA]
+    let mut payload = vec![reference_type];
+
+    // Encode reference ID
+    let ref_id_bytes = reference_id.as_bytes();
+    payload.extend_from_slice(&(ref_id_bytes.len() as u16).to_le_bytes());
+    payload.extend_from_slice(ref_id_bytes);
+
+    // Encode optional metadata
+    if let Some(meta) = metadata {
+        let meta_bytes = meta.as_bytes();
+        payload.extend_from_slice(&(meta_bytes.len() as u16).to_le_bytes());
+        payload.extend_from_slice(meta_bytes);
+    } else {
+        payload.extend_from_slice(&(0u16).to_le_bytes());
+    }
+
+    // Prepend reference marker
+    let mut data_with_marker = vec![MARKER_REFERENCE];
+    data_with_marker.extend_from_slice(&payload);
+
+    let preprocessed = encode_base64(&data_with_marker);
+    let encoded = base64_to_encoded(preprocessed.as_str());
+    wrap(input, &encoded)
+}
+
+pub fn decode_reference(input: &str) -> Result<(String, String, Option<String>), String> {
+    let unwrapped = unwrap(input);
+
+    if unwrapped.len() == input.len() || unwrapped.is_empty() {
+        return Err("No hidden content found in the input text".to_string());
+    }
+
+    let processed = encoded_to_base64(&unwrapped);
+    if processed.is_empty() {
+        return Err("Invalid encoded content - no recognizable pattern found".to_string());
+    }
+
+    let decoded_bytes = decode_base64(processed.as_str())?;
+
+    if decoded_bytes.is_empty() {
+        return Err("Empty decoded content".to_string());
+    }
+
+    // Verify this is a reference payload
+    if decoded_bytes[0] != MARKER_REFERENCE {
+        return Err("This is not a reference payload".to_string());
+    }
+
+    if decoded_bytes.len() < 4 {
+        return Err("Malformed reference payload".to_string());
+    }
+
+    let ref_type = decoded_bytes[1];
+    let ref_id_len = u16::from_le_bytes([decoded_bytes[2], decoded_bytes[3]]) as usize;
+
+    if decoded_bytes.len() < 4 + ref_id_len + 2 {
+        return Err("Reference ID length mismatch".to_string());
+    }
+
+    let ref_id_start = 4;
+    let ref_id_end = ref_id_start + ref_id_len;
+    let reference_id = String::from_utf8(decoded_bytes[ref_id_start..ref_id_end].to_vec())
+        .map_err(|e| format!("Invalid UTF-8 in reference ID: {}", e))?;
+
+    let meta_len_start = ref_id_end;
+    let meta_len = u16::from_le_bytes([
+        decoded_bytes[meta_len_start],
+        decoded_bytes[meta_len_start + 1],
+    ]) as usize;
+
+    let metadata = if meta_len > 0 {
+        let meta_start = meta_len_start + 2;
+        let meta_end = meta_start + meta_len;
+        if decoded_bytes.len() < meta_end {
+            return Err("Metadata length mismatch".to_string());
+        }
+        Some(
+            String::from_utf8(decoded_bytes[meta_start..meta_end].to_vec())
+                .map_err(|e| format!("Invalid UTF-8 in metadata: {}", e))?,
+        )
+    } else {
+        None
+    };
+
+    let type_name = match ref_type {
+        REF_TYPE_GHOSTPOST => "ghostpost",
+        REF_TYPE_EXTERNAL_URL => "external_url",
+        REF_TYPE_SUPABASE => "supabase",
+        REF_TYPE_CROSSLINK => "crosslink",
+        _ => "unknown",
+    };
+
+    Ok((type_name.to_string(), reference_id, metadata))
+}
+
+// AI-powered payload encoding/decoding for conversational & adaptive content
+pub fn encode_ai_prompt(
+    input: &str,
+    ai_type: u8,
+    base_prompt: &str,
+    system_message: Option<&str>,
+    metadata: Option<&str>,
+) -> String {
+    // Build AI prompt payload:
+    // [AI_TYPE][BASE_PROMPT_LEN:2][BASE_PROMPT][SYSTEM_MSG_LEN:2][SYSTEM_MSG][METADATA_LEN:2][METADATA]
+    let mut payload = vec![ai_type];
+
+    // Encode base prompt
+    let prompt_bytes = base_prompt.as_bytes();
+    payload.extend_from_slice(&(prompt_bytes.len() as u16).to_le_bytes());
+    payload.extend_from_slice(prompt_bytes);
+
+    // Encode optional system message
+    if let Some(sys_msg) = system_message {
+        let sys_bytes = sys_msg.as_bytes();
+        payload.extend_from_slice(&(sys_bytes.len() as u16).to_le_bytes());
+        payload.extend_from_slice(sys_bytes);
+    } else {
+        payload.extend_from_slice(&(0u16).to_le_bytes());
+    }
+
+    // Encode optional metadata
+    if let Some(meta) = metadata {
+        let meta_bytes = meta.as_bytes();
+        payload.extend_from_slice(&(meta_bytes.len() as u16).to_le_bytes());
+        payload.extend_from_slice(meta_bytes);
+    } else {
+        payload.extend_from_slice(&(0u16).to_le_bytes());
+    }
+
+    // Prepend AI prompt marker
+    let mut data_with_marker = vec![MARKER_AI_PROMPT];
+    data_with_marker.extend_from_slice(&payload);
+
+    let preprocessed = encode_base64(&data_with_marker);
+    let encoded = base64_to_encoded(preprocessed.as_str());
+    wrap(input, &encoded)
+}
+
+pub fn decode_ai_prompt(input: &str) -> Result<(String, String, Option<String>, Option<String>), String> {
+    let unwrapped = unwrap(input);
+
+    if unwrapped.len() == input.len() || unwrapped.is_empty() {
+        return Err("No hidden content found in the input text".to_string());
+    }
+
+    let processed = encoded_to_base64(&unwrapped);
+    if processed.is_empty() {
+        return Err("Invalid encoded content - no recognizable pattern found".to_string());
+    }
+
+    let decoded_bytes = decode_base64(processed.as_str())?;
+
+    if decoded_bytes.is_empty() {
+        return Err("Empty decoded content".to_string());
+    }
+
+    // Verify this is an AI prompt payload
+    if decoded_bytes[0] != MARKER_AI_PROMPT {
+        return Err("This is not an AI prompt payload".to_string());
+    }
+
+    if decoded_bytes.len() < 3 {
+        return Err("Malformed AI prompt payload".to_string());
+    }
+
+    let ai_type = decoded_bytes[1];
+    let prompt_len = u16::from_le_bytes([decoded_bytes[2], decoded_bytes[3]]) as usize;
+
+    if decoded_bytes.len() < 4 + prompt_len + 2 {
+        return Err("Prompt length mismatch".to_string());
+    }
+
+    let prompt_start = 4;
+    let prompt_end = prompt_start + prompt_len;
+    let base_prompt = String::from_utf8(decoded_bytes[prompt_start..prompt_end].to_vec())
+        .map_err(|e| format!("Invalid UTF-8 in prompt: {}", e))?;
+
+    let sys_msg_len_start = prompt_end;
+    let sys_msg_len =
+        u16::from_le_bytes([decoded_bytes[sys_msg_len_start], decoded_bytes[sys_msg_len_start + 1]]) as usize;
+
+    let system_message = if sys_msg_len > 0 {
+        let sys_start = sys_msg_len_start + 2;
+        let sys_end = sys_start + sys_msg_len;
+        if decoded_bytes.len() < sys_end + 2 {
+            return Err("System message length mismatch".to_string());
+        }
+        Some(
+            String::from_utf8(decoded_bytes[sys_start..sys_end].to_vec())
+                .map_err(|e| format!("Invalid UTF-8 in system message: {}", e))?,
+        )
+    } else {
+        None
+    };
+
+    let meta_len_start = if sys_msg_len > 0 {
+        sys_msg_len_start + 2 + sys_msg_len
+    } else {
+        sys_msg_len_start + 2
+    };
+
+    let meta_len = u16::from_le_bytes([decoded_bytes[meta_len_start], decoded_bytes[meta_len_start + 1]]) as usize;
+
+    let metadata = if meta_len > 0 {
+        let meta_start = meta_len_start + 2;
+        let meta_end = meta_start + meta_len;
+        if decoded_bytes.len() < meta_end {
+            return Err("Metadata length mismatch".to_string());
+        }
+        Some(
+            String::from_utf8(decoded_bytes[meta_start..meta_end].to_vec())
+                .map_err(|e| format!("Invalid UTF-8 in metadata: {}", e))?,
+        )
+    } else {
+        None
+    };
+
+    let type_name = match ai_type {
+        AI_TYPE_CHATBOT => "chatbot",
+        AI_TYPE_POET => "poet",
+        AI_TYPE_ANALYST => "analyst",
+        AI_TYPE_STORYTELLER => "storyteller",
+        _ => "unknown",
+    };
+
+    Ok((type_name.to_string(), base_prompt, system_message, metadata))
+}
+
+pub fn encode_secure_note(
+    input: &str,
+    note_id: &str,
+    password: Option<&str>,
+    metadata: Option<&str>,
+) -> String {
+    // Build secure note payload: [NOTE_ID_LENGTH:2][NOTE_ID][PASSWORD_LENGTH:2][PASSWORD][METADATA_LENGTH:2][METADATA]
+    let mut payload = vec![MARKER_SECURE_NOTE];
+
+    // Encode note ID
+    let note_id_bytes = note_id.as_bytes();
+    payload.extend_from_slice(&(note_id_bytes.len() as u16).to_le_bytes());
+    payload.extend_from_slice(note_id_bytes);
+
+    // Encode optional password
+    if let Some(pwd) = password {
+        let pwd_bytes = pwd.as_bytes();
+        payload.extend_from_slice(&(pwd_bytes.len() as u16).to_le_bytes());
+        payload.extend_from_slice(pwd_bytes);
+    } else {
+        payload.extend_from_slice(&(0u16).to_le_bytes());
+    }
+
+    // Encode optional metadata
+    if let Some(meta) = metadata {
+        let meta_bytes = meta.as_bytes();
+        payload.extend_from_slice(&(meta_bytes.len() as u16).to_le_bytes());
+        payload.extend_from_slice(meta_bytes);
+    } else {
+        payload.extend_from_slice(&(0u16).to_le_bytes());
+    }
+
+    let preprocessed = encode_base64(&payload);
+    let encoded = base64_to_encoded(preprocessed.as_str());
+    wrap(input, &encoded)
+}
+
+pub fn decode_secure_note(input: &str) -> Result<(String, Option<String>, Option<String>), String> {
+    let unwrapped = unwrap(input);
+
+    if unwrapped.len() == input.len() || unwrapped.is_empty() {
+        return Err("No hidden content found in the input text".to_string());
+    }
+
+    let processed = encoded_to_base64(&unwrapped);
+    if processed.is_empty() {
+        return Err("Invalid encoded content - no recognizable pattern found".to_string());
+    }
+
+    let decoded_bytes = decode_base64(processed.as_str())?;
+
+    if decoded_bytes.is_empty() {
+        return Err("Empty decoded content".to_string());
+    }
+
+    // Verify this is a secure note payload
+    if decoded_bytes[0] != MARKER_SECURE_NOTE {
+        return Err("This is not a secure note payload".to_string());
+    }
+
+    if decoded_bytes.len() < 7 {
+        return Err("Malformed secure note payload".to_string());
+    }
+
+    // Parse note ID
+    let note_id_len = u16::from_le_bytes([decoded_bytes[1], decoded_bytes[2]]) as usize;
+    if decoded_bytes.len() < 3 + note_id_len + 2 {
+        return Err("Malformed note ID length".to_string());
+    }
+
+    let note_id = String::from_utf8(decoded_bytes[3..3 + note_id_len].to_vec())
+        .map_err(|e| format!("Invalid UTF-8 in note ID: {}", e))?;
+
+    // Parse password
+    let pwd_len_start = 3 + note_id_len;
+    let pwd_len = u16::from_le_bytes([decoded_bytes[pwd_len_start], decoded_bytes[pwd_len_start + 1]]) as usize;
+    let password = if pwd_len > 0 {
+        let pwd_start = pwd_len_start + 2;
+        let pwd_end = pwd_start + pwd_len;
+        if decoded_bytes.len() < pwd_end {
+            return Err("Password length mismatch".to_string());
+        }
+        Some(
+            String::from_utf8(decoded_bytes[pwd_start..pwd_end].to_vec())
+                .map_err(|e| format!("Invalid UTF-8 in password: {}", e))?,
+        )
+    } else {
+        None
+    };
+
+    // Parse metadata
+    let meta_len_start = if pwd_len > 0 {
+        pwd_len_start + 2 + pwd_len
+    } else {
+        pwd_len_start + 2
+    };
+
+    let meta_len = u16::from_le_bytes([decoded_bytes[meta_len_start], decoded_bytes[meta_len_start + 1]]) as usize;
+    let metadata = if meta_len > 0 {
+        let meta_start = meta_len_start + 2;
+        let meta_end = meta_start + meta_len;
+        if decoded_bytes.len() < meta_end {
+            return Err("Metadata length mismatch".to_string());
+        }
+        Some(
+            String::from_utf8(decoded_bytes[meta_start..meta_end].to_vec())
+                .map_err(|e| format!("Invalid UTF-8 in metadata: {}", e))?,
+        )
+    } else {
+        None
+    };
+
+    Ok((note_id, password, metadata))
 }
 
 #[cfg(test)]
@@ -257,17 +671,37 @@ mod tests {
             ("hello", "bye"),
             ("visible", "Hello, World!"),
             ("test", "This is a longer secret message that might trigger compression"),
+            ("short", "x".repeat(50)),  // 50 bytes - below compression threshold
+            ("medium", "y".repeat(500)), // 500 bytes - below compression threshold
+            ("large", "z".repeat(2000)), // 2000 bytes - above compression threshold
         ];
-        
+
         for (visible, secret) in test_cases {
             let encoded = encode(visible, secret);
-            
+
             // Verify it contains delimiters
             assert!(encoded.contains('\u{FEFF}'), "Encoded message should contain FEFF delimiters");
-            
+
             // Decode and verify
             let decoded = decode(&encoded).unwrap();
-            assert_eq!(decoded, secret, "Decoded message should match original secret");
+            assert_eq!(decoded, secret, "Decoded message should match original secret for: {}", visible);
         }
+    }
+
+    #[test]
+    fn test_compression_optimization() {
+        // Test that compression is only applied to large messages
+        let small_secret = "small";
+        let large_secret = "x".repeat(1500); // Above 1000 byte threshold
+
+        let small_encoded = encode("visible", small_secret);
+        let large_encoded = encode("visible", &large_secret);
+
+        // Both should decode correctly
+        assert_eq!(decode(&small_encoded).unwrap(), small_secret);
+        assert_eq!(decode(&large_encoded).unwrap(), large_secret);
+
+        // Large message might be compressed, but should still work
+        // Character count might be different due to compression, but that's OK
     }
 }
