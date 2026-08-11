@@ -227,7 +227,7 @@
 						bind:value={visibleMessage}
 						placeholder="e.g., 'Check this out!' or 'You won't believe this...'"
 						disabled={isCreating}
-					/>
+					></textarea>
 				</label>
 			</div>
 

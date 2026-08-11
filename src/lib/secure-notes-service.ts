@@ -3,7 +3,17 @@
  * Complete client-side interaction with encrypted notes
  */
 
-import { initSodium, encryptNote, decryptNote, createNoteConfig, generateExpiryTimestamp, generateRevealerFingerprint, isNoteExpired } from './secure-notes';
+import {
+	generateEncryptionKey,
+	exportKey,
+	importKey,
+	encryptNote,
+	decryptNote,
+	createNoteConfig,
+	generateExpiryTimestamp,
+	generateRevealerFingerprint,
+	isNoteExpired
+} from './secure-notes';
 import { encodeSecureNoteReference, decodeSecureNoteReference, initWasm } from './ghostpost';
 import type { NoteConfig, SecureNote, DecryptedNote } from './types/secure-notes';
 
@@ -21,12 +31,15 @@ export async function createSecureNote(
 	error?: string;
 }> {
 	try {
-		await initSodium();
 		await initWasm();
 
 		// Generate encryption key and encrypt content
-		const key = window.crypto.getRandomValues(new Uint8Array(32));
-		const { encrypted, nonce } = encryptNote(content, key);
+		const key = await generateEncryptionKey();
+		const { encrypted, nonce } = await encryptNote(content, key);
+
+		// Export key for storage
+		const rawKey = await exportKey(key);
+		const keyBase64 = btoa(String.fromCharCode(...rawKey));
 
 		// Create note config
 		const noteConfig = createNoteConfig(config);
@@ -57,7 +70,7 @@ export async function createSecureNote(
 
 		// Store encryption key in sessionStorage (keyed by noteId)
 		// Note: In production, you might want a more secure key management solution
-		sessionStorage.setItem(`note-key-${data.noteId}`, btoa(String.fromCharCode(...key)));
+		sessionStorage.setItem(`note-key-${data.noteId}`, keyBase64);
 
 		return {
 			success: true,
@@ -164,8 +177,6 @@ export async function revealSecureNote(
 	canReveal?: boolean;
 }> {
 	try {
-		await initSodium();
-
 		// Get the fingerprint
 		const fingerprint = generateRevealerFingerprint();
 
@@ -212,12 +223,13 @@ export async function revealSecureNote(
 		}
 
 		const keyArray = Uint8Array.from(atob(keyStr), (c) => c.charCodeAt(0));
+		const key = await importKey(keyArray);
 
 		// Decrypt the content
-		const decryptedContent = decryptNote(
+		const decryptedContent = await decryptNote(
 			data.encrypted_content,
 			data.content_nonce,
-			keyArray
+			key
 		);
 
 		return {
