@@ -4,11 +4,22 @@ use flate2::write::{DeflateEncoder, DeflateDecoder};
 use flate2::Compression;
 use std::io::Write;
 
-// Compression configuration constants
+// Compression & Payload type configuration constants
 // These values must match between Rust encoder and JavaScript decoder
 const COMPRESSION_THRESHOLD_BYTES: usize = 1000;  // Compress only messages >= 1000 bytes (de-compact for smaller content)
-const MARKER_UNCOMPRESSED: u8 = 0x00;             // Prepended to uncompressed data
-const MARKER_COMPRESSED: u8 = 0x01;               // Prepended to compressed data
+
+// Payload type markers - first byte of encoded data
+const MARKER_UNCOMPRESSED: u8 = 0x00;             // Inline uncompressed data
+const MARKER_COMPRESSED: u8 = 0x01;               // Inline compressed data
+const MARKER_REFERENCE: u8 = 0x02;                // Reference to external content (Ghostpost ID, URL, etc)
+const MARKER_HYBRID: u8 = 0x03;                   // Hybrid: partial inline + reference
+const MARKER_METADATA: u8 = 0x04;                 // Metadata only (tags, delivery instructions)
+
+// Reference type markers - second byte when type is MARKER_REFERENCE
+const REF_TYPE_GHOSTPOST: u8 = 0x00;              // Reference to another Ghostpost (by post_id)
+const REF_TYPE_EXTERNAL_URL: u8 = 0x01;           // Reference to external URL
+const REF_TYPE_SUPABASE: u8 = 0x02;               // Reference to Supabase storage
+const REF_TYPE_CROSSLINK: u8 = 0x03;              // Cross-link metadata (tags, category)
 
 lazy_static::lazy_static! {
     static ref BASE64_CHAR_MAP: BiMap<char, &'static str> = {
@@ -270,6 +281,109 @@ pub fn decode(input: &str) -> Result<String, String> {
     // Convert to UTF-8 string with detailed error handling
     String::from_utf8(final_bytes)
         .map_err(|e| format!("Invalid UTF-8 in decoded content: {}", e))
+}
+
+// Reference payload encoding/decoding for content delivery fabric
+pub fn encode_reference(
+    input: &str,
+    reference_type: u8,
+    reference_id: &str,
+    metadata: Option<&str>,
+) -> String {
+    // Build reference payload: [REF_TYPE][REF_ID_LENGTH:2][REF_ID][METADATA_LENGTH:2][METADATA]
+    let mut payload = vec![reference_type];
+
+    // Encode reference ID
+    let ref_id_bytes = reference_id.as_bytes();
+    payload.extend_from_slice(&(ref_id_bytes.len() as u16).to_le_bytes());
+    payload.extend_from_slice(ref_id_bytes);
+
+    // Encode optional metadata
+    if let Some(meta) = metadata {
+        let meta_bytes = meta.as_bytes();
+        payload.extend_from_slice(&(meta_bytes.len() as u16).to_le_bytes());
+        payload.extend_from_slice(meta_bytes);
+    } else {
+        payload.extend_from_slice(&(0u16).to_le_bytes());
+    }
+
+    // Prepend reference marker
+    let mut data_with_marker = vec![MARKER_REFERENCE];
+    data_with_marker.extend_from_slice(&payload);
+
+    let preprocessed = encode_base64(&data_with_marker);
+    let encoded = base64_to_encoded(preprocessed.as_str());
+    wrap(input, &encoded)
+}
+
+pub fn decode_reference(input: &str) -> Result<(String, String, Option<String>), String> {
+    let unwrapped = unwrap(input);
+
+    if unwrapped.len() == input.len() || unwrapped.is_empty() {
+        return Err("No hidden content found in the input text".to_string());
+    }
+
+    let processed = encoded_to_base64(&unwrapped);
+    if processed.is_empty() {
+        return Err("Invalid encoded content - no recognizable pattern found".to_string());
+    }
+
+    let decoded_bytes = decode_base64(processed.as_str())?;
+
+    if decoded_bytes.is_empty() {
+        return Err("Empty decoded content".to_string());
+    }
+
+    // Verify this is a reference payload
+    if decoded_bytes[0] != MARKER_REFERENCE {
+        return Err("This is not a reference payload".to_string());
+    }
+
+    if decoded_bytes.len() < 4 {
+        return Err("Malformed reference payload".to_string());
+    }
+
+    let ref_type = decoded_bytes[1];
+    let ref_id_len = u16::from_le_bytes([decoded_bytes[2], decoded_bytes[3]]) as usize;
+
+    if decoded_bytes.len() < 4 + ref_id_len + 2 {
+        return Err("Reference ID length mismatch".to_string());
+    }
+
+    let ref_id_start = 4;
+    let ref_id_end = ref_id_start + ref_id_len;
+    let reference_id = String::from_utf8(decoded_bytes[ref_id_start..ref_id_end].to_vec())
+        .map_err(|e| format!("Invalid UTF-8 in reference ID: {}", e))?;
+
+    let meta_len_start = ref_id_end;
+    let meta_len = u16::from_le_bytes([
+        decoded_bytes[meta_len_start],
+        decoded_bytes[meta_len_start + 1],
+    ]) as usize;
+
+    let metadata = if meta_len > 0 {
+        let meta_start = meta_len_start + 2;
+        let meta_end = meta_start + meta_len;
+        if decoded_bytes.len() < meta_end {
+            return Err("Metadata length mismatch".to_string());
+        }
+        Some(
+            String::from_utf8(decoded_bytes[meta_start..meta_end].to_vec())
+                .map_err(|e| format!("Invalid UTF-8 in metadata: {}", e))?,
+        )
+    } else {
+        None
+    };
+
+    let type_name = match ref_type {
+        REF_TYPE_GHOSTPOST => "ghostpost",
+        REF_TYPE_EXTERNAL_URL => "external_url",
+        REF_TYPE_SUPABASE => "supabase",
+        REF_TYPE_CROSSLINK => "crosslink",
+        _ => "unknown",
+    };
+
+    Ok((type_name.to_string(), reference_id, metadata))
 }
 
 #[cfg(test)]

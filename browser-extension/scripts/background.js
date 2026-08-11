@@ -6,6 +6,10 @@
 // Store hidden content data per tab
 const tabData = new Map();
 
+// Store prefetched references with TTL
+const prefetchCache = new Map();
+const PREFETCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Handle messages from content scripts and sidebar
  */
@@ -69,7 +73,71 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			});
 		return true; // Keep channel open for async response
 	}
+
+	// Handle reference prefetching
+	if (request.action === 'prefetchReference') {
+		handlePrefetchReference(request.payload, sendResponse);
+		return true; // Keep channel open for async response
+	}
 });
+
+/**
+ * Handle reference prefetching
+ * Attempts to decode and prefetch referenced content
+ */
+async function handlePrefetchReference(encodedText, callback) {
+	try {
+		const cacheKey = `ref:${encodedText.substring(0, 50)}`; // Cache by first 50 chars
+
+		// Check if already cached
+		const cached = prefetchCache.get(cacheKey);
+		if (cached && Date.now() - cached.timestamp < PREFETCH_CACHE_TTL) {
+			callback(cached.data);
+			return;
+		}
+
+		// For now, attempt to decode using message to active tab
+		// In a full implementation, this would use the WASM directly
+		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+			if (tabs[0]) {
+				chrome.tabs.sendMessage(
+					tabs[0].id,
+					{
+						action: 'decodeReference',
+						payload: encodedText
+					},
+					(response) => {
+						if (response && response.success) {
+							// Cache the result
+							prefetchCache.set(cacheKey, {
+								data: response,
+								timestamp: Date.now()
+							});
+							callback(response);
+						} else {
+							callback(null);
+						}
+					}
+				);
+			}
+		});
+	} catch (error) {
+		console.error('Prefetch error:', error);
+		callback(null);
+	}
+}
+
+/**
+ * Periodic cleanup of expired cache entries
+ */
+setInterval(() => {
+	const now = Date.now();
+	for (const [key, value] of prefetchCache.entries()) {
+		if (now - value.timestamp >= PREFETCH_CACHE_TTL) {
+			prefetchCache.delete(key);
+		}
+	}
+}, 60000); // Clean up every minute
 
 /**
  * Update extension badge with count

@@ -2,7 +2,9 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const decode: (a: any) => [number, number, number];
+export const decode_reference: (a: any) => [number, number, number];
 export const encode: (a: any, b: any) => any;
+export const encode_reference: (a: any, b: number, c: any, d: any) => any;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_externrefs: WebAssembly.Table;

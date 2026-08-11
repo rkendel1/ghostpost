@@ -30,9 +30,15 @@
  * const decoded = await decodeMessage(encoded);
  */
 
-import init, { encode, decode } from 'wasm';
+import init, { encode, decode, encode_reference, decode_reference } from 'wasm';
 import { v4 as uuidv4 } from 'uuid';
 import type { EncodingResult } from './types/encoding';
+
+// Reference type constants - must match WASM
+export const REF_TYPE_GHOSTPOST = 0x00;
+export const REF_TYPE_EXTERNAL_URL = 0x01;
+export const REF_TYPE_SUPABASE = 0x02;
+export const REF_TYPE_CROSSLINK = 0x03;
 
 let wasmInitialized = false;
 
@@ -352,4 +358,170 @@ export async function decodeImage(
 	}
 
 	return { imageUrl: decoded };
+}
+
+/**
+ * Encode a reference-based message (points to external content)
+ * @param visibleMessage - The message that will be shown publicly
+ * @param referenceType - Type of reference (REF_TYPE_*)
+ * @param referenceId - ID or URL to the referenced content
+ * @param metadata - Optional metadata (JSON stringified)
+ * @returns Object with encoded message and postId (if analytics enabled)
+ */
+export async function encodeReference(
+	visibleMessage: string,
+	referenceType: number,
+	referenceId: string,
+	metadata?: string
+): Promise<EncodingResult> {
+	await initWasm();
+	const postId = uuidv4();
+	const encoded = encode_reference(
+		visibleMessage,
+		referenceType,
+		referenceId,
+		metadata || ''
+	);
+
+	// Calculate character counts
+	const visibleLength = visibleMessage.length;
+	const totalLength = encoded.length;
+	const hiddenLength = totalLength - visibleLength;
+
+	return { encoded, postId, visibleLength, hiddenLength, totalLength };
+}
+
+/**
+ * Decode a reference-based message
+ * @param encodedMessage - The message containing the reference
+ * @returns Object with reference type, ID, and optional metadata
+ */
+export async function decodeReference(
+	encodedMessage: string
+): Promise<{
+	referenceType: string;
+	referenceId: string;
+	metadata?: string;
+}> {
+	await initWasm();
+	const result = decode_reference(encodedMessage);
+
+	if (!Array.isArray(result) || result.length < 2) {
+		throw new Error('Invalid reference payload');
+	}
+
+	return {
+		referenceType: result[0],
+		referenceId: result[1],
+		metadata: result[2] || undefined
+	};
+}
+
+// Prefetch cache for loaded references
+const referenceCache = new Map<
+	string,
+	{
+		type: string;
+		content: string | Blob;
+		timestamp: number;
+		ttl: number;
+	}
+>();
+
+/**
+ * Prefetch and cache a reference payload
+ * Call this when invisible characters are detected to load content in background
+ * @param referenceId - The ID or URL to fetch
+ * @param referenceType - Type of reference
+ * @returns Cached content or null if fetch fails
+ */
+export async function prefetchReference(
+	referenceId: string,
+	referenceType: string
+): Promise<string | Blob | null> {
+	// Check cache first (5 minute TTL)
+	const cached = referenceCache.get(referenceId);
+	if (cached && Date.now() - cached.timestamp < cached.ttl) {
+		return cached.content;
+	}
+
+	try {
+		let content: string | Blob;
+
+		switch (referenceType) {
+			case 'ghostpost': {
+				// Fetch from Ghostpost API
+				const response = await fetch(
+					`/api/posts/fetch?post_id=${encodeURIComponent(referenceId)}`
+				);
+				if (!response.ok) throw new Error('Failed to fetch Ghostpost');
+				const data = await response.json();
+				content = data.content || '';
+				break;
+			}
+
+			case 'external_url': {
+				// Fetch from external URL (if CORS allows)
+				const response = await fetch(referenceId);
+				if (!response.ok) throw new Error('Failed to fetch external URL');
+				// Try to detect content type
+				const contentType = response.headers.get('content-type');
+				if (contentType?.startsWith('image/')) {
+					content = await response.blob();
+				} else {
+					content = await response.text();
+				}
+				break;
+			}
+
+			case 'supabase': {
+				// Fetch from Supabase storage
+				const response = await fetch(
+					`/api/storage/fetch?path=${encodeURIComponent(referenceId)}`
+				);
+				if (!response.ok) throw new Error('Failed to fetch from Supabase');
+				const data = await response.json();
+				content = data.content || '';
+				break;
+			}
+
+			default:
+				throw new Error(`Unknown reference type: ${referenceType}`);
+		}
+
+		// Cache for 5 minutes
+		referenceCache.set(referenceId, {
+			type: referenceType,
+			content,
+			timestamp: Date.now(),
+			ttl: 5 * 60 * 1000
+		});
+
+		return content;
+	} catch (error) {
+		console.warn(`Failed to prefetch reference ${referenceId}:`, error);
+		return null;
+	}
+}
+
+/**
+ * Resolve a cached reference to its actual content
+ * @param referenceId - The reference ID to resolve
+ * @returns The cached content or null
+ */
+export function resolveReference(
+	referenceId: string
+): string | Blob | null {
+	const cached = referenceCache.get(referenceId);
+	if (cached && Date.now() - cached.timestamp < cached.ttl) {
+		return cached.content;
+	}
+	return null;
+}
+
+/**
+ * Clear all cached references (useful for cleanup)
+ */
+export function clearReferenceCache(): void {
+	referenceCache.clear();
 }

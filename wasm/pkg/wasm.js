@@ -111,11 +111,35 @@ export function decode(input) {
 
 /**
  * @param {string} input
+ * @returns {Array<any>}
+ */
+export function decode_reference(input) {
+    const ret = wasm.decode_reference(input);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {string} input
  * @param {string} secret
  * @returns {string}
  */
 export function encode(input, secret) {
     const ret = wasm.encode(input, secret);
+    return ret;
+}
+
+/**
+ * @param {string} input
+ * @param {number} reference_type
+ * @param {string} reference_id
+ * @param {string} metadata
+ * @returns {string}
+ */
+export function encode_reference(input, reference_type, reference_id, metadata) {
+    const ret = wasm.encode_reference(input, reference_type, reference_id, metadata);
     return ret;
 }
 
@@ -164,6 +188,14 @@ function __wbg_get_imports() {
     };
     imports.wbg.__wbg___wbindgen_throw_dd24417ed36fc46e = function(arg0, arg1) {
         throw new Error(getStringFromWasm0(arg0, arg1));
+    };
+    imports.wbg.__wbg_new_e80b3e2be0de65f5 = function() {
+        const ret = new Array();
+        return ret;
+    };
+    imports.wbg.__wbg_push_f414c3c64486fe78 = function(arg0, arg1) {
+        const ret = arg0.push(arg1);
+        return ret;
     };
     imports.wbg.__wbindgen_cast_2241b6af4c4b2941 = function(arg0, arg1) {
         // Cast intrinsic for `Ref(String) -> Externref`.

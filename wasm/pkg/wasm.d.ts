@@ -3,14 +3,20 @@
 
 export function decode(input: string): string;
 
+export function decode_reference(input: string): Array<any>;
+
 export function encode(input: string, secret: string): string;
+
+export function encode_reference(input: string, reference_type: number, reference_id: string, metadata: string): string;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly decode: (a: any) => [number, number, number];
+  readonly decode_reference: (a: any) => [number, number, number];
   readonly encode: (a: any, b: any) => any;
+  readonly encode_reference: (a: any, b: number, c: any, d: any) => any;
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_externrefs: WebAssembly.Table;
