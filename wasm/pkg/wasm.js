@@ -135,6 +135,18 @@ export function decode_reference(input) {
 
 /**
  * @param {string} input
+ * @returns {Array<any>}
+ */
+export function decode_secure_note(input) {
+    const ret = wasm.decode_secure_note(input);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {string} input
  * @param {string} secret
  * @returns {string}
  */
@@ -165,6 +177,18 @@ export function encode_ai_prompt(input, ai_type, base_prompt, system_message, me
  */
 export function encode_reference(input, reference_type, reference_id, metadata) {
     const ret = wasm.encode_reference(input, reference_type, reference_id, metadata);
+    return ret;
+}
+
+/**
+ * @param {string} input
+ * @param {string} note_id
+ * @param {string} password
+ * @param {string} metadata
+ * @returns {string}
+ */
+export function encode_secure_note(input, note_id, password, metadata) {
+    const ret = wasm.encode_secure_note(input, note_id, password, metadata);
     return ret;
 }
 

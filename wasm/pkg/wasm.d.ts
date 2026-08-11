@@ -7,11 +7,15 @@ export function decode_ai_prompt(input: string): Array<any>;
 
 export function decode_reference(input: string): Array<any>;
 
+export function decode_secure_note(input: string): Array<any>;
+
 export function encode(input: string, secret: string): string;
 
 export function encode_ai_prompt(input: string, ai_type: number, base_prompt: string, system_message: string, metadata: string): string;
 
 export function encode_reference(input: string, reference_type: number, reference_id: string, metadata: string): string;
+
+export function encode_secure_note(input: string, note_id: string, password: string, metadata: string): string;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
@@ -20,9 +24,11 @@ export interface InitOutput {
   readonly decode: (a: any) => [number, number, number];
   readonly decode_ai_prompt: (a: any) => [number, number, number];
   readonly decode_reference: (a: any) => [number, number, number];
+  readonly decode_secure_note: (a: any) => [number, number, number];
   readonly encode: (a: any, b: any) => any;
   readonly encode_ai_prompt: (a: any, b: number, c: any, d: any, e: any) => any;
   readonly encode_reference: (a: any, b: number, c: any, d: any) => any;
+  readonly encode_secure_note: (a: any, b: any, c: any, d: any) => any;
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_externrefs: WebAssembly.Table;

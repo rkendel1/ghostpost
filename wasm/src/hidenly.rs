@@ -33,6 +33,9 @@ const AI_TYPE_POET: u8 = 0x01;                    // Poetry/creative generation
 const AI_TYPE_ANALYST: u8 = 0x02;                 // Analysis/pitch generation
 const AI_TYPE_STORYTELLER: u8 = 0x03;             // Story continuation
 
+// Secure Notes marker
+const MARKER_SECURE_NOTE: u8 = 0x09;              // Encrypted secure note reference
+
 lazy_static::lazy_static! {
     static ref BASE64_CHAR_MAP: BiMap<char, &'static str> = {
         let mut map = BiMap::new();
@@ -530,6 +533,121 @@ pub fn decode_ai_prompt(input: &str) -> Result<(String, String, Option<String>, 
     };
 
     Ok((type_name.to_string(), base_prompt, system_message, metadata))
+}
+
+pub fn encode_secure_note(
+    input: &str,
+    note_id: &str,
+    password: Option<&str>,
+    metadata: Option<&str>,
+) -> String {
+    // Build secure note payload: [NOTE_ID_LENGTH:2][NOTE_ID][PASSWORD_LENGTH:2][PASSWORD][METADATA_LENGTH:2][METADATA]
+    let mut payload = vec![MARKER_SECURE_NOTE];
+
+    // Encode note ID
+    let note_id_bytes = note_id.as_bytes();
+    payload.extend_from_slice(&(note_id_bytes.len() as u16).to_le_bytes());
+    payload.extend_from_slice(note_id_bytes);
+
+    // Encode optional password
+    if let Some(pwd) = password {
+        let pwd_bytes = pwd.as_bytes();
+        payload.extend_from_slice(&(pwd_bytes.len() as u16).to_le_bytes());
+        payload.extend_from_slice(pwd_bytes);
+    } else {
+        payload.extend_from_slice(&(0u16).to_le_bytes());
+    }
+
+    // Encode optional metadata
+    if let Some(meta) = metadata {
+        let meta_bytes = meta.as_bytes();
+        payload.extend_from_slice(&(meta_bytes.len() as u16).to_le_bytes());
+        payload.extend_from_slice(meta_bytes);
+    } else {
+        payload.extend_from_slice(&(0u16).to_le_bytes());
+    }
+
+    let preprocessed = encode_base64(&payload);
+    let encoded = base64_to_encoded(preprocessed.as_str());
+    wrap(input, &encoded)
+}
+
+pub fn decode_secure_note(input: &str) -> Result<(String, Option<String>, Option<String>), String> {
+    let unwrapped = unwrap(input);
+
+    if unwrapped.len() == input.len() || unwrapped.is_empty() {
+        return Err("No hidden content found in the input text".to_string());
+    }
+
+    let processed = encoded_to_base64(&unwrapped);
+    if processed.is_empty() {
+        return Err("Invalid encoded content - no recognizable pattern found".to_string());
+    }
+
+    let decoded_bytes = decode_base64(processed.as_str())?;
+
+    if decoded_bytes.is_empty() {
+        return Err("Empty decoded content".to_string());
+    }
+
+    // Verify this is a secure note payload
+    if decoded_bytes[0] != MARKER_SECURE_NOTE {
+        return Err("This is not a secure note payload".to_string());
+    }
+
+    if decoded_bytes.len() < 7 {
+        return Err("Malformed secure note payload".to_string());
+    }
+
+    // Parse note ID
+    let note_id_len = u16::from_le_bytes([decoded_bytes[1], decoded_bytes[2]]) as usize;
+    if decoded_bytes.len() < 3 + note_id_len + 2 {
+        return Err("Malformed note ID length".to_string());
+    }
+
+    let note_id = String::from_utf8(decoded_bytes[3..3 + note_id_len].to_vec())
+        .map_err(|e| format!("Invalid UTF-8 in note ID: {}", e))?;
+
+    // Parse password
+    let pwd_len_start = 3 + note_id_len;
+    let pwd_len = u16::from_le_bytes([decoded_bytes[pwd_len_start], decoded_bytes[pwd_len_start + 1]]) as usize;
+    let password = if pwd_len > 0 {
+        let pwd_start = pwd_len_start + 2;
+        let pwd_end = pwd_start + pwd_len;
+        if decoded_bytes.len() < pwd_end {
+            return Err("Password length mismatch".to_string());
+        }
+        Some(
+            String::from_utf8(decoded_bytes[pwd_start..pwd_end].to_vec())
+                .map_err(|e| format!("Invalid UTF-8 in password: {}", e))?,
+        )
+    } else {
+        None
+    };
+
+    // Parse metadata
+    let meta_len_start = if pwd_len > 0 {
+        pwd_len_start + 2 + pwd_len
+    } else {
+        pwd_len_start + 2
+    };
+
+    let meta_len = u16::from_le_bytes([decoded_bytes[meta_len_start], decoded_bytes[meta_len_start + 1]]) as usize;
+    let metadata = if meta_len > 0 {
+        let meta_start = meta_len_start + 2;
+        let meta_end = meta_start + meta_len;
+        if decoded_bytes.len() < meta_end {
+            return Err("Metadata length mismatch".to_string());
+        }
+        Some(
+            String::from_utf8(decoded_bytes[meta_start..meta_end].to_vec())
+                .map_err(|e| format!("Invalid UTF-8 in metadata: {}", e))?,
+        )
+    } else {
+        None
+    };
+
+    Ok((note_id, password, metadata))
 }
 
 #[cfg(test)]

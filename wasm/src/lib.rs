@@ -126,3 +126,48 @@ pub fn decode_ai_prompt(input: JsString) -> Result<js_sys::Array, JsValue> {
         Err(JsValue::from_str("Invalid input: not a string"))
     }
 }
+
+#[wasm_bindgen]
+pub fn encode_secure_note(
+    input: JsString,
+    note_id: JsString,
+    password: JsString,
+    metadata: JsString,
+) -> JsString {
+    match (
+        input.as_string(),
+        note_id.as_string(),
+        password.as_string(),
+        metadata.as_string(),
+    ) {
+        (Some(i), Some(nid), Some(pwd), Some(meta)) => {
+            let pwd_opt = if pwd.is_empty() { None } else { Some(pwd.as_str()) };
+            let meta_opt = if meta.is_empty() { None } else { Some(meta.as_str()) };
+            JsString::from(hidenly::encode_secure_note(
+                i.as_str(),
+                nid.as_str(),
+                pwd_opt,
+                meta_opt,
+            ))
+        }
+        _ => input,
+    }
+}
+
+#[wasm_bindgen]
+pub fn decode_secure_note(input: JsString) -> Result<js_sys::Array, JsValue> {
+    if let Some(i) = input.as_string() {
+        match hidenly::decode_secure_note(i.as_str()) {
+            Ok((note_id, password, metadata)) => {
+                let result = js_sys::Array::new();
+                result.push(&JsString::from(note_id));
+                result.push(&JsString::from(password.unwrap_or_default()));
+                result.push(&JsString::from(metadata.unwrap_or_default()));
+                Ok(result)
+            }
+            Err(e) => Err(JsValue::from_str(&e)),
+        }
+    } else {
+        Err(JsValue::from_str("Invalid input: not a string"))
+    }
+}

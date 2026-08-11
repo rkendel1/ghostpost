@@ -30,7 +30,14 @@
  * const decoded = await decodeMessage(encoded);
  */
 
-import init, { encode, decode, encode_reference, decode_reference } from 'wasm';
+import init, {
+	encode,
+	decode,
+	encode_reference,
+	decode_reference,
+	encode_secure_note,
+	decode_secure_note
+} from 'wasm';
 import { v4 as uuidv4 } from 'uuid';
 import type { EncodingResult } from './types/encoding';
 
@@ -524,4 +531,55 @@ export function resolveReference(
  */
 export function clearReferenceCache(): void {
 	referenceCache.clear();
+}
+
+/**
+ * Encode a secure note reference into visible text
+ * @param visibleMessage - The visible text to wrap the secret in
+ * @param noteId - The ID of the secure note to reference
+ * @param password - Optional password for the note
+ * @param metadata - Optional metadata (stringified)
+ * @returns The encoded message with invisible secure note reference
+ */
+export async function encodeSecureNoteReference(
+	visibleMessage: string,
+	noteId: string,
+	password?: string,
+	metadata?: string
+): Promise<string> {
+	await initWasm();
+	return encode_secure_note(
+		visibleMessage,
+		noteId,
+		password || '',
+		metadata || ''
+	);
+}
+
+/**
+ * Decode a secure note reference from text
+ * @param input - The text containing the hidden secure note reference
+ * @returns Object with noteId, password (if present), and metadata (if present)
+ */
+export async function decodeSecureNoteReference(
+	input: string
+): Promise<{
+	noteId: string;
+	password?: string;
+	metadata?: string;
+} | null> {
+	await initWasm();
+
+	try {
+		const result = decode_secure_note(input);
+		const [noteId, password, metadata] = result;
+
+		return {
+			noteId,
+			password: password && password.length > 0 ? password : undefined,
+			metadata: metadata && metadata.length > 0 ? metadata : undefined
+		};
+	} catch {
+		return null;
+	}
 }
