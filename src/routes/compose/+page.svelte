@@ -5,9 +5,11 @@
 	import { authStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
 	import AuthGuard from '$lib/components/AuthGuard.svelte';
+	import SecureNoteComposer from './SecureNoteComposer.svelte';
 
 	// Mode toggle
 	let useAI = false;
+	let composeMode: 'ghostpost' | 'secure-notes' = 'ghostpost';
 
 	// AI mode fields
 	let prompt = '';
@@ -247,27 +249,57 @@
 	<div class="container mx-auto p-4 lg:p-8 max-w-7xl space-y-6">
 		<!-- Header -->
 		<div class="text-center space-y-4">
-			<h1 class="h1">✍️ Compose a GhostPost</h1>
+			<h1 class="h1">✍️ Compose a Secret</h1>
 			<p class="text-lg opacity-75">
-				Create a message with a hidden secret that only special tools can reveal
+				Create hidden messages with configurable expiry and encryption
 			</p>
 		</div>
 
-		<!-- AI Mode Toggle -->
-		<div class="card p-4 lg:p-6 variant-ghost-primary">
-			<div class="flex items-center justify-between flex-wrap gap-4">
-				<div class="flex-1">
-					<h3 class="h3 mb-2">Need help writing your post?</h3>
-					<p class="text-sm opacity-75">
-						Use AI to generate platform-optimized content, or write your own message
-					</p>
-				</div>
-				<label class="flex items-center gap-3">
-					<span class="text-sm font-bold">AI Mode</span>
-					<input type="checkbox" class="toggle" bind:checked={useAI} />
-				</label>
+		<!-- Compose Mode Selector -->
+		<div class="card p-4 lg:p-6 variant-ghost-primary mb-6">
+			<div class="flex flex-wrap gap-4">
+				<button
+					class="btn"
+					class:variant-filled-primary={composeMode === 'ghostpost'}
+					class:variant-ghost={composeMode !== 'ghostpost'}
+					on:click={() => (composeMode = 'ghostpost')}
+				>
+					<span>👻</span>
+					<span>Traditional GhostPost</span>
+				</button>
+				<button
+					class="btn"
+					class:variant-filled-primary={composeMode === 'secure-notes'}
+					class:variant-ghost={composeMode !== 'secure-notes'}
+					on:click={() => (composeMode = 'secure-notes')}
+				>
+					<span>🔐</span>
+					<span>Secure Notes</span>
+				</button>
 			</div>
 		</div>
+
+		{#if composeMode === 'secure-notes'}
+			<!-- Secure Notes Mode -->
+			<SecureNoteComposer />
+		{:else}
+			<!-- Traditional GhostPost Mode -->
+
+			<!-- AI Mode Toggle -->
+			<div class="card p-4 lg:p-6 variant-ghost-primary">
+				<div class="flex items-center justify-between flex-wrap gap-4">
+					<div class="flex-1">
+						<h3 class="h3 mb-2">Need help writing your post?</h3>
+						<p class="text-sm opacity-75">
+							Use AI to generate platform-optimized content, or write your own message
+						</p>
+					</div>
+					<label class="flex items-center gap-3">
+						<span class="text-sm font-bold">AI Mode</span>
+						<input type="checkbox" class="toggle" bind:checked={useAI} />
+					</label>
+				</div>
+			</div>
 
 		<!-- Main Content: Side by Side Layout -->
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -597,6 +629,8 @@
 			<div class="card p-4 variant-ghost-error">
 				<p>❌ {error}</p>
 			</div>
+		{/if}
+
 		{/if}
 
 		<!-- How It Works -->

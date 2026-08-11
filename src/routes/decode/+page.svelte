@@ -7,6 +7,8 @@
 	import confetti from 'canvas-confetti';
 	import type { RevealStatus, RevealResult, LimitedSecret } from '$lib/types/limited-reveals';
 	import { subscribeLimitedSecret } from '$lib/realtime-limited-reveals';
+	import SecureNoteReveal from './SecureNoteReveal.svelte';
+	import { extractSecureNoteFromText } from '$lib/secure-notes-service';
 
 	let encodedInput = '';
 	let decodedSecret = '';
@@ -20,6 +22,11 @@
 	let isCheckingStatus = false;
 	let currentPostId: string | null = null;
 	let realtimeUnsubscribe: (() => void) | null = null;
+
+	// Secure notes state
+	let showSecureNoteReveal = false;
+	let secureNoteText = '';
+	let detectedSecureNote = false;
 
 	// Constants for text size thresholds
 	const MAX_AUTO_DECODE_SIZE = 2000; // ~2KB limit for auto-decode
@@ -122,8 +129,19 @@
 		error = '';
 		showResult = false;
 		revealResult = null;
+		detectedSecureNote = false;
 
 		try {
+			// Check if this is a secure note first
+			const secureNoteCheck = await extractSecureNoteFromText(encodedInput.trim());
+			if (secureNoteCheck.success && secureNoteCheck.noteId) {
+				// This is a secure note, show the reveal component
+				secureNoteText = encodedInput.trim();
+				showSecureNoteReveal = true;
+				detectedSecureNote = true;
+				isDecoding = false;
+				return;
+			}
 			// For large texts, extract only segments with invisible characters
 			const inputText = encodedInput.trim();
 			const segments = extractEncodedSegments(inputText);
@@ -358,7 +376,12 @@
 		</div>
 	</div>
 
-	{#if showResult && decodedSecret}
+	{#if showSecureNoteReveal && secureNoteText}
+		<SecureNoteReveal text={secureNoteText} onClose={() => {
+			showSecureNoteReveal = false;
+			handleClear();
+		}} />
+	{:else if showResult && decodedSecret}
 		<div class="card p-6 space-y-4 variant-ghost-success">
 			<h2 class="h2">✨ Hidden Secret Revealed!</h2>
 

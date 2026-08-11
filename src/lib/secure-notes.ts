@@ -1,54 +1,71 @@
 /**
  * Secure Notes Service
  * End-to-end encrypted notes with configurable expiry and access control
+ * Uses native Web Crypto API for AES-256-GCM encryption
  */
 
 import type { NoteConfig, SecureNote, DecryptedNote, SecureNotePayload } from './types/secure-notes';
 
-// Use libsodium.js for client-side encryption
-// @ts-ignore - dynamic import handling
-import { ready, crypto_secretbox_easy, crypto_secretbox_open_easy, randombytes_buf } from 'libsodium.js';
-
-let sodiumReady = false;
-
-export async function initSodium() {
-	if (!sodiumReady) {
-		await ready;
-		sodiumReady = true;
-	}
-}
-
 /**
- * Generate a random encryption key (32 bytes for secretbox)
+ * Generate a random encryption key (256-bit for AES-256)
  */
-export function generateEncryptionKey(): Uint8Array {
-	return randombytes_buf(32);
+export async function generateEncryptionKey(): Promise<CryptoKey> {
+	return await window.crypto.subtle.generateKey(
+		{ name: 'AES-GCM', length: 256 },
+		true,
+		['encrypt', 'decrypt']
+	);
 }
 
 /**
- * Generate a random nonce (24 bytes for secretbox)
+ * Export CryptoKey to raw bytes for storage
+ */
+export async function exportKey(key: CryptoKey): Promise<Uint8Array> {
+	const rawKey = await window.crypto.subtle.exportKey('raw', key);
+	return new Uint8Array(rawKey);
+}
+
+/**
+ * Import raw bytes back to CryptoKey
+ */
+export async function importKey(rawKey: Uint8Array): Promise<CryptoKey> {
+	return await window.crypto.subtle.importKey(
+		'raw',
+		rawKey,
+		{ name: 'AES-GCM', length: 256 },
+		true,
+		['encrypt', 'decrypt']
+	);
+}
+
+/**
+ * Generate a random nonce (96 bits recommended for GCM)
  */
 export function generateNonce(): Uint8Array {
-	return randombytes_buf(24);
+	return window.crypto.getRandomValues(new Uint8Array(12));
 }
 
 /**
- * Encrypt note content with client-side encryption
+ * Encrypt note content with AES-256-GCM
  * @param content - Plain text content to encrypt
- * @param encryptionKey - Encryption key (32 bytes)
+ * @param encryptionKey - CryptoKey for encryption
  * @returns Object with encrypted content (base64) and nonce (base64)
  */
-export function encryptNote(content: string, encryptionKey: Uint8Array): {
-	encrypted: string;
-	nonce: string;
-} {
+export async function encryptNote(
+	content: string,
+	encryptionKey: CryptoKey
+): Promise<{ encrypted: string; nonce: string }> {
 	const nonce = generateNonce();
 	const message = new TextEncoder().encode(content);
 
-	const ciphertext = crypto_secretbox_easy(message, nonce, encryptionKey);
+	const ciphertext = await window.crypto.subtle.encrypt(
+		{ name: 'AES-GCM', iv: nonce },
+		encryptionKey,
+		message
+	);
 
 	return {
-		encrypted: btoa(String.fromCharCode(...ciphertext)),
+		encrypted: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
 		nonce: btoa(String.fromCharCode(...nonce))
 	};
 }
@@ -57,18 +74,23 @@ export function encryptNote(content: string, encryptionKey: Uint8Array): {
  * Decrypt note content
  * @param encryptedContent - Base64 encrypted content
  * @param nonce - Base64 nonce
- * @param encryptionKey - Encryption key (32 bytes)
+ * @param encryptionKey - CryptoKey for decryption
  * @returns Decrypted plain text content
  */
-export function decryptNote(
+export async function decryptNote(
 	encryptedContent: string,
 	nonce: string,
-	encryptionKey: Uint8Array
-): string {
+	encryptionKey: CryptoKey
+): Promise<string> {
 	const ciphertext = Uint8Array.from(atob(encryptedContent), (c) => c.charCodeAt(0));
 	const nonceBuffer = Uint8Array.from(atob(nonce), (c) => c.charCodeAt(0));
 
-	const message = crypto_secretbox_open_easy(ciphertext, nonceBuffer, encryptionKey);
+	const message = await window.crypto.subtle.decrypt(
+		{ name: 'AES-GCM', iv: nonceBuffer },
+		encryptionKey,
+		ciphertext
+	);
+
 	return new TextDecoder().decode(message);
 }
 

@@ -21,6 +21,7 @@
 	let success = false;
 	let encodedMessage = '';
 	let currentNoteId = '';
+	let copySuccess = false;
 
 	const expiryOptions = [
 		{ value: 'never', label: '⏰ Never Expire' },
@@ -120,6 +121,7 @@
 		currentNoteId = '';
 		error = '';
 		success = false;
+		copySuccess = false;
 		expiryType = 'time-based';
 		expiryMinutes = 24 * 60;
 		requirePassword = false;
@@ -129,10 +131,13 @@
 	async function copyToClipboard(text: string) {
 		try {
 			await navigator.clipboard.writeText(text);
-			// TODO: Show toast notification
-			alert('Copied to clipboard!');
+			copySuccess = true;
+			setTimeout(() => {
+				copySuccess = false;
+			}, 2000);
 		} catch (err) {
 			console.error('Failed to copy:', err);
+			error = 'Failed to copy to clipboard';
 		}
 	}
 </script>
@@ -172,10 +177,14 @@
 
 			<div class="flex gap-2">
 				<button
-					class="btn variant-filled-primary flex-1"
+					class="btn flex-1 {copySuccess ? 'variant-filled-success' : 'variant-filled-primary'}"
 					on:click={() => copyToClipboard(encodedMessage)}
 				>
-					📋 Copy to Clipboard
+					{#if copySuccess}
+						✅ Copied!
+					{:else}
+						📋 Copy to Clipboard
+					{/if}
 				</button>
 				<button
 					class="btn variant-ghost flex-1"
@@ -227,7 +236,7 @@
 						bind:value={visibleMessage}
 						placeholder="e.g., 'Check this out!' or 'You won't believe this...'"
 						disabled={isCreating}
-					/>
+					></textarea>
 				</label>
 			</div>
 
