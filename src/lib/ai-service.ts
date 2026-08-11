@@ -42,6 +42,19 @@ export interface ContentContext {
 	additionalContext?: Record<string, any>;
 }
 
+export interface ReactiveContext {
+	platform: 'twitter' | 'linkedin' | 'facebook' | 'tiktok' | 'generic';
+	timestamp: number;
+	timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night'; // 6-12, 12-17, 17-22, 22-6
+	userRole?: 'creator' | 'business' | 'engineer' | 'designer' | 'manager' | 'student' | 'general';
+	userDevice: 'mobile' | 'tablet' | 'desktop';
+	userLanguage: string; // e.g., 'en-US', 'fr-FR'
+	userLocation?: string; // e.g., 'US-CA', 'GB-EN'
+	referrer: string;
+	userAgent: string;
+	screenSize?: { width: number; height: number };
+}
+
 // In-memory store for conversation state (can be extended with persistence)
 const conversationStore = new Map<string, ConversationState>();
 
@@ -219,6 +232,126 @@ export function detectContext(): ContentContext {
 }
 
 /**
+ * Detect comprehensive reactive context for AI responses
+ * Includes time-of-day, device type, location, etc.
+ */
+export function detectReactiveContext(): ReactiveContext {
+	const now = new Date();
+	const hours = now.getHours();
+
+	// Determine time of day
+	let timeOfDay: ReactiveContext['timeOfDay'] = 'night';
+	if (hours >= 6 && hours < 12) timeOfDay = 'morning';
+	else if (hours >= 12 && hours < 17) timeOfDay = 'afternoon';
+	else if (hours >= 17 && hours < 22) timeOfDay = 'evening';
+
+	// Detect device type
+	const userAgent = navigator.userAgent.toLowerCase();
+	let userDevice: ReactiveContext['userDevice'] = 'desktop';
+	if (/mobile|android|iphone|ipad|tablet/.test(userAgent)) {
+		if (/ipad|tablet/.test(userAgent)) userDevice = 'tablet';
+		else userDevice = 'mobile';
+	}
+
+	// Detect platform
+	const referrer = document.referrer.toLowerCase();
+	let platform: ReactiveContext['platform'] = 'generic';
+	if (referrer.includes('twitter.com') || referrer.includes('x.com')) platform = 'twitter';
+	else if (referrer.includes('linkedin.com')) platform = 'linkedin';
+	else if (referrer.includes('facebook.com')) platform = 'facebook';
+	else if (referrer.includes('tiktok.com')) platform = 'tiktok';
+
+	// Infer user role from context clues
+	let userRole: ReactiveContext['userRole'] = 'general';
+	if (referrer.includes('linkedin.com')) userRole = 'business';
+	if (userAgent.includes('github')) userRole = 'engineer';
+
+	const context: ReactiveContext = {
+		platform,
+		timestamp: now.getTime(),
+		timeOfDay,
+		userRole,
+		userDevice,
+		userLanguage: navigator.language || 'en-US',
+		referrer: document.referrer || 'direct',
+		userAgent: navigator.userAgent,
+		screenSize: {
+			width: window.innerWidth,
+			height: window.innerHeight
+		}
+	};
+
+	// Add location if available (requires permission)
+	if ('geolocation' in navigator) {
+		navigator.geolocation.getCurrentPosition(
+			(position) => {
+				// Convert coordinates to approximate location (rough)
+				const lat = position.coords.latitude;
+				const lng = position.coords.longitude;
+				// In real app, use reverse geocoding service
+				context.userLocation = `${lat.toFixed(2)},${lng.toFixed(2)}`;
+			},
+			() => {
+				// Geolocation denied, skip location
+			}
+		);
+	}
+
+	return context;
+}
+
+/**
+ * Build a system message that's reactive to context
+ * AI will tailor responses based on these instructions
+ */
+export function buildReactiveSystemMessage(
+	baseSystemMessage: string,
+	context: ReactiveContext
+): string {
+	const contextInstructions = `
+## IMPORTANT: Respond based on these context factors:
+
+**Platform:** ${context.platform}
+- Twitter: Keep concise (280 chars), witty, shareable
+- LinkedIn: Professional, business-focused, include actionable insights
+- TikTok: Short, engaging, trend-aware
+- Generic: Balanced, suitable for general audiences
+
+**Time of Day:** ${context.timeOfDay} (${new Date(context.timestamp).toLocaleTimeString()})
+- Morning (6-12): Professional, focused, action-oriented
+- Afternoon (12-17): Energetic, engaging, collaborative
+- Evening (17-22): Casual, reflective, conversational
+- Night (22-6): Brief, considerate of sleep time
+
+**Device:** ${context.userDevice}
+- Mobile: Short paragraphs, bullets, avoid long blocks
+- Tablet: Balanced, scannable format
+- Desktop: Can include detailed, long-form content
+
+**User Role:** ${context.userRole}
+- Engineer: Technical depth, code examples, architecture
+- Business: Strategic perspective, ROI, business impact
+- Creative: Artistic merit, innovation, emotional resonance
+- Manager: Team dynamics, process, metrics
+- Student: Educational, explanatory, learning-focused
+- General: Accessible, balanced, broad appeal
+
+**Language:** ${context.userLanguage}
+- Use appropriate idioms and cultural references
+- Respect regional preferences and spelling
+
+## RESPOND NATURALLY
+Don't explicitly mention these factors. Incorporate them naturally into your response.
+Let your personality adapt to the context while remaining authentic.
+
+## Base Instruction:
+${baseSystemMessage}
+`;
+
+	return contextInstructions;
+}
+
+/**
  * Initialize conversation for a revealed post
  */
 export async function initializeConversation(
@@ -251,12 +384,13 @@ export async function initializeConversation(
 
 /**
  * Send a message in an ongoing conversation
- * Returns AI response
+ * Returns AI response (context-reactive)
  */
 export async function sendMessage(
 	postId: string,
 	userMessage: string,
-	aiProvider?: 'webllm' | 'ollama' | 'local' | 'api'
+	aiProvider?: 'webllm' | 'ollama' | 'local' | 'api',
+	includeReactiveContext = true
 ): Promise<string> {
 	const state = conversationStore.get(postId);
 	if (!state) {
@@ -271,17 +405,34 @@ export async function sendMessage(
 	});
 
 	try {
+		// Detect reactive context if enabled
+		let messages = [...state.messages];
+		if (includeReactiveContext) {
+			const context = detectReactiveContext();
+			const systemMsg = messages.find((m) => m.role === 'system');
+			if (systemMsg) {
+				// Enhance system message with reactive context
+				const enhancedSystem = buildReactiveSystemMessage(
+					systemMsg.content,
+					context
+				);
+				messages = messages.map((m) =>
+					m.role === 'system' ? { ...m, content: enhancedSystem } : m
+				);
+			}
+		}
+
 		// Call AI provider to get response
 		let response: string;
 
 		if (aiProvider === 'webllm' || !aiProvider) {
-			response = await callWebLLM(state, userMessage);
+			response = await callWebLLM({ ...state, messages }, userMessage);
 		} else if (aiProvider === 'ollama') {
-			response = await callOllama(state, userMessage);
+			response = await callOllama({ ...state, messages }, userMessage);
 		} else if (aiProvider === 'api') {
-			response = await callAPIEndpoint(state, userMessage);
+			response = await callAPIEndpoint({ ...state, messages }, userMessage);
 		} else {
-			response = await callWebLLM(state, userMessage);
+			response = await callWebLLM({ ...state, messages }, userMessage);
 		}
 
 		// Add assistant response to history
