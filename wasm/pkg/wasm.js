@@ -113,6 +113,18 @@ export function decode(input) {
  * @param {string} input
  * @returns {Array<any>}
  */
+export function decode_ai_prompt(input) {
+    const ret = wasm.decode_ai_prompt(input);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {string} input
+ * @returns {Array<any>}
+ */
 export function decode_reference(input) {
     const ret = wasm.decode_reference(input);
     if (ret[2]) {
@@ -128,6 +140,19 @@ export function decode_reference(input) {
  */
 export function encode(input, secret) {
     const ret = wasm.encode(input, secret);
+    return ret;
+}
+
+/**
+ * @param {string} input
+ * @param {number} ai_type
+ * @param {string} base_prompt
+ * @param {string} system_message
+ * @param {string} metadata
+ * @returns {string}
+ */
+export function encode_ai_prompt(input, ai_type, base_prompt, system_message, metadata) {
+    const ret = wasm.encode_ai_prompt(input, ai_type, base_prompt, system_message, metadata);
     return ret;
 }
 

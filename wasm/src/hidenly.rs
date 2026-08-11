@@ -21,6 +21,18 @@ const REF_TYPE_EXTERNAL_URL: u8 = 0x01;           // Reference to external URL
 const REF_TYPE_SUPABASE: u8 = 0x02;               // Reference to Supabase storage
 const REF_TYPE_CROSSLINK: u8 = 0x03;              // Cross-link metadata (tags, category)
 
+// AI/Conversational payload type markers (0x05-0x08)
+const MARKER_AI_PROMPT: u8 = 0x05;                // AI-generated content (single prompt)
+const MARKER_CONVERSATION: u8 = 0x06;             // Multi-turn conversation state
+const MARKER_ADAPTIVE: u8 = 0x07;                 // Adaptive content (context-aware)
+const MARKER_STORY_FRAGMENT: u8 = 0x08;           // Story fragment with continuation prompts
+
+// AI content type markers
+const AI_TYPE_CHATBOT: u8 = 0x00;                 // Conversational AI (multi-turn)
+const AI_TYPE_POET: u8 = 0x01;                    // Poetry/creative generation
+const AI_TYPE_ANALYST: u8 = 0x02;                 // Analysis/pitch generation
+const AI_TYPE_STORYTELLER: u8 = 0x03;             // Story continuation
+
 lazy_static::lazy_static! {
     static ref BASE64_CHAR_MAP: BiMap<char, &'static str> = {
         let mut map = BiMap::new();
@@ -384,6 +396,140 @@ pub fn decode_reference(input: &str) -> Result<(String, String, Option<String>),
     };
 
     Ok((type_name.to_string(), reference_id, metadata))
+}
+
+// AI-powered payload encoding/decoding for conversational & adaptive content
+pub fn encode_ai_prompt(
+    input: &str,
+    ai_type: u8,
+    base_prompt: &str,
+    system_message: Option<&str>,
+    metadata: Option<&str>,
+) -> String {
+    // Build AI prompt payload:
+    // [AI_TYPE][BASE_PROMPT_LEN:2][BASE_PROMPT][SYSTEM_MSG_LEN:2][SYSTEM_MSG][METADATA_LEN:2][METADATA]
+    let mut payload = vec![ai_type];
+
+    // Encode base prompt
+    let prompt_bytes = base_prompt.as_bytes();
+    payload.extend_from_slice(&(prompt_bytes.len() as u16).to_le_bytes());
+    payload.extend_from_slice(prompt_bytes);
+
+    // Encode optional system message
+    if let Some(sys_msg) = system_message {
+        let sys_bytes = sys_msg.as_bytes();
+        payload.extend_from_slice(&(sys_bytes.len() as u16).to_le_bytes());
+        payload.extend_from_slice(sys_bytes);
+    } else {
+        payload.extend_from_slice(&(0u16).to_le_bytes());
+    }
+
+    // Encode optional metadata
+    if let Some(meta) = metadata {
+        let meta_bytes = meta.as_bytes();
+        payload.extend_from_slice(&(meta_bytes.len() as u16).to_le_bytes());
+        payload.extend_from_slice(meta_bytes);
+    } else {
+        payload.extend_from_slice(&(0u16).to_le_bytes());
+    }
+
+    // Prepend AI prompt marker
+    let mut data_with_marker = vec![MARKER_AI_PROMPT];
+    data_with_marker.extend_from_slice(&payload);
+
+    let preprocessed = encode_base64(&data_with_marker);
+    let encoded = base64_to_encoded(preprocessed.as_str());
+    wrap(input, &encoded)
+}
+
+pub fn decode_ai_prompt(input: &str) -> Result<(String, String, Option<String>, Option<String>), String> {
+    let unwrapped = unwrap(input);
+
+    if unwrapped.len() == input.len() || unwrapped.is_empty() {
+        return Err("No hidden content found in the input text".to_string());
+    }
+
+    let processed = encoded_to_base64(&unwrapped);
+    if processed.is_empty() {
+        return Err("Invalid encoded content - no recognizable pattern found".to_string());
+    }
+
+    let decoded_bytes = decode_base64(processed.as_str())?;
+
+    if decoded_bytes.is_empty() {
+        return Err("Empty decoded content".to_string());
+    }
+
+    // Verify this is an AI prompt payload
+    if decoded_bytes[0] != MARKER_AI_PROMPT {
+        return Err("This is not an AI prompt payload".to_string());
+    }
+
+    if decoded_bytes.len() < 3 {
+        return Err("Malformed AI prompt payload".to_string());
+    }
+
+    let ai_type = decoded_bytes[1];
+    let prompt_len = u16::from_le_bytes([decoded_bytes[2], decoded_bytes[3]]) as usize;
+
+    if decoded_bytes.len() < 4 + prompt_len + 2 {
+        return Err("Prompt length mismatch".to_string());
+    }
+
+    let prompt_start = 4;
+    let prompt_end = prompt_start + prompt_len;
+    let base_prompt = String::from_utf8(decoded_bytes[prompt_start..prompt_end].to_vec())
+        .map_err(|e| format!("Invalid UTF-8 in prompt: {}", e))?;
+
+    let sys_msg_len_start = prompt_end;
+    let sys_msg_len =
+        u16::from_le_bytes([decoded_bytes[sys_msg_len_start], decoded_bytes[sys_msg_len_start + 1]]) as usize;
+
+    let system_message = if sys_msg_len > 0 {
+        let sys_start = sys_msg_len_start + 2;
+        let sys_end = sys_start + sys_msg_len;
+        if decoded_bytes.len() < sys_end + 2 {
+            return Err("System message length mismatch".to_string());
+        }
+        Some(
+            String::from_utf8(decoded_bytes[sys_start..sys_end].to_vec())
+                .map_err(|e| format!("Invalid UTF-8 in system message: {}", e))?,
+        )
+    } else {
+        None
+    };
+
+    let meta_len_start = if sys_msg_len > 0 {
+        sys_msg_len_start + 2 + sys_msg_len
+    } else {
+        sys_msg_len_start + 2
+    };
+
+    let meta_len = u16::from_le_bytes([decoded_bytes[meta_len_start], decoded_bytes[meta_len_start + 1]]) as usize;
+
+    let metadata = if meta_len > 0 {
+        let meta_start = meta_len_start + 2;
+        let meta_end = meta_start + meta_len;
+        if decoded_bytes.len() < meta_end {
+            return Err("Metadata length mismatch".to_string());
+        }
+        Some(
+            String::from_utf8(decoded_bytes[meta_start..meta_end].to_vec())
+                .map_err(|e| format!("Invalid UTF-8 in metadata: {}", e))?,
+        )
+    } else {
+        None
+    };
+
+    let type_name = match ai_type {
+        AI_TYPE_CHATBOT => "chatbot",
+        AI_TYPE_POET => "poet",
+        AI_TYPE_ANALYST => "analyst",
+        AI_TYPE_STORYTELLER => "storyteller",
+        _ => "unknown",
+    };
+
+    Ok((type_name.to_string(), base_prompt, system_message, metadata))
 }
 
 #[cfg(test)]
