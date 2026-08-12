@@ -1,21 +1,9 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createClient } from '@supabase/supabase-js';
-import { createHash } from 'node:crypto';
 import { PUBLIC_SUPABASE_ANON_KEY, PUBLIC_SUPABASE_URL } from '$env/static/public';
 
 const SHORT_CODE_PATTERN = /^[0-9A-Za-z]{1,20}$/;
-
-function shortUrlFingerprint(): string | null {
-	if (process.env.SHORT_URL_FINGERPRINT) return process.env.SHORT_URL_FINGERPRINT;
-	const serverSecret =
-		process.env.SUPABASE_SECRET_KEY ||
-		process.env.SUPABASE_SERVICE_ROLE_KEY ||
-		process.env.PRIVATE_SUPABASE_SERVICE_ROLE_KEY;
-	return serverSecret
-		? createHash('sha256').update(`ghostpost-short-url-owner:v1:${serverSecret}`).digest('hex')
-		: null;
-}
 
 /** Create an opaque short code for a hosted Ghostpost. The shortener ownership
  * fingerprint never reaches the browser. */
@@ -36,7 +24,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ success: false, error: 'Valid postId required' }, { status: 400 });
 	}
 
-	const fingerprint = shortUrlFingerprint();
+	const fingerprint = process.env.SHORT_URL_FINGERPRINT?.trim();
 	if (!fingerprint) {
 		return json({ success: false, error: 'Short URL service is not configured' }, { status: 503 });
 	}
