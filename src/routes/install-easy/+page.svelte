@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	let step = $state(1);
+	let step = $state(2);
 	let tampermonkeyInstalled = $state(false);
 	let userscriptInstalled = $state(false);
 	let browserType = $state<'chrome' | 'firefox' | 'safari' | 'edge' | 'other'>('other');
@@ -41,17 +41,33 @@
 	}
 
 	function installUserscript() {
-		window.location.href = '/ghostpost-reveal.user.js';
-		step = 3;
-		setTimeout(() => {
-			userscriptInstalled = true;
-		}, 2000);
+		const scriptUrl = `${window.location.origin}/ghostpost-reveal.user.js`;
+		window.location.href = `https://www.tampermonkey.net/script_installation.php#url=${scriptUrl}`;
 	}
 
 	// Note: openExtensionSettings removed as we now provide inline instructions in Step 3
 
 	onMount(() => {
 		detectBrowser();
+
+		// Browser extension inventories are private. The installed Ghostpost userscript
+		// provides a reliable signal by injecting its overlay button on this page.
+		const detectInstalledOverlay = () => {
+			if (document.getElementById('ghostpost-reveal-button')) {
+				tampermonkeyInstalled = true;
+				userscriptInstalled = true;
+				step = 4;
+				return true;
+			}
+			return false;
+		};
+
+		if (detectInstalledOverlay()) return;
+		const detectionTimer = window.setInterval(() => {
+			if (detectInstalledOverlay()) window.clearInterval(detectionTimer);
+		}, 500);
+
+		return () => window.clearInterval(detectionTimer);
 	});
 </script>
 
@@ -213,6 +229,23 @@
 					<span class="text-2xl">🚀</span>
 					<span class="text-xl">Install Ghostpost Overlay</span>
 				</button>
+
+				{#if browserType === 'chrome' || browserType === 'edge'}
+					<div class="card p-4 variant-ghost-warning text-sm">
+						<p class="font-semibold mb-2">Required by current Chrome/Edge versions</p>
+						<ol class="list-decimal list-inside space-y-1 text-xs">
+							<li>Right-click the Tampermonkey icon and choose “Manage extension.”</li>
+							<li>Turn on “Allow User Scripts.”</li>
+							<li>If that switch is unavailable, enable Developer Mode on the extensions page.</li>
+						</ol>
+						<a
+							href="https://www.tampermonkey.net/faq.php?q=Q209"
+							target="_blank"
+							rel="noreferrer"
+							class="anchor text-xs inline-block mt-2">Tampermonkey’s official instructions</a
+						>
+					</div>
+				{/if}
 
 				<div class="card p-4 variant-ghost-warning text-sm">
 					<p class="font-semibold mb-2">⚡ Auto-Configuration Included:</p>
