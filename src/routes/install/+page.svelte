@@ -9,7 +9,7 @@
 		if (isIOS) {
 			window.location.href = '/install/iphone';
 		} else {
-			window.location.href = '/install-easy';
+			window.location.href = '/install-wizard';
 		}
 	});
 </script>
@@ -24,7 +24,7 @@
 	<p>Detecting your device and redirecting to the best installation guide...</p>
 	<p class="text-sm opacity-70">
 		If you are not redirected automatically:
-		<a href="/install-easy" class="anchor">Desktop Install</a> |
+		<a href="/install-wizard" class="anchor">Desktop Install</a> |
 		<a href="/install/iphone" class="anchor">iPhone Install</a>
 	</p>
 </div>

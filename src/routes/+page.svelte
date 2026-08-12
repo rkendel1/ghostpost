@@ -34,7 +34,7 @@
 		// Detect iOS and set appropriate install URL
 		const ua = navigator.userAgent.toLowerCase();
 		const isIOS = /iphone|ipad|ipod/.test(ua);
-		installUrl = isIOS ? '/install/iphone' : '/install-easy';
+		installUrl = isIOS ? '/install/iphone' : '/install-wizard';
 	});
 
 	function loadRevealScript() {

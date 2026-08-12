@@ -23,8 +23,12 @@
 	}
 
 	function installExtension() {
-		// Guide users to load unpacked extension
-		// In production, this would link to Chrome Web Store / Firefox Add-ons
+		const download = document.createElement('a');
+		download.href = '/ghostpost-reveal-extension.zip';
+		download.download = 'ghostpost-reveal-extension.zip';
+		document.body.appendChild(download);
+		download.click();
+		download.remove();
 		installMethod = 'extension';
 	}
 
@@ -82,7 +86,7 @@
 						</li>
 						<li class="flex items-start gap-2">
 							<span class="text-success-500">✓</span>
-							<span><strong>One-click install</strong> - Ready in seconds</span>
+							<span><strong>One-click download</strong> - Get the packaged extension immediately</span>
 						</li>
 						<li class="flex items-start gap-2">
 							<span class="text-success-500">✓</span>
@@ -180,7 +184,7 @@
 							<li class="font-bold">Download the extension package:</li>
 							<div class="ml-6 mt-2">
 								<a
-									href="https://github.com/rkendel1/ghostpost/archive/refs/heads/main.zip"
+									href="/ghostpost-reveal-extension.zip"
 									class="btn variant-filled-primary"
 									download
 								>
@@ -188,7 +192,7 @@
 									<span>Download Extension</span>
 								</a>
 								<p class="text-xs mt-2 opacity-70">
-									Extract and navigate to the `browser-extension` folder
+									Extract the ZIP and select the extracted folder
 								</p>
 							</div>
 
@@ -208,7 +212,7 @@
 							<li class="font-bold">Click "Load unpacked" button</li>
 
 							<li class="font-bold">
-								Select the `browser-extension` folder from the extracted files
+								Select the extracted `ghostpost-reveal-extension` folder
 							</li>
 
 							<li class="font-bold">The 👻 button will now appear on every website!</li>
@@ -236,7 +240,7 @@
 							<li class="font-bold">Download the extension:</li>
 							<div class="ml-6 mt-2">
 								<a
-									href="https://github.com/rkendel1/ghostpost/archive/refs/heads/main.zip"
+									href="/ghostpost-reveal-extension.zip"
 									class="btn variant-filled-primary"
 									download
 								>
@@ -244,7 +248,7 @@
 									<span>Download Extension</span>
 								</a>
 								<p class="text-xs mt-2 opacity-70">
-									Extract and navigate to the `browser-extension` folder
+									Extract the ZIP and open the extracted folder
 								</p>
 							</div>
 

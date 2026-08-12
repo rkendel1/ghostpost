@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.5.3
+// @version      2.6.0
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -1067,7 +1067,7 @@
 		 * Decode a hidden message from encoded text (client-side implementation)
 		 * Now supports DEFLATE compression to match WASM encoder
 		 */
-		function decodeHiddenMessage(encodedText) {
+		async function decodeHiddenMessage(encodedText) {
 			try {
 				// Step 1: Extract content between delimiters (FEFF characters)
 				const parts = encodedText.split(ENCODING_CONSTANTS.CONTENT_DELIMITER);
@@ -1117,10 +1117,32 @@
 				// - Legacy messages (no marker) are handled by trying decompression with fallback
 				const MARKER_UNCOMPRESSED = 0x00; // Must match Rust: MARKER_UNCOMPRESSED
 				const MARKER_COMPRESSED = 0x01; // Must match Rust: MARKER_COMPRESSED
+				const MARKER_REFERENCE = 0x02; // Hosted Ghostpost reference
 
 				let finalBytes;
 				if (decodedBytes.length === 0) {
 					throw new Error('Empty decoded content');
+				} else if (decodedBytes[0] === MARKER_REFERENCE) {
+					// [marker][reference type][ID length: u16 LE][ID][metadata length: u16 LE]
+					if (decodedBytes.length < 6 || decodedBytes[1] !== 0x00) {
+						throw new Error('Unsupported or malformed hosted reference');
+					}
+					const referenceIdLength = decodedBytes[2] | (decodedBytes[3] << 8);
+					const referenceIdEnd = 4 + referenceIdLength;
+					if (decodedBytes.length < referenceIdEnd + 2) {
+						throw new Error('Hosted reference ID is incomplete');
+					}
+					const referenceId = new TextDecoder('utf-8', { fatal: true }).decode(
+						decodedBytes.slice(4, referenceIdEnd)
+					);
+					const response = await fetch(
+						`https://ghostpost-six.vercel.app/api/posts/reveal?post_id=${encodeURIComponent(referenceId)}`
+					);
+					const hosted = await response.json();
+					if (!response.ok || !hosted.success) {
+						throw new Error(hosted.error || 'Failed to load hosted secret');
+					}
+					return { message: hosted.message, postId: referenceId };
 				} else if (decodedBytes[0] === MARKER_UNCOMPRESSED) {
 					// Explicitly marked as uncompressed - skip decompression
 					finalBytes = decodedBytes.slice(1);
@@ -1463,7 +1485,7 @@
 					// Try Ghostpost format first (with FEFF delimiters)
 					if (encodedText.indexOf('\uFEFF') !== -1) {
 						if (DEBUG_MODE) console.log('[Ghostpost] Using Ghostpost format decoder');
-						const result = decodeHiddenMessage(encodedText);
+						const result = await decodeHiddenMessage(encodedText);
 						decodedMessage = result.message;
 						postId = result.postId;
 					} else {

@@ -15,7 +15,14 @@ fi
 
 # Ensure WASM is built
 echo "📦 Building WASM module..."
-npm run build:wasm
+if command -v wasm-pack >/dev/null 2>&1; then
+  npm run build:wasm
+elif [ -f "wasm/pkg/wasm.js" ] && [ -f "wasm/pkg/wasm_bg.wasm" ]; then
+  echo "⚠️  wasm-pack is unavailable; using the current checked-in WASM package."
+else
+  echo "Error: wasm-pack is unavailable and no built WASM package exists."
+  exit 1
+fi
 
 # Copy WASM files to extension
 echo "📋 Copying WASM files to extension..."
@@ -28,9 +35,10 @@ mkdir -p dist/extension
 
 # Copy extension files to dist for packaging
 echo "📄 Preparing extension files..."
-rsync -av --exclude='test-*.html' --exclude='.DS_Store' browser-extension/ dist/extension/
+rsync -av --delete --exclude='test-*.html' --exclude='.DS_Store' browser-extension/ dist/extension/
 
 # Create zip file for Chrome/Edge distribution
+rm -f dist/ghostpost-reveal-extension.zip
 cd dist/extension
 zip -r ../ghostpost-reveal-extension.zip . \
   -x "*.DS_Store" \
@@ -40,6 +48,13 @@ cd ../..
 # Copy the zip to static folder for web distribution
 echo "📦 Copying distribution package to static folder..."
 cp dist/ghostpost-reveal-extension.zip static/
+
+# Verify that both one-click download artifacts are present and current.
+echo "🔎 Verifying install artifacts..."
+grep -q '^// @name[[:space:]]\+Ghostpost Reveal' static/ghostpost-reveal.user.js
+grep -q '^// @version[[:space:]]\+2.6.0' static/ghostpost-reveal.user.js
+unzip -p static/ghostpost-reveal-extension.zip manifest.json | grep -q '"version": "2.1.0"'
+unzip -p static/ghostpost-reveal-extension.zip sidebar/panel.js | grep -q 'decode_reference'
 
 echo "✅ Build complete!"
 echo "📦 Extension packages created:"

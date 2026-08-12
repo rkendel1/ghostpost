@@ -4,8 +4,11 @@
  */
 
 // Import WASM module
-import init, { decode, encode } from '../wasm/wasm.js';
-import { v4 as uuidv4 } from 'https://cdn.skypack.dev/uuid@9.0.1';
+import init, { decode, decode_reference, encode } from '../wasm/wasm.js';
+
+function uuidv4() {
+	return crypto.randomUUID();
+}
 
 let wasmInitialized = false;
 
@@ -196,6 +199,30 @@ async function encodeImage(visibleMessage, imageFile, enableAnalytics = true) {
 async function decodeMessage(encodedText) {
 	await initWasm();
 	try {
+		try {
+			const [referenceType, referenceId] = decode_reference(encodedText);
+			if (referenceType !== 'ghostpost') {
+				throw new Error(`Unsupported hosted reference: ${referenceType}`);
+			}
+			const response = await fetch(
+				`${API_BASE_URL}/api/posts/reveal?post_id=${encodeURIComponent(referenceId)}`
+			);
+			const hosted = await response.json();
+			if (!response.ok || !hosted.success) {
+				throw new Error(hosted.error || 'Failed to load hosted secret');
+			}
+			return { message: hosted.message, postId: referenceId };
+		} catch (referenceError) {
+			if (
+				referenceError instanceof Error &&
+				(referenceError.message.startsWith('Unsupported hosted') ||
+					referenceError.message.startsWith('Failed to load') ||
+					referenceError.message.startsWith('Hosted secret'))
+			) {
+				throw referenceError;
+			}
+		}
+
 		const decoded = decode(encodedText);
 
 		// Check if there's a post ID in the decoded message

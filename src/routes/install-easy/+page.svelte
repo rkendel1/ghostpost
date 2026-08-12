@@ -27,7 +27,7 @@
 		let url = '';
 		if (browserType === 'chrome' || browserType === 'edge') {
 			url =
-				'https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo';
+				'https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo';
 		} else if (browserType === 'firefox') {
 			url = 'https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/';
 		} else if (browserType === 'safari') {
