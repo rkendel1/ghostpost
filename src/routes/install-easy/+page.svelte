@@ -83,7 +83,7 @@
 	<!-- Hero Section -->
 	<div class="card p-10 space-y-4 text-center variant-gradient-primary-secondary">
 		<div class="text-7xl mb-4">👻</div>
-		<h1 class="h1 text-white">Ghostpost Reveal Userscript</h1>
+	<h1 class="h1 text-white">Ghostpost Reveal Overlay</h1>
 		<p class="text-xl text-white/90 max-w-2xl mx-auto">
 			Install in 2 easy steps. No configuration needed. Works everywhere.
 		</p>
@@ -110,7 +110,7 @@
 			>
 				{step >= 3 ? '✓' : '2'}
 			</div>
-			<span class="text-sm font-semibold">Install Userscript</span>
+			<span class="text-sm font-semibold">Install Overlay</span>
 		</div>
 		<div class="text-2xl opacity-30">→</div>
 		<div class="flex items-center gap-2">
@@ -190,7 +190,7 @@
 	{#if step === 2}
 		<div class="card p-8 space-y-6">
 			<div class="text-center">
-				<h2 class="h2 mb-4">Step 2: Install Ghostpost Reveal</h2>
+				<h2 class="h2 mb-4">Step 2: Install the Ghostpost Overlay</h2>
 				<p class="text-lg mb-6">
 					Click the button below to install the userscript. Tampermonkey will prompt you.
 				</p>
@@ -211,7 +211,7 @@
 
 				<button class="btn variant-filled-success w-full btn-xl" on:click={installUserscript}>
 					<span class="text-2xl">🚀</span>
-					<span class="text-xl">Install Ghostpost Reveal</span>
+					<span class="text-xl">Install Ghostpost Overlay</span>
 				</button>
 
 				<div class="card p-4 variant-ghost-warning text-sm">
@@ -220,7 +220,7 @@
 						<li>Auto-updates enabled (script stays current automatically)</li>
 						<li>Runs on all websites (except banking/login pages for security)</li>
 						<li>Optimized performance settings</li>
-						<li>Privacy-focused (all processing happens locally)</li>
+						<li>Privacy-focused (inline messages process locally; hosted secrets load from Ghostpost)</li>
 					</ul>
 				</div>
 			</div>
