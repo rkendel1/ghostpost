@@ -9,7 +9,7 @@ const headers = {
 export const GET: RequestHandler = async () =>
 	json(
 		{
-			version: '2.6.1',
+			version: '2.6.2',
 			installUrl:
 				'https://www.tampermonkey.net/script_installation.php#url=https://ghostpost-six.vercel.app/ghostpost-reveal.user.js',
 			releasedAt: '2026-08-12T00:00:00.000Z'

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.6.1
+// @version      2.6.2
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -205,7 +205,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.6.1';
+	const SCRIPT_VERSION = '2.6.2';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 	const TRACKING_API_BASE = 'https://ghostpost-six.vercel.app/api/tracking';
 	const VERSION_API_URL = 'https://ghostpost-six.vercel.app/api/overlay/version';
@@ -1160,31 +1160,44 @@
 				const MARKER_COMPRESSED = 0x01; // Must match Rust: MARKER_COMPRESSED
 				const MARKER_REFERENCE = 0x02; // Hosted Ghostpost reference
 
+				async function resolveHostedReference(bytes) {
+					// Accept the canonical marker at byte 0 and a reference nested inside an
+					// uncompressed envelope. The latter protects against older/double-wrapped posts.
+					const candidateOffsets = bytes[0] === MARKER_UNCOMPRESSED ? [1, 0] : [0, 1];
+					for (const offset of candidateOffsets) {
+						if (bytes[offset] !== MARKER_REFERENCE || bytes[offset + 1] !== 0x00) continue;
+						if (bytes.length < offset + 6) continue;
+						const referenceIdLength = bytes[offset + 2] | (bytes[offset + 3] << 8);
+						const referenceIdStart = offset + 4;
+						const referenceIdEnd = referenceIdStart + referenceIdLength;
+						if (bytes.length < referenceIdEnd + 2) continue;
+						const referenceId = new TextDecoder('utf-8', { fatal: true }).decode(
+							bytes.slice(referenceIdStart, referenceIdEnd)
+						);
+						if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(referenceId)) {
+							continue;
+						}
+						const response = await fetch(
+							`https://ghostpost-six.vercel.app/api/posts/reveal?post_id=${encodeURIComponent(referenceId)}`
+						);
+						const hosted = await response.json();
+						if (!response.ok || !hosted.success) {
+							throw new Error(hosted.error || 'Failed to load hosted secret');
+						}
+						return { message: hosted.message, postId: referenceId };
+					}
+					return null;
+				}
+
 				let finalBytes;
 				if (decodedBytes.length === 0) {
 					throw new Error('Empty decoded content');
-				} else if (decodedBytes[0] === MARKER_REFERENCE) {
-					// [marker][reference type][ID length: u16 LE][ID][metadata length: u16 LE]
-					if (decodedBytes.length < 6 || decodedBytes[1] !== 0x00) {
-						throw new Error('Unsupported or malformed hosted reference');
-					}
-					const referenceIdLength = decodedBytes[2] | (decodedBytes[3] << 8);
-					const referenceIdEnd = 4 + referenceIdLength;
-					if (decodedBytes.length < referenceIdEnd + 2) {
-						throw new Error('Hosted reference ID is incomplete');
-					}
-					const referenceId = new TextDecoder('utf-8', { fatal: true }).decode(
-						decodedBytes.slice(4, referenceIdEnd)
-					);
-					const response = await fetch(
-						`https://ghostpost-six.vercel.app/api/posts/reveal?post_id=${encodeURIComponent(referenceId)}`
-					);
-					const hosted = await response.json();
-					if (!response.ok || !hosted.success) {
-						throw new Error(hosted.error || 'Failed to load hosted secret');
-					}
-					return { message: hosted.message, postId: referenceId };
-				} else if (decodedBytes[0] === MARKER_UNCOMPRESSED) {
+				}
+
+				const hostedReference = await resolveHostedReference(decodedBytes);
+				if (hostedReference) return hostedReference;
+
+				if (decodedBytes[0] === MARKER_UNCOMPRESSED) {
 					// Explicitly marked as uncompressed - skip decompression
 					finalBytes = decodedBytes.slice(1);
 					if (DEBUG_MODE) {

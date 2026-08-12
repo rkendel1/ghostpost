@@ -157,25 +157,13 @@
 						throw new Error('Sign in to store a hosted secret');
 					}
 					const hostedPostId = uuidv4();
-					if (platform === 'reddit') {
-						const revealUrl = `${window.location.origin}/decode?post_id=${encodeURIComponent(hostedPostId)}`;
-						const encoded = `${visibleMessage}\n\nReveal the hidden message: ${revealUrl}`;
-						result = {
-							encoded,
-							postId: hostedPostId,
-							visibleLength: visibleMessage.length,
-							hiddenLength: encoded.length - visibleMessage.length,
-							totalLength: encoded.length
-						};
-					} else {
-						result = await encodeReference(
-							visibleMessage,
-							REF_TYPE_GHOSTPOST,
-							hostedPostId,
-							undefined,
-							hostedPostId
-						);
-					}
+					result = await encodeReference(
+						visibleMessage,
+						REF_TYPE_GHOSTPOST,
+						hostedPostId,
+						undefined,
+						hostedPostId
+					);
 					deliveryUsed = 'hosted';
 				} else {
 					result = inlineResult;
@@ -520,10 +508,10 @@
 								</select>
 							</label>
 							<p class="text-xs opacity-75">
-								{#if deliveryMode === 'auto'}
-									{#if platform === 'reddit'}
-										Reddit receives normal text and a reveal link, with no invisible payload for its
-										filters to reject.
+							{#if deliveryMode === 'auto'}
+								{#if platform === 'reddit'}
+									Reddit receives the visible post with only an opaque hidden pointer. No Ghostpost
+									link or reveal instructions are shown.
 									{:else}
 										Ghostpost embeds the secret when it fits {platformLimit.label}; otherwise it
 										stores the encrypted text and hides a small pointer in the post.
