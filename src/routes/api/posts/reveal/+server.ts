@@ -24,9 +24,14 @@ export const GET: RequestHandler = async ({ url }) => {
 		);
 	}
 
-	const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+	const serviceKey =
+		process.env.SUPABASE_SECRET_KEY ||
+		process.env.SUPABASE_SERVICE_ROLE_KEY ||
+		process.env.PRIVATE_SUPABASE_SERVICE_ROLE_KEY;
 	if (!serviceKey) {
-		console.error('Hosted reveal requires SUPABASE_SERVICE_ROLE_KEY');
+		console.error(
+			'Hosted reveal requires SUPABASE_SECRET_KEY, SUPABASE_SERVICE_ROLE_KEY, or PRIVATE_SUPABASE_SERVICE_ROLE_KEY'
+		);
 		return json(
 			{ success: false, error: 'Hosted reveals are not configured' },
 			{ status: 503, headers: corsHeaders }
