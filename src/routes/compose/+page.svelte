@@ -157,10 +157,31 @@
 						throw new Error('Sign in to store a hosted secret');
 					}
 					const hostedPostId = uuidv4();
+					let referenceId = hostedPostId;
+					try {
+						const shortResponse = await fetch('/api/short-urls/create', {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+								...(session?.access_token
+									? { Authorization: `Bearer ${session.access_token}` }
+									: {})
+							},
+							credentials: 'include',
+							body: JSON.stringify({ postId: hostedPostId })
+						});
+						const shortData = await shortResponse.json();
+						if (!shortResponse.ok || !shortData.success) {
+							throw new Error(shortData.error || 'Short URL creation failed');
+						}
+						referenceId = shortData.shortCode;
+					} catch (shortError) {
+						console.warn('Using full hosted pointer because shortening failed:', shortError);
+					}
 					result = await encodeReference(
 						visibleMessage,
 						REF_TYPE_GHOSTPOST,
-						hostedPostId,
+						referenceId,
 						undefined,
 						hostedPostId
 					);

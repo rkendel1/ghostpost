@@ -16,12 +16,40 @@ export const OPTIONS: RequestHandler = async () =>
 /** Resolve the opaque ID embedded in a hosted Ghostpost. Possession of the ID is
  * the access mechanism, just as possession of an inline encoded post is. */
 export const GET: RequestHandler = async ({ url }) => {
-	const postId = url.searchParams.get('post_id');
+	let postId = url.searchParams.get('post_id');
 	if (!postId) {
 		return json(
 			{ success: false, error: 'post_id required' },
 			{ status: 400, headers: corsHeaders }
 		);
+	}
+
+	// New hosted pointers contain only a 0-2.ca short code. Resolve metadata
+	// without following the redirect, then accept only our own reveal endpoint.
+	if (/^[0-9A-Za-z]{1,20}$/.test(postId)) {
+		try {
+			const shortBase = (process.env.SHORT_URL_BASE_URL || 'https://0-2.ca').replace(/\/$/, '');
+			const response = await fetch(`${shortBase}/api/links/${encodeURIComponent(postId)}`, {
+				signal: AbortSignal.timeout(8_000)
+			});
+			const link = await response.json();
+			if (!response.ok || typeof link.url !== 'string') throw new Error('Short code not found');
+			const destination = new URL(link.url);
+			const allowedOrigin = new URL(
+				process.env.GHOSTPOST_PUBLIC_URL || 'https://ghostpost-six.vercel.app'
+			).origin;
+			const resolvedId = destination.searchParams.get('post_id');
+			if (
+				destination.origin !== allowedOrigin ||
+				destination.pathname !== '/api/posts/reveal' ||
+				!resolvedId ||
+				!/^[0-9a-f-]{36}$/i.test(resolvedId)
+			) throw new Error('Short code is not a Ghostpost pointer');
+			postId = resolvedId;
+		} catch (error) {
+			console.error('Hosted pointer resolution failed:', error);
+			return json({ success: false, error: 'Hosted pointer not found' }, { status: 404, headers: corsHeaders });
+		}
 	}
 
 	const serviceKey =

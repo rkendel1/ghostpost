@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.6.2
+// @version      2.7.0
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -205,7 +205,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.6.2';
+	const SCRIPT_VERSION = '2.7.0';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 	const TRACKING_API_BASE = 'https://ghostpost-six.vercel.app/api/tracking';
 	const VERSION_API_URL = 'https://ghostpost-six.vercel.app/api/overlay/version';
@@ -1174,7 +1174,7 @@
 						const referenceId = new TextDecoder('utf-8', { fatal: true }).decode(
 							bytes.slice(referenceIdStart, referenceIdEnd)
 						);
-						if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(referenceId)) {
+						if (!(/^[0-9A-Za-z]{1,20}$/.test(referenceId) || /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(referenceId))) {
 							continue;
 						}
 						const response = await fetch(
