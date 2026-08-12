@@ -205,10 +205,51 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.5.0';
+	const SCRIPT_VERSION = '2.6.0';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 	const TRACKING_API_BASE = 'https://ghostpost-six.vercel.app/api/tracking';
+	const VERSION_API_URL = 'https://ghostpost-six.vercel.app/api/overlay/version';
+	const INSTALL_URL =
+		'https://www.tampermonkey.net/script_installation.php#url=https://ghostpost-six.vercel.app/ghostpost-reveal.user.js';
 	const HEARTBEAT_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+	function compareVersions(left, right) {
+		const a = left.split('.').map(Number);
+		const b = right.split('.').map(Number);
+		for (let i = 0; i < Math.max(a.length, b.length); i++) {
+			const difference = (a[i] || 0) - (b[i] || 0);
+			if (difference !== 0) return difference;
+		}
+		return 0;
+	}
+
+	function showUpdateNotice(latestVersion) {
+		if (document.getElementById('ghostpost-update-notice')) return;
+		const notice = document.createElement('a');
+		notice.id = 'ghostpost-update-notice';
+		notice.href = INSTALL_URL;
+		notice.textContent = `Ghostpost v${latestVersion} is available — update now`;
+		notice.style.cssText = `
+			position: fixed; right: 20px; bottom: 90px; z-index: 1000001;
+			background: #f59e0b; color: #111827; padding: 10px 14px; border-radius: 8px;
+			box-shadow: 0 4px 14px rgba(0,0,0,.3); font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+			text-decoration: none; max-width: 260px;
+		`;
+		document.body.appendChild(notice);
+	}
+
+	async function checkForUpdates() {
+		try {
+			const response = await fetch(VERSION_API_URL, { cache: 'no-store' });
+			if (!response.ok) return;
+			const release = await response.json();
+			if (release.version && compareVersions(SCRIPT_VERSION, release.version) < 0) {
+				showUpdateNotice(release.version);
+			}
+		} catch (error) {
+			if (DEBUG_MODE) console.warn('[Ghostpost] Update check failed:', error);
+		}
+	}
 
 	// Tracking functions
 	function generateInstallFingerprint() {
@@ -2061,8 +2102,9 @@
 		button.onclick = revealMessages;
 
 		// Add button to page (with safety check)
-		if (document.body) {
-			document.body.appendChild(button);
+			if (document.body) {
+				document.body.appendChild(button);
+				checkForUpdates();
 		} else {
 			console.error('[Ghostpost] Cannot add button: document.body not available');
 			return;

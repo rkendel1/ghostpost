@@ -4,6 +4,8 @@
 	let step = $state(2);
 	let tampermonkeyInstalled = $state(false);
 	let userscriptInstalled = $state(false);
+	let installedOverlayVersion = $state<string | null>(null);
+	const currentOverlayVersion = '2.6.0';
 	let browserType = $state<'chrome' | 'firefox' | 'safari' | 'edge' | 'other'>('other');
 	let verificationComplete = $state(false);
 
@@ -53,10 +55,12 @@
 		// Browser extension inventories are private. The installed Ghostpost userscript
 		// provides a reliable signal by injecting its overlay button on this page.
 		const detectInstalledOverlay = () => {
-			if (document.getElementById('ghostpost-reveal-button')) {
+			const overlayButton = document.getElementById('ghostpost-reveal-button');
+			if (overlayButton) {
+				installedOverlayVersion = overlayButton.dataset.version || 'unknown';
 				tampermonkeyInstalled = true;
-				userscriptInstalled = true;
-				step = 4;
+				userscriptInstalled = installedOverlayVersion === currentOverlayVersion;
+				step = userscriptInstalled ? 4 : 2;
 				return true;
 			}
 			return false;
@@ -203,8 +207,17 @@
 	{/if}
 
 	<!-- Step 2: Install Userscript -->
-	{#if step === 2}
-		<div class="card p-8 space-y-6">
+		{#if step === 2}
+			<div class="card p-8 space-y-6">
+				{#if installedOverlayVersion && installedOverlayVersion !== currentOverlayVersion}
+					<div class="card p-4 variant-ghost-warning">
+						<p class="font-semibold">Overlay update required</p>
+						<p class="text-sm mt-1">
+							You have v{installedOverlayVersion}; v{currentOverlayVersion} fixes hosted-message
+							decoding and corrupted characters. Reinstall below to update.
+						</p>
+					</div>
+				{/if}
 			<div class="text-center">
 				<h2 class="h2 mb-4">Step 2: Install the Ghostpost Overlay</h2>
 				<p class="text-lg mb-6">
