@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createServerClient } from '@supabase/ssr';
 import { encryptSecret, deriveUserKey, getMasterSecret } from '$lib/encryption';
+import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 /**
  * POST /api/posts/save
@@ -14,8 +15,8 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 
 		// Create server Supabase client
 		const supabaseServer = createServerClient(
-			process.env.SUPABASE_URL!,
-			process.env.SUPABASE_ANON_KEY!,
+			PUBLIC_SUPABASE_URL,
+			PUBLIC_SUPABASE_ANON_KEY,
 			{
 				cookies: {
 					get(name) {

@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { clipboard } from '@skeletonlabs/skeleton';
-	import { decodeMessage, initWasm } from '$lib/ghostpost';
+	import { decodeMessage, decodeReference, initWasm } from '$lib/ghostpost';
 	// import AuthGuard from '$lib/components/AuthGuard.svelte'; // Removed to allow public access
 	import confetti from 'canvas-confetti';
 	import type { RevealStatus, RevealResult, LimitedSecret } from '$lib/types/limited-reveals';
@@ -153,7 +153,29 @@
 					? segments.join('\n')
 					: inputText;
 
-			const result = await decodeMessage(textToDecode);
+			let result: { message: string; postId?: string };
+			let reference: Awaited<ReturnType<typeof decodeReference>> | null = null;
+			try {
+				reference = await decodeReference(textToDecode);
+			} catch {
+				// Normal inline Ghostposts are not reference payloads.
+			}
+
+			if (reference) {
+				if (reference.referenceType !== 'ghostpost') {
+					throw new Error(`Unsupported hosted reference: ${reference.referenceType}`);
+				}
+				const response = await fetch(
+					`/api/posts/reveal?post_id=${encodeURIComponent(reference.referenceId)}`
+				);
+				const hosted = await response.json();
+				if (!response.ok || !hosted.success) {
+					throw new Error(hosted.error || 'Failed to load hosted secret');
+				}
+				result = { message: hosted.message, postId: reference.referenceId };
+			} else {
+				result = await decodeMessage(textToDecode);
+			}
 
 			if (!result.message || result.message.trim() === '') {
 				error = 'No hidden message found in the text';
@@ -377,10 +399,13 @@
 	</div>
 
 	{#if showSecureNoteReveal && secureNoteText}
-		<SecureNoteReveal text={secureNoteText} onClose={() => {
-			showSecureNoteReveal = false;
-			handleClear();
-		}} />
+		<SecureNoteReveal
+			text={secureNoteText}
+			onClose={() => {
+				showSecureNoteReveal = false;
+				handleClear();
+			}}
+		/>
 	{:else if showResult && decodedSecret}
 		<div class="card p-6 space-y-4 variant-ghost-success">
 			<h2 class="h2">✨ Hidden Secret Revealed!</h2>

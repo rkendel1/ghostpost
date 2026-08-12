@@ -379,16 +379,11 @@ export async function encodeReference(
 	visibleMessage: string,
 	referenceType: number,
 	referenceId: string,
-	metadata?: string
+	metadata?: string,
+	postId: string = referenceId
 ): Promise<EncodingResult> {
 	await initWasm();
-	const postId = uuidv4();
-	const encoded = encode_reference(
-		visibleMessage,
-		referenceType,
-		referenceId,
-		metadata || ''
-	);
+	const encoded = encode_reference(visibleMessage, referenceType, referenceId, metadata || '');
 
 	// Calculate character counts
 	const visibleLength = visibleMessage.length;
@@ -403,9 +398,7 @@ export async function encodeReference(
  * @param encodedMessage - The message containing the reference
  * @returns Object with reference type, ID, and optional metadata
  */
-export async function decodeReference(
-	encodedMessage: string
-): Promise<{
+export async function decodeReference(encodedMessage: string): Promise<{
 	referenceType: string;
 	referenceId: string;
 	metadata?: string;
@@ -458,9 +451,7 @@ export async function prefetchReference(
 		switch (referenceType) {
 			case 'ghostpost': {
 				// Fetch from Ghostpost API
-				const response = await fetch(
-					`/api/posts/fetch?post_id=${encodeURIComponent(referenceId)}`
-				);
+				const response = await fetch(`/api/posts/fetch?post_id=${encodeURIComponent(referenceId)}`);
 				if (!response.ok) throw new Error('Failed to fetch Ghostpost');
 				const data = await response.json();
 				content = data.content || '';
@@ -483,9 +474,7 @@ export async function prefetchReference(
 
 			case 'supabase': {
 				// Fetch from Supabase storage
-				const response = await fetch(
-					`/api/storage/fetch?path=${encodeURIComponent(referenceId)}`
-				);
+				const response = await fetch(`/api/storage/fetch?path=${encodeURIComponent(referenceId)}`);
 				if (!response.ok) throw new Error('Failed to fetch from Supabase');
 				const data = await response.json();
 				content = data.content || '';
@@ -516,9 +505,7 @@ export async function prefetchReference(
  * @param referenceId - The reference ID to resolve
  * @returns The cached content or null
  */
-export function resolveReference(
-	referenceId: string
-): string | Blob | null {
+export function resolveReference(referenceId: string): string | Blob | null {
 	const cached = referenceCache.get(referenceId);
 	if (cached && Date.now() - cached.timestamp < cached.ttl) {
 		return cached.content;
@@ -548,12 +535,7 @@ export async function encodeSecureNoteReference(
 	metadata?: string
 ): Promise<string> {
 	await initWasm();
-	return encode_secure_note(
-		visibleMessage,
-		noteId,
-		password || '',
-		metadata || ''
-	);
+	return encode_secure_note(visibleMessage, noteId, password || '', metadata || '');
 }
 
 /**
@@ -561,9 +543,7 @@ export async function encodeSecureNoteReference(
  * @param input - The text containing the hidden secure note reference
  * @returns Object with noteId, password (if present), and metadata (if present)
  */
-export async function decodeSecureNoteReference(
-	input: string
-): Promise<{
+export async function decodeSecureNoteReference(input: string): Promise<{
 	noteId: string;
 	password?: string;
 	metadata?: string;

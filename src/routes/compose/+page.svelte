@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { clipboard } from '@skeletonlabs/skeleton';
-	import { encodeMessage, encodeImage, initWasm } from '$lib/ghostpost';
+	import {
+		encodeMessage,
+		encodeImage,
+		encodeReference,
+		initWasm,
+		REF_TYPE_GHOSTPOST
+	} from '$lib/ghostpost';
+	import { v4 as uuidv4 } from 'uuid';
+	import { getPlatformLimit, type SocialPlatform } from '$lib/platform-limits';
 	import { authStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
 	import AuthGuard from '$lib/components/AuthGuard.svelte';
@@ -13,7 +21,9 @@
 
 	// AI mode fields
 	let prompt = '';
-	let platform: 'twitter' | 'linkedin' | 'facebook' | 'tiktok' = 'twitter';
+	let platform: SocialPlatform = 'twitter';
+	let deliveryMode: 'auto' | 'inline' | 'hosted' = 'auto';
+	let deliveryUsed: 'inline' | 'hosted' | null = null;
 
 	// Common fields
 	let visibleMessage = '';
@@ -35,6 +45,7 @@
 	let isGenerating = false;
 	let isEncoding = false;
 	let error = '';
+	$: platformLimit = getPlatformLimit(platform);
 
 	// Computed properties
 	$: isEncodeDisabled =
@@ -126,10 +137,42 @@
 
 		try {
 			let result;
+			let inlineResult;
 			if (secretType === 'image') {
+				if (deliveryMode === 'hosted') {
+					throw new Error('Hosted delivery currently supports text secrets only');
+				}
 				result = await encodeImage(visibleMessage, secretImage!);
+				deliveryUsed = 'inline';
 			} else {
-				result = await encodeMessage(visibleMessage, secretMessage);
+				inlineResult = await encodeMessage(visibleMessage, secretMessage);
+				const shouldHost =
+					deliveryMode === 'hosted' ||
+					(deliveryMode === 'auto' && inlineResult.totalLength > platformLimit.maxCharacters);
+
+				if (shouldHost) {
+					if (!user) {
+						throw new Error('Sign in to store a hosted secret');
+					}
+					const hostedPostId = uuidv4();
+					result = await encodeReference(
+						visibleMessage,
+						REF_TYPE_GHOSTPOST,
+						hostedPostId,
+						undefined,
+						hostedPostId
+					);
+					deliveryUsed = 'hosted';
+				} else {
+					result = inlineResult;
+					deliveryUsed = 'inline';
+				}
+			}
+
+			if (deliveryUsed === 'hosted' && result.totalLength > platformLimit.maxCharacters) {
+				throw new Error(
+					`The visible message plus the hidden pointer is ${result.totalLength} characters, over ${platformLimit.label}'s ${platformLimit.maxCharacters}-character limit. Shorten the visible message.`
+				);
 			}
 			encodedMessage = result.encoded;
 			currentPostId = result.postId || '';
@@ -208,6 +251,14 @@
 					}
 				} catch (dbError) {
 					console.error('Failed to save to database:', dbError);
+					if (deliveryUsed === 'hosted') {
+						encodedMessage = '';
+						throw new Error(
+							dbError instanceof Error
+								? `Could not store the hosted secret: ${dbError.message}`
+								: 'Could not store the hosted secret'
+						);
+					}
 					error =
 						'Post encoded successfully, but failed to save to your account. You can still use the encoded message.';
 				}
@@ -215,7 +266,7 @@
 
 			error = '';
 		} catch (err) {
-			error = 'Failed to encode message';
+			error = err instanceof Error ? err.message : 'Failed to encode message';
 			console.error(err);
 		} finally {
 			isEncoding = false;
@@ -235,6 +286,7 @@
 		encodedMessage = '';
 		currentPostId = '';
 		characterStats = { visibleLength: 0, hiddenLength: 0, totalLength: 0 };
+		deliveryUsed = null;
 		error = '';
 		enableLimitedReveals = false;
 		maxReveals = null;
@@ -301,336 +353,385 @@
 				</div>
 			</div>
 
-		<!-- Main Content: Side by Side Layout -->
-		<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-			<!-- Left Panel: Message Composition -->
-			<div class="space-y-6">
-				<!-- Step 1: Create/Generate Visible Message -->
-				<div class="card p-4 lg:p-6 space-y-4">
-					<div class="flex items-center gap-2 mb-2">
-						<span class="badge variant-filled-primary">Step 1</span>
-						<h2 class="h2 text-xl">Create Your Visible Message</h2>
+			<!-- Main Content: Side by Side Layout -->
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				<!-- Left Panel: Message Composition -->
+				<div class="space-y-6">
+					<!-- Step 1: Create/Generate Visible Message -->
+					<div class="card p-4 lg:p-6 space-y-4">
+						<div class="flex items-center gap-2 mb-2">
+							<span class="badge variant-filled-primary">Step 1</span>
+							<h2 class="h2 text-xl">Create Your Visible Message</h2>
+						</div>
+
+						<label class="label">
+							<span>Posting to</span>
+							<select class="select" bind:value={platform}>
+								<option value="twitter"
+									>Twitter/X — {getPlatformLimit('twitter').maxCharacters}</option
+								>
+								<option value="linkedin"
+									>LinkedIn — {getPlatformLimit('linkedin').maxCharacters}</option
+								>
+								<option value="facebook"
+									>Facebook — {getPlatformLimit('facebook').maxCharacters}</option
+								>
+								<option value="tiktok">TikTok — {getPlatformLimit('tiktok').maxCharacters}</option>
+							</select>
+							<p class="text-xs opacity-75 mt-1">
+								Ghostpost uses this limit to choose a delivery method. Platform rules can change.
+							</p>
+						</label>
+
+						{#if useAI}
+							<!-- AI Generation Mode -->
+							<div class="space-y-4">
+								<label class="label">
+									<span>What do you want to post about?</span>
+									<textarea
+										class="textarea"
+										rows="3"
+										bind:value={prompt}
+										placeholder="e.g., Share my excitement about learning AI and machine learning..."
+									></textarea>
+								</label>
+
+								<div class="flex gap-4 flex-wrap">
+									<button
+										class="btn variant-filled-primary"
+										on:click={generateContent}
+										disabled={isGenerating || !prompt.trim()}
+									>
+										{#if isGenerating}
+											<span>⏳ Generating...</span>
+										{:else}
+											<span>✨ Generate with AI</span>
+										{/if}
+									</button>
+									<button class="btn variant-ghost-surface text-sm" on:click={skipToManual}>
+										Skip AI - Write Manually
+									</button>
+								</div>
+							</div>
+						{:else}
+							<!-- Manual Mode -->
+							<div class="space-y-4">
+								<label class="label">
+									<span>Write your visible message</span>
+									<textarea
+										class="textarea"
+										rows="5"
+										bind:value={visibleMessage}
+										placeholder="Enter the message everyone will see..."
+									></textarea>
+								</label>
+							</div>
+						{/if}
 					</div>
 
-					{#if useAI}
-						<!-- AI Generation Mode -->
-						<div class="space-y-4">
+					<!-- Step 2: Add Secret Message -->
+					<div class="card p-4 lg:p-6 space-y-4">
+						<div class="flex items-center gap-2 mb-2">
+							<span class="badge variant-filled-secondary">Step 2</span>
+							<h2 class="h2 text-xl">Add Your Secret</h2>
+						</div>
+
+						<label class="label">
+							<span>Secret Type</span>
+							<select class="select" bind:value={secretType}>
+								<option value="text">Text Message</option>
+								<option value="image">Image File</option>
+							</select>
+						</label>
+
+						{#if secretType === 'text'}
 							<label class="label">
-								<span>Platform</span>
-								<select class="select" bind:value={platform}>
-									<option value="twitter">Twitter/X</option>
-									<option value="linkedin">LinkedIn</option>
-									<option value="facebook">Facebook</option>
-									<option value="tiktok">TikTok</option>
+								<span>Secret Message (hidden in the post)</span>
+								<textarea
+									class="textarea"
+									rows="4"
+									bind:value={secretMessage}
+									placeholder="Enter your secret message here..."
+								></textarea>
+							</label>
+						{:else}
+							<label class="label">
+								<span>Secret Image</span>
+								<p class="text-sm opacity-75 mb-2">
+									⚠️ Images will be automatically compressed to ~25KB and resized to fit under
+									40,000 character platform limits. Very large or complex images may take longer to
+									compress.
+								</p>
+								<input
+									type="file"
+									accept="image/*"
+									class="file-input"
+									on:change={handleSecretFile}
+								/>
+								{#if imagePreview}
+									<div class="mt-2">
+										<img
+											src={imagePreview}
+											alt="Preview"
+											class="max-w-xs max-h-48 object-contain rounded"
+										/>
+										{#if secretImage}
+											<p class="text-xs opacity-75 mt-1">
+												Size: {(secretImage.size / 1024).toFixed(1)} KB
+												{#if secretImage.size > 25 * 1024}
+													<span class="text-warning-500"
+														>(will be compressed to ~25KB for encoding)</span
+													>
+												{/if}
+											</p>
+										{/if}
+									</div>
+								{/if}
+							</label>
+						{/if}
+
+						<div class="space-y-2">
+							<label class="label">
+								<span>Hidden content delivery</span>
+								<select class="select" bind:value={deliveryMode}>
+									<option value="auto">Auto — fit the selected platform</option>
+									<option value="inline">Inline — keep everything inside the post</option>
+									<option value="hosted" disabled={secretType === 'image'}>
+										Hosted — store long text in Ghostpost
+									</option>
 								</select>
 							</label>
-
-							<label class="label">
-								<span>What do you want to post about?</span>
-								<textarea
-									class="textarea"
-									rows="3"
-									bind:value={prompt}
-									placeholder="e.g., Share my excitement about learning AI and machine learning..."
-								></textarea>
-							</label>
-
-							<div class="flex gap-4 flex-wrap">
-								<button
-									class="btn variant-filled-primary"
-									on:click={generateContent}
-									disabled={isGenerating || !prompt.trim()}
-								>
-									{#if isGenerating}
-										<span>⏳ Generating...</span>
-									{:else}
-										<span>✨ Generate with AI</span>
-									{/if}
-								</button>
-								<button class="btn variant-ghost-surface text-sm" on:click={skipToManual}>
-									Skip AI - Write Manually
-								</button>
-							</div>
-						</div>
-					{:else}
-						<!-- Manual Mode -->
-						<div class="space-y-4">
-							<label class="label">
-								<span>Write your visible message</span>
-								<textarea
-									class="textarea"
-									rows="5"
-									bind:value={visibleMessage}
-									placeholder="Enter the message everyone will see..."
-								></textarea>
-							</label>
-						</div>
-					{/if}
-				</div>
-
-				<!-- Step 2: Add Secret Message -->
-				<div class="card p-4 lg:p-6 space-y-4">
-					<div class="flex items-center gap-2 mb-2">
-						<span class="badge variant-filled-secondary">Step 2</span>
-						<h2 class="h2 text-xl">Add Your Secret</h2>
-					</div>
-
-					<label class="label">
-						<span>Secret Type</span>
-						<select class="select" bind:value={secretType}>
-							<option value="text">Text Message</option>
-							<option value="image">Image File</option>
-						</select>
-					</label>
-
-					{#if secretType === 'text'}
-						<label class="label">
-							<span>Secret Message (hidden in the post)</span>
-							<textarea
-								class="textarea"
-								rows="4"
-								bind:value={secretMessage}
-								placeholder="Enter your secret message here..."
-							></textarea>
-						</label>
-					{:else}
-						<label class="label">
-							<span>Secret Image</span>
-							<p class="text-sm opacity-75 mb-2">
-								⚠️ Images will be automatically compressed to ~25KB and resized to fit under 40,000
-								character platform limits. Very large or complex images may take longer to compress.
+							<p class="text-xs opacity-75">
+								{#if deliveryMode === 'auto'}
+									Ghostpost embeds the secret when it fits {platformLimit.label}; otherwise it
+									stores the encrypted text and hides a small pointer in the post.
+								{:else if deliveryMode === 'inline'}
+									Works without fetching from Ghostpost, but invisible characters count toward
+									platform limits.
+								{:else}
+									Best for long text. Revealing requires Ghostpost to be online.
+								{/if}
 							</p>
-							<input type="file" accept="image/*" class="file-input" on:change={handleSecretFile} />
-							{#if imagePreview}
-								<div class="mt-2">
-									<img
-										src={imagePreview}
-										alt="Preview"
-										class="max-w-xs max-h-48 object-contain rounded"
+						</div>
+
+						<!-- Limited Reveals Feature -->
+						<div class="card p-4 variant-ghost-tertiary space-y-3">
+							<div class="flex items-center justify-between">
+								<div>
+									<h3 class="font-bold text-sm">🔥 Limited Edition Secret (FOMO Mode)</h3>
+									<p class="text-xs opacity-75 mt-1">
+										Set a reveal cap to create extreme scarcity — like NFT drops but for secrets!
+									</p>
+								</div>
+								<label class="flex items-center gap-2">
+									<input type="checkbox" class="checkbox" bind:checked={enableLimitedReveals} />
+									<span class="text-xs">Enable</span>
+								</label>
+							</div>
+
+							{#if enableLimitedReveals}
+								<label class="label">
+									<span class="text-sm"
+										>Max Reveals (e.g., 100 = only 100 people can ever see this)</span
+									>
+									<input
+										type="number"
+										class="input"
+										min="1"
+										max="10000"
+										bind:value={maxReveals}
+										placeholder="Enter number (e.g., 100)"
 									/>
-									{#if secretImage}
+									{#if maxReveals && maxReveals > 0}
 										<p class="text-xs opacity-75 mt-1">
-											Size: {(secretImage.size / 1024).toFixed(1)} KB
-											{#if secretImage.size > 25 * 1024}
-												<span class="text-warning-500"
-													>(will be compressed to ~25KB for encoding)</span
-												>
-											{/if}
+											⚠️ Once {maxReveals}
+											{maxReveals === 1 ? 'person reveals' : 'people reveal'} this secret, it will be
+											permanently unreadable for everyone else!
 										</p>
 									{/if}
+								</label>
+
+								<div class="card p-3 variant-ghost-warning">
+									<p class="text-xs">
+										<strong>💎 What happens:</strong><br />
+										• Real-time counter shows "You are reveal #X of {maxReveals || 'Y'}"<br />
+										• Pulsing red warning when &lt;20% remaining<br />
+										• Confetti celebration for last few reveals<br />
+										• Message becomes "SOLD OUT FOREVER" when limit reached
+									</p>
 								</div>
 							{/if}
-						</label>
-					{/if}
-
-					<!-- Limited Reveals Feature -->
-					<div class="card p-4 variant-ghost-tertiary space-y-3">
-						<div class="flex items-center justify-between">
-							<div>
-								<h3 class="font-bold text-sm">🔥 Limited Edition Secret (FOMO Mode)</h3>
-								<p class="text-xs opacity-75 mt-1">
-									Set a reveal cap to create extreme scarcity — like NFT drops but for secrets!
-								</p>
-							</div>
-							<label class="flex items-center gap-2">
-								<input type="checkbox" class="checkbox" bind:checked={enableLimitedReveals} />
-								<span class="text-xs">Enable</span>
-							</label>
 						</div>
 
-						{#if enableLimitedReveals}
-							<label class="label">
-								<span class="text-sm"
-									>Max Reveals (e.g., 100 = only 100 people can ever see this)</span
-								>
-								<input
-									type="number"
-									class="input"
-									min="1"
-									max="10000"
-									bind:value={maxReveals}
-									placeholder="Enter number (e.g., 100)"
-								/>
-								{#if maxReveals && maxReveals > 0}
+						<button
+							class="btn variant-filled-primary w-full"
+							on:click={handleEncode}
+							disabled={isEncodeDisabled}
+						>
+							{#if isEncoding}
+								<span>🔒 Encoding...</span>
+							{:else}
+								<span>🔒 Encode Secret</span>
+							{/if}
+						</button>
+					</div>
+				</div>
+
+				<!-- Right Panel: Preview & Output -->
+				<div class="space-y-6">
+					<!-- Preview / Output -->
+					{#if encodedMessage}
+						<!-- Step 3: Copy & Share -->
+						<div class="card p-4 lg:p-6 space-y-4 variant-glass-success">
+							<div class="flex items-center gap-2 mb-2">
+								<span class="badge variant-filled-success">Step 3</span>
+								<h2 class="h2 text-xl">✅ Your GhostPost is Ready!</h2>
+							</div>
+
+							{#if user}
+								<div class="card p-4 variant-ghost-success">
+									<p class="text-sm font-bold">✨ Saved to Your Account</p>
 									<p class="text-xs opacity-75 mt-1">
-										⚠️ Once {maxReveals}
-										{maxReveals === 1 ? 'person reveals' : 'people reveal'} this secret, it will be permanently
-										unreadable for everyone else!
+										Post ID: <code class="code text-xs">{currentPostId}</code>
 									</p>
-								{/if}
+									<p class="text-xs opacity-75 mt-2">
+										View your posts and analytics on the <a href="/dashboard" class="anchor"
+											>My Posts page</a
+										>
+									</p>
+								</div>
+							{:else}
+								<div class="card p-4 variant-ghost-warning">
+									<p class="text-sm font-bold">💡 Tip: Sign In to Save</p>
+									<p class="text-xs opacity-75 mt-1">
+										Sign in to automatically save your posts and track analytics
+									</p>
+								</div>
+							{/if}
+
+							<label class="label">
+								<span>Encoded Message (copy and paste anywhere)</span>
+								<textarea
+									class="textarea"
+									rows="6"
+									readonly
+									data-clipboard="encoded"
+									value={encodedMessage}
+								></textarea>
 							</label>
 
-							<div class="card p-3 variant-ghost-warning">
-								<p class="text-xs">
-									<strong>💎 What happens:</strong><br />
-									• Real-time counter shows "You are reveal #X of {maxReveals || 'Y'}"<br />
-									• Pulsing red warning when &lt;20% remaining<br />
-									• Confetti celebration for last few reveals<br />
-									• Message becomes "SOLD OUT FOREVER" when limit reached
-								</p>
+							<div class="card p-4 variant-ghost-surface">
+								<h3 class="h3 mb-2 text-sm">📊 Character Count</h3>
+								<div class="text-sm space-y-1">
+									<p>
+										Delivery: <strong
+											>{deliveryUsed === 'hosted' ? 'Hosted pointer' : 'Inline'}</strong
+										>
+									</p>
+									<p>Visible message: <strong>{characterStats.visibleLength}</strong> characters</p>
+									<p>
+										Hidden characters: <strong>{characterStats.hiddenLength}</strong> characters
+									</p>
+									<p>Total length: <strong>{characterStats.totalLength}</strong> characters</p>
+								</div>
+								{#if characterStats.totalLength > platformLimit.maxCharacters}
+									<div class="mt-2 text-warning-500 text-sm font-bold">
+										⚠️ Over {platformLimit.label}'s {platformLimit.maxCharacters}-character limit by
+										{characterStats.totalLength - platformLimit.maxCharacters}. Choose Auto or
+										Hosted, or shorten the visible message.
+									</div>
+								{:else}
+									<div class="mt-2 text-success-500 text-sm">
+										✓ Fits the configured {platformLimit.label} limit with
+										{platformLimit.maxCharacters - characterStats.totalLength} characters left.
+									</div>
+								{/if}
 							</div>
-						{/if}
-					</div>
 
-					<button
-						class="btn variant-filled-primary w-full"
-						on:click={handleEncode}
-						disabled={isEncodeDisabled}
-					>
-						{#if isEncoding}
-							<span>🔒 Encoding...</span>
-						{:else}
-							<span>🔒 Encode Secret</span>
-						{/if}
-					</button>
+							<div class="flex gap-2 flex-wrap">
+								<button
+									class="btn variant-filled-primary flex-1"
+									use:clipboard={{ input: 'encoded' }}
+								>
+									📋 Copy
+								</button>
+								<button class="btn variant-filled-secondary flex-1" on:click={reset}>
+									✨ New
+								</button>
+							</div>
+
+							<div class="card p-4 variant-ghost-surface">
+								<h3 class="h3 mb-2 text-sm">📤 Next Steps</h3>
+								<ol class="list-decimal list-inside space-y-1 text-sm">
+									<li>Copy the encoded message above</li>
+									<li>Paste it on social media (Twitter, LinkedIn, etc.)</li>
+									<li>It looks normal but contains your hidden secret!</li>
+									<li>Share the decode link with recipients</li>
+								</ol>
+							</div>
+						</div>
+					{:else}
+						<!-- Message Preview -->
+						<div class="card p-4 lg:p-6 space-y-4">
+							<h2 class="h2 text-xl">📝 Preview</h2>
+
+							{#if visibleMessage.trim()}
+								<div class="space-y-3">
+									<div>
+										<h3 class="font-bold text-sm mb-1">Visible Message:</h3>
+										<div class="card p-4 variant-ghost-surface">
+											<p class="text-sm whitespace-pre-wrap">{visibleMessage}</p>
+										</div>
+									</div>
+
+									{#if secretMessage.trim() || imagePreview}
+										<div>
+											<h3 class="font-bold text-sm mb-1">Secret Content:</h3>
+											<div class="card p-4 variant-ghost-secondary">
+												{#if secretType === 'text' && secretMessage.trim()}
+													<p class="text-sm whitespace-pre-wrap">{secretMessage}</p>
+												{:else if imagePreview}
+													<img
+														src={imagePreview}
+														alt="Secret"
+														class="max-w-full max-h-32 object-contain rounded"
+													/>
+												{/if}
+											</div>
+										</div>
+									{/if}
+
+									<div class="card p-3 variant-ghost-primary">
+										<p class="text-xs opacity-75">
+											👆 Ready to encode? Click "Encode Secret" to create your GhostPost!
+										</p>
+									</div>
+								</div>
+							{:else}
+								<div class="card p-8 variant-ghost-surface text-center">
+									<p class="text-sm opacity-50">Your message preview will appear here...</p>
+								</div>
+							{/if}
+						</div>
+
+						<!-- Test Encoding Info -->
+						<div class="card p-4 variant-ghost-surface">
+							<h3 class="h3 mb-2 text-sm">🧪 Test Your Encoding</h3>
+							<p class="text-xs opacity-75">
+								Once encoded, you can test by pasting the result on the
+								<a href="/decode" class="anchor">Decode page</a> to verify the hidden message.
+							</p>
+						</div>
+					{/if}
 				</div>
 			</div>
 
-			<!-- Right Panel: Preview & Output -->
-			<div class="space-y-6">
-				<!-- Preview / Output -->
-				{#if encodedMessage}
-					<!-- Step 3: Copy & Share -->
-					<div class="card p-4 lg:p-6 space-y-4 variant-glass-success">
-						<div class="flex items-center gap-2 mb-2">
-							<span class="badge variant-filled-success">Step 3</span>
-							<h2 class="h2 text-xl">✅ Your GhostPost is Ready!</h2>
-						</div>
-
-						{#if user}
-							<div class="card p-4 variant-ghost-success">
-								<p class="text-sm font-bold">✨ Saved to Your Account</p>
-								<p class="text-xs opacity-75 mt-1">
-									Post ID: <code class="code text-xs">{currentPostId}</code>
-								</p>
-								<p class="text-xs opacity-75 mt-2">
-									View your posts and analytics on the <a href="/dashboard" class="anchor"
-										>My Posts page</a
-									>
-								</p>
-							</div>
-						{:else}
-							<div class="card p-4 variant-ghost-warning">
-								<p class="text-sm font-bold">💡 Tip: Sign In to Save</p>
-								<p class="text-xs opacity-75 mt-1">
-									Sign in to automatically save your posts and track analytics
-								</p>
-							</div>
-						{/if}
-
-						<label class="label">
-							<span>Encoded Message (copy and paste anywhere)</span>
-							<textarea
-								class="textarea"
-								rows="6"
-								readonly
-								data-clipboard="encoded"
-								value={encodedMessage}
-							></textarea>
-						</label>
-
-						<div class="card p-4 variant-ghost-surface">
-							<h3 class="h3 mb-2 text-sm">📊 Character Count</h3>
-							<div class="text-sm space-y-1">
-								<p>Visible message: <strong>{characterStats.visibleLength}</strong> characters</p>
-								<p>Hidden characters: <strong>{characterStats.hiddenLength}</strong> characters</p>
-								<p>Total length: <strong>{characterStats.totalLength}</strong> characters</p>
-							</div>
-							{#if characterStats.totalLength > 40000}
-								<div class="mt-2 text-warning-500 text-sm font-bold">
-									⚠️ Warning: Message exceeds 40,000 characters and may not be accepted on some
-									platforms
-								</div>
-							{:else if characterStats.totalLength > 10000}
-								<div class="mt-2 text-secondary-500 text-sm">
-									ℹ️ Note: Some platforms have character limits. Twitter/X allows ~280 characters.
-								</div>
-							{/if}
-						</div>
-
-						<div class="flex gap-2 flex-wrap">
-							<button
-								class="btn variant-filled-primary flex-1"
-								use:clipboard={{ input: 'encoded' }}
-							>
-								📋 Copy
-							</button>
-							<button class="btn variant-filled-secondary flex-1" on:click={reset}> ✨ New </button>
-						</div>
-
-						<div class="card p-4 variant-ghost-surface">
-							<h3 class="h3 mb-2 text-sm">📤 Next Steps</h3>
-							<ol class="list-decimal list-inside space-y-1 text-sm">
-								<li>Copy the encoded message above</li>
-								<li>Paste it on social media (Twitter, LinkedIn, etc.)</li>
-								<li>It looks normal but contains your hidden secret!</li>
-								<li>Share the decode link with recipients</li>
-							</ol>
-						</div>
-					</div>
-				{:else}
-					<!-- Message Preview -->
-					<div class="card p-4 lg:p-6 space-y-4">
-						<h2 class="h2 text-xl">📝 Preview</h2>
-
-						{#if visibleMessage.trim()}
-							<div class="space-y-3">
-								<div>
-									<h3 class="font-bold text-sm mb-1">Visible Message:</h3>
-									<div class="card p-4 variant-ghost-surface">
-										<p class="text-sm whitespace-pre-wrap">{visibleMessage}</p>
-									</div>
-								</div>
-
-								{#if secretMessage.trim() || imagePreview}
-									<div>
-										<h3 class="font-bold text-sm mb-1">Secret Content:</h3>
-										<div class="card p-4 variant-ghost-secondary">
-											{#if secretType === 'text' && secretMessage.trim()}
-												<p class="text-sm whitespace-pre-wrap">{secretMessage}</p>
-											{:else if imagePreview}
-												<img
-													src={imagePreview}
-													alt="Secret"
-													class="max-w-full max-h-32 object-contain rounded"
-												/>
-											{/if}
-										</div>
-									</div>
-								{/if}
-
-								<div class="card p-3 variant-ghost-primary">
-									<p class="text-xs opacity-75">
-										👆 Ready to encode? Click "Encode Secret" to create your GhostPost!
-									</p>
-								</div>
-							</div>
-						{:else}
-							<div class="card p-8 variant-ghost-surface text-center">
-								<p class="text-sm opacity-50">Your message preview will appear here...</p>
-							</div>
-						{/if}
-					</div>
-
-					<!-- Test Encoding Info -->
-					<div class="card p-4 variant-ghost-surface">
-						<h3 class="h3 mb-2 text-sm">🧪 Test Your Encoding</h3>
-						<p class="text-xs opacity-75">
-							Once encoded, you can test by pasting the result on the
-							<a href="/decode" class="anchor">Decode page</a> to verify the hidden message.
-						</p>
-					</div>
-				{/if}
-			</div>
-		</div>
-
-		<!-- Error Display -->
-		{#if error}
-			<div class="card p-4 variant-ghost-error">
-				<p>❌ {error}</p>
-			</div>
-		{/if}
-
+			<!-- Error Display -->
+			{#if error}
+				<div class="card p-4 variant-ghost-error">
+					<p>❌ {error}</p>
+				</div>
+			{/if}
 		{/if}
 
 		<!-- How It Works -->
