@@ -439,6 +439,17 @@ The app uses invisible Unicode characters (zero-width characters, combining mark
 
 This allows secrets to be hidden in plain sight - the text looks normal but contains hidden data!
 
+### Cross-Site Functionality
+
+GhostPost works on **any website** (Twitter, Facebook, Reddit, etc.) through:
+
+- **Userscript/Browser Extension**: Runs on third-party sites to detect hidden messages
+- **Local DOM Processing**: Scans page content without making external requests (no CORS issues)
+- **CORS-Enabled API**: When API calls are needed, proper headers allow cross-origin requests
+- **Privacy-Focused**: All decoding happens locally in your browser
+
+For detailed technical documentation on how GhostPost avoids CORS restrictions and works across different sites, see **[📡 Cross-Site Functionality Guide](./CROSS_SITE_FUNCTIONALITY.md)**.
+
 ## 🗺️ Strategic Roadmap
 
 Want to see where GhostPost is headed? Check out our strategic planning documents:
