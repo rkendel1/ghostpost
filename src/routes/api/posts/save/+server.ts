@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { encryptSecret, deriveUserKey, getMasterSecret } from '$lib/encryption';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
@@ -8,32 +8,22 @@ import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/publi
  * POST /api/posts/save
  * Saves a post with encrypted secret message
  */
-export const POST: RequestHandler = async ({ request, locals, cookies }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		// Get user from session
-		const session = locals.session;
-
-		// Create server Supabase client
-		const supabaseServer = createServerClient(
-			PUBLIC_SUPABASE_URL,
-			PUBLIC_SUPABASE_ANON_KEY,
-			{
-				cookies: {
-					get(name) {
-						return cookies.get(name);
-					},
-					set(name, value, options) {
-						cookies.set(name, value, { ...options, path: '/' });
-					},
-					remove(name, options) {
-						cookies.delete(name, { ...options, path: '/' });
-					}
-				}
-			}
-		);
+		const authorization = request.headers.get('authorization');
+		const accessToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+		const supabaseServer = accessToken
+			? createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+					global: { headers: { Authorization: `Bearer ${accessToken}` } },
+					auth: { autoRefreshToken: false, persistSession: false }
+				})
+			: locals.supabase;
 
 		// Verify user with Supabase Auth server for security
-		const { data: { user }, error: authError } = await supabaseServer.auth.getUser();
+		const {
+			data: { user },
+			error: authError
+		} = await supabaseServer.auth.getUser(accessToken);
 
 		if (authError || !user) {
 			return json(

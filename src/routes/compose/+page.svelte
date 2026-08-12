@@ -59,6 +59,7 @@
 	});
 
 	$: user = $authStore.user;
+	$: session = $authStore.session;
 
 	async function generateContent() {
 		if (!prompt.trim()) {
@@ -199,10 +200,13 @@
 			if (user) {
 				try {
 					// Use API endpoint to save with encrypted secret
-					const saveResponse = await fetch('/api/posts/save', {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json'
+						const saveResponse = await fetch('/api/posts/save', {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+								...(session?.access_token
+									? { Authorization: `Bearer ${session.access_token}` }
+									: {})
 						},
 						credentials: 'include',
 						body: JSON.stringify({
