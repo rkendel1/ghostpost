@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StackLive Integration - Basic Example</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 800px;
+      width: 100%;
+      padding: 40px;
+    }
+    
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 32px;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 16px;
+    }
+    
+    .section {
+      margin-bottom: 30px;
+    }
+    
+    .section h2 {
+      color: #667eea;
+      font-size: 20px;
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      color: #555;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+      margin-bottom: 15px;
+    }
+    
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .result {
+      background: #f5f7fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      border-left: 4px solid #667eea;
+    }
+    
+    .result h3 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    
+    .result-text {
+      background: white;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      word-break: break-all;
+      margin-bottom: 10px;
+      border: 1px solid #e0e0e0;
+    }
+    
+    .info {
+      color: #666;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .checkbox-wrapper {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .checkbox-wrapper input[type="checkbox"] {
+      width: auto;
+      margin-right: 8px;
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔮 StackLive Integration</h1>
+    <p class="subtitle">Test GhostPost encoding and decoding</p>
+    
+    <!-- Encode Section -->
+    <div class="section">
+      <h2>📝 Encode a Hidden Message</h2>
+      <label for="visibleMessage">Public Message (visible to everyone)</label>
+      <input 
+        type="text" 
+        id="visibleMessage" 
+        placeholder="e.g., Check out this awesome post!"
+        value="Check out this awesome post!">
+      
+      <label for="secretMessage">Secret Message (hidden content)</label>
+      <textarea 
+        id="secretMessage" 
+        placeholder="e.g., But the real message is hidden here...">But the real message is hidden here...</textarea>
+      
+      <div class="checkbox-wrapper">
+        <input type="checkbox" id="enableTracking" checked>
+        <label for="enableTracking" style="margin-bottom: 0;">Enable experience tracking</label>
+      </div>
+      
+      <button id="encodeBtn">Encode Message</button>
+      
+      <div id="encodeResult" style="display: none;" class="result">
+        <h3>✅ Encoded Successfully</h3>
+        <div class="result-text" id="encodedText"></div>
+        <div class="info">
+          <strong>Visible:</strong> <span id="visibleLen"></span> chars | 
+          <strong>Hidden:</strong> <span id="hiddenLen"></span> chars | 
+          <strong>Total:</strong> <span id="totalLen"></span> chars
+        </div>
+        <div class="info" id="experienceIdInfo" style="display: none;">
+          <strong>Experience ID:</strong> <span id="experienceId"></span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Decode Section -->
+    <div class="section">
+      <h2>🔓 Decode a Hidden Message</h2>
+      <label for="encodedMessage">Encoded Message</label>
+      <textarea 
+        id="encodedMessage" 
+        placeholder="Paste an encoded message here..."></textarea>
+      
+      <div class="checkbox-wrapper">
+        <input type="checkbox" id="autoLaunch">
+        <label for="autoLaunch" style="margin-bottom: 0;">Auto-launch experience</label>
+      </div>
+      
+      <button id="decodeBtn">Decode Message</button>
+      
+      <div id="decodeResult" style="display: none;" class="result">
+        <h3>🎉 Decoded Successfully</h3>
+        <div class="result-text" id="decodedText"></div>
+        <div class="info" id="decodedExpInfo" style="display: none;">
+          <strong>Experience ID:</strong> <span id="decodedExpId"></span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Scan Section -->
+    <div class="section">
+      <h2>🔍 Scan for Hidden Content</h2>
+      <label for="scanText">Text to Scan</label>
+      <textarea 
+        id="scanText" 
+        placeholder="Paste any text to check for hidden content..."></textarea>
+      
+      <button id="scanBtn">Scan Text</button>
+      
+      <div id="scanResult" style="display: none;" class="result">
+        <h3>Scan Results</h3>
+        <div id="scanStatus"></div>
+      </div>
+    </div>
+  </div>
+  
+  <script type="module">
+    import { 
+      initStackLive,
+      encodeForStackLive,
+      decodeForStackLive,
+      scanForExperiences 
+    } from '../stacklive-integration.ts';
+    
+    // Initialize on page load
+    let initialized = false;
+    
+    async function ensureInit() {
+      if (!initialized) {
+        console.log('Initializing StackLive...');
+        await initStackLive();
+        initialized = true;
+        console.log('StackLive initialized!');
+      }
+    }
+    
+    // Encode button handler
+    document.getElementById('encodeBtn').addEventListener('click', async () => {
+      try {
+        await ensureInit();
+        
+        const visibleMessage = document.getElementById('visibleMessage').value;
+        const secretMessage = document.getElementById('secretMessage').value;
+        const enableTracking = document.getElementById('enableTracking').checked;
+        
+        if (!visibleMessage || !secretMessage) {
+          alert('Please enter both visible and secret messages');
+          return;
+        }
+        
+        const result = await encodeForStackLive(visibleMessage, secretMessage, enableTracking);
+        
+        // Display results
+        document.getElementById('encodedText').textContent = result.encoded;
+        document.getElementById('visibleLen').textContent = result.visibleLength;
+        document.getElementById('hiddenLen').textContent = result.hiddenLength;
+        document.getElementById('totalLen').textContent = result.totalLength;
+        
+        if (result.experienceId) {
+          document.getElementById('experienceId').textContent = result.experienceId;
+          document.getElementById('experienceIdInfo').style.display = 'block';
+        } else {
+          document.getElementById('experienceIdInfo').style.display = 'none';
+        }
+        
+        document.getElementById('encodeResult').style.display = 'block';
+        
+        // Auto-fill decode section for testing
+        document.getElementById('encodedMessage').value = result.encoded;
+        
+      } catch (error) {
+        console.error('Encoding failed:', error);
+        alert('Encoding failed: ' + error.message);
+      }
+    });
+    
+    // Decode button handler
+    document.getElementById('decodeBtn').addEventListener('click', async () => {
+      try {
+        await ensureInit();
+        
+        const encodedMessage = document.getElementById('encodedMessage').value;
+        const autoLaunch = document.getElementById('autoLaunch').checked;
+        
+        if (!encodedMessage) {
+          alert('Please paste an encoded message');
+          return;
+        }
+        
+        const result = await decodeForStackLive(encodedMessage, autoLaunch);
+        
+        // Display results
+        document.getElementById('decodedText').textContent = result.message;
+        
+        if (result.experienceId) {
+          document.getElementById('decodedExpId').textContent = result.experienceId;
+          document.getElementById('decodedExpInfo').style.display = 'block';
+        } else {
+          document.getElementById('decodedExpInfo').style.display = 'none';
+        }
+        
+        document.getElementById('decodeResult').style.display = 'block';
+        
+      } catch (error) {
+        console.error('Decoding failed:', error);
+        alert('Decoding failed: ' + error.message);
+      }
+    });
+    
+    // Scan button handler
+    document.getElementById('scanBtn').addEventListener('click', async () => {
+      try {
+        await ensureInit();
+        
+        const scanText = document.getElementById('scanText').value;
+        
+        if (!scanText) {
+          alert('Please paste text to scan');
+          return;
+        }
+        
+        const detection = await scanForExperiences(scanText);
+        
+        const statusDiv = document.getElementById('scanStatus');
+        
+        if (detection && detection.detected) {
+          statusDiv.innerHTML = `
+            <span class="status success">✓ Hidden Content Detected</span>
+            <div class="info" style="margin-top: 10px;">
+              <strong>Invisible characters:</strong> ${detection.charCount}<br>
+              <strong>Clustered:</strong> ${detection.isClustered ? 'Yes' : 'No'}<br>
+              <strong>Complete message:</strong> ${detection.hasCompleteMessage ? 'Yes' : 'No'}
+            </div>
+          `;
+        } else {
+          statusDiv.innerHTML = `
+            <span class="status error">✗ No Hidden Content Found</span>
+            <div class="info" style="margin-top: 10px;">
+              This text does not contain any hidden GhostPost messages.
+            </div>
+          `;
+        }
+        
+        document.getElementById('scanResult').style.display = 'block';
+        
+      } catch (error) {
+        console.error('Scanning failed:', error);
+        alert('Scanning failed: ' + error.message);
+      }
+    });
+    
+    // Auto-fill scan text when encoding completes
+    document.getElementById('encodeBtn').addEventListener('click', () => {
+      setTimeout(() => {
+        const encoded = document.getElementById('encodedText').textContent;
+        if (encoded) {
+          document.getElementById('scanText').value = encoded;
+        }
+      }, 100);
+    });
+  </script>
+</body>
+</html>
