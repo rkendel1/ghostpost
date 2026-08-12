@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.7.0
+// @version      2.7.1
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -205,7 +205,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.7.0';
+	const SCRIPT_VERSION = '2.7.1';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 	const TRACKING_API_BASE = 'https://ghostpost-six.vercel.app/api/tracking';
 	const VERSION_API_URL = 'https://ghostpost-six.vercel.app/api/overlay/version';
@@ -1178,13 +1178,17 @@
 							continue;
 						}
 						const response = await fetch(
-							`https://ghostpost-six.vercel.app/api/posts/reveal?post_id=${encodeURIComponent(referenceId)}`
+							`https://ghostpost-six.vercel.app/api/posts/reveal?post_id=${encodeURIComponent(referenceId)}&_=${Date.now()}`,
+							{ cache: 'no-store' }
 						);
 						const hosted = await response.json();
 						if (!response.ok || !hosted.success) {
 							throw new Error(hosted.error || 'Failed to load hosted secret');
 						}
-						return { message: hosted.message, postId: referenceId };
+						if (typeof hosted.message !== 'string' || hosted.message.length === 0) {
+							throw new Error('Hosted secret returned an empty message');
+						}
+						return { message: hosted.message, postId: hosted.postId || referenceId };
 					}
 					return null;
 				}
@@ -1665,7 +1669,6 @@
 							${revealStatsHtml}
 						</div>
 						`;
-
 						// Start live polling if limited
 						if (postId && revealData && Number.isFinite(revealData.total_reveals)) {
 							const statusUrl = `https://ghostpost-six.vercel.app/api/limited-reveals/status?post_id=${postId}`;
@@ -1700,7 +1703,7 @@
 								<span style="font-size: 20px;">✨</span>
 								<span style="font-weight: 600; color: #059669;">Secret Revealed!</span>
 							</div>
-							<div style="font-size: 14px; color: #065f46; background: white; padding: 10px; border-radius: 4px; margin-top: 8px; white-space: pre-wrap; word-break: break-word;">${escapedMessage}</div>
+							<div class="ghostpost-revealed-text" style="font-size: 14px; color: #065f46; -webkit-text-fill-color: #065f46; background: white; padding: 10px; border-radius: 4px; margin-top: 8px; white-space: pre-wrap; word-break: break-word; line-height: 1.45;">${escapedMessage}</div>
 							${revealStatsHtml}
 							<button class="copy-secret-btn" style="margin-top: 10px; padding: 6px 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
 								<span>📋</span>
@@ -1708,6 +1711,10 @@
 							</button>
 						</div>
 						`;
+						// Assign as text after constructing the card so host-page CSS/HTML cannot
+						// consume or reinterpret the revealed value.
+						const revealedText = itemElement.querySelector('.ghostpost-revealed-text');
+						if (revealedText) revealedText.textContent = decodedMessage;
 
 						// Start live polling if limited
 						if (postId && revealData && Number.isFinite(revealData.total_reveals)) {
