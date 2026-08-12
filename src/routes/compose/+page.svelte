@@ -148,6 +148,7 @@
 				inlineResult = await encodeMessage(visibleMessage, secretMessage);
 				const shouldHost =
 					deliveryMode === 'hosted' ||
+					(deliveryMode === 'auto' && platform === 'reddit') ||
 					(deliveryMode === 'auto' && inlineResult.totalLength > platformLimit.maxCharacters);
 
 				if (shouldHost) {
@@ -155,13 +156,25 @@
 						throw new Error('Sign in to store a hosted secret');
 					}
 					const hostedPostId = uuidv4();
-					result = await encodeReference(
-						visibleMessage,
-						REF_TYPE_GHOSTPOST,
-						hostedPostId,
-						undefined,
-						hostedPostId
-					);
+					if (platform === 'reddit') {
+						const revealUrl = `${window.location.origin}/decode?post_id=${encodeURIComponent(hostedPostId)}`;
+						const encoded = `${visibleMessage}\n\nReveal the hidden message: ${revealUrl}`;
+						result = {
+							encoded,
+							postId: hostedPostId,
+							visibleLength: visibleMessage.length,
+							hiddenLength: encoded.length - visibleMessage.length,
+							totalLength: encoded.length
+						};
+					} else {
+						result = await encodeReference(
+							visibleMessage,
+							REF_TYPE_GHOSTPOST,
+							hostedPostId,
+							undefined,
+							hostedPostId
+						);
+					}
 					deliveryUsed = 'hosted';
 				} else {
 					result = inlineResult;
@@ -376,7 +389,8 @@
 								<option value="facebook"
 									>Facebook — {getPlatformLimit('facebook').maxCharacters}</option
 								>
-								<option value="tiktok">TikTok — {getPlatformLimit('tiktok').maxCharacters}</option>
+							<option value="tiktok">TikTok — {getPlatformLimit('tiktok').maxCharacters}</option>
+							<option value="reddit">Reddit — {getPlatformLimit('reddit').maxCharacters}</option>
 							</select>
 							<p class="text-xs opacity-75 mt-1">
 								Ghostpost uses this limit to choose a delivery method. Platform rules can change.
@@ -503,8 +517,13 @@
 							</label>
 							<p class="text-xs opacity-75">
 								{#if deliveryMode === 'auto'}
-									Ghostpost embeds the secret when it fits {platformLimit.label}; otherwise it
-									stores the encrypted text and hides a small pointer in the post.
+									{#if platform === 'reddit'}
+										Reddit receives normal text and a reveal link, with no invisible payload for its
+										filters to reject.
+									{:else}
+										Ghostpost embeds the secret when it fits {platformLimit.label}; otherwise it
+										stores the encrypted text and hides a small pointer in the post.
+									{/if}
 								{:else if deliveryMode === 'inline'}
 									Works without fetching from Ghostpost, but invisible characters count toward
 									platform limits.

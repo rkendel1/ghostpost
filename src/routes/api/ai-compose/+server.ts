@@ -37,7 +37,9 @@ export const POST: RequestHandler = async ({ request }) => {
 			twitter: 'Keep it under 280 characters, casual and engaging.',
 			linkedin: 'Professional tone, can be longer (up to 3000 chars), thought-leadership style.',
 			facebook: 'Conversational, engaging, can use emojis, moderate length.',
-			tiktok: 'Fun, trendy, can use hashtags and emojis, caption style (under 150 chars).'
+			tiktok: 'Fun, trendy, can use hashtags and emojis, caption style (under 150 chars).',
+			reddit:
+				'Write a descriptive, community-first post with a clear title and useful context. Avoid promotional language, excessive links, and hashtag-style copy.'
 		};
 
 		const systemPrompt = `You are a social media content creator. Generate a ${platform} post based on the user's prompt. ${

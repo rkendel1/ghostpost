@@ -2,7 +2,13 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { clipboard } from '@skeletonlabs/skeleton';
-	import { decodeMessage, decodeReference, initWasm } from '$lib/ghostpost';
+	import {
+		decodeMessage,
+		decodeReference,
+		encodeReference,
+		initWasm,
+		REF_TYPE_GHOSTPOST
+	} from '$lib/ghostpost';
 	// import AuthGuard from '$lib/components/AuthGuard.svelte'; // Removed to allow public access
 	import confetti from 'canvas-confetti';
 	import type { RevealStatus, RevealResult, LimitedSecret } from '$lib/types/limited-reveals';
@@ -42,7 +48,18 @@
 
 		// Check for text parameter from URL (for mobile share or overlay button)
 		const urlText = $page.url.searchParams.get('text');
-		if (urlText) {
+		const hostedPostId = $page.url.searchParams.get('post_id');
+		if (hostedPostId) {
+			const reference = await encodeReference(
+				'Ghostpost',
+				REF_TYPE_GHOSTPOST,
+				hostedPostId,
+				undefined,
+				hostedPostId
+			);
+			encodedInput = reference.encoded;
+			await handleDecode();
+		} else if (urlText) {
 			encodedInput = decodeURIComponent(urlText);
 
 			// Only auto-decode if text is small enough to prevent unresponsiveness
