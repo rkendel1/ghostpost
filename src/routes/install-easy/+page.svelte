@@ -5,7 +5,7 @@
 	let tampermonkeyInstalled = $state(false);
 	let userscriptInstalled = $state(false);
 	let installedOverlayVersion = $state<string | null>(null);
-	const currentOverlayVersion = '2.7.1';
+	const currentOverlayVersion = '2.7.2';
 	let browserType = $state<'chrome' | 'firefox' | 'safari' | 'edge' | 'other'>('other');
 	let verificationComplete = $state(false);
 

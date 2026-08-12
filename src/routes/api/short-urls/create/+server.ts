@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_ANON_KEY, PUBLIC_SUPABASE_URL } from '$env/static/public';
 
 const SHORT_CODE_PATTERN = /^[0-9A-Za-z]{1,20}$/;
+const GHOSTPOST_SHORT_URL_IDENTITY = 'ghostpost';
 
 /** Create an opaque short code for a hosted Ghostpost. The shortener ownership
  * fingerprint never reaches the browser. */
@@ -24,11 +25,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ success: false, error: 'Valid postId required' }, { status: 400 });
 	}
 
-	const fingerprint = process.env.SHORT_URL_FINGERPRINT?.trim();
-	if (!fingerprint) {
-		return json({ success: false, error: 'Short URL service is not configured' }, { status: 503 });
-	}
-
 	const shortBase = (process.env.SHORT_URL_BASE_URL || 'https://0-2.ca').replace(/\/$/, '');
 	const appBase = (process.env.GHOSTPOST_PUBLIC_URL || 'https://ghostpost-six.vercel.app').replace(/\/$/, '');
 	try {
@@ -37,7 +33,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				url: `${appBase}/api/posts/reveal?post_id=${encodeURIComponent(postId)}`,
-				fingerprint
+				fingerprint: GHOSTPOST_SHORT_URL_IDENTITY
 			}),
 			signal: AbortSignal.timeout(12_000)
 		});

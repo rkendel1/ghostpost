@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.7.1
+// @version      2.7.2
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -205,7 +205,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.7.1';
+	const SCRIPT_VERSION = '2.7.2';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 	const TRACKING_API_BASE = 'https://ghostpost-six.vercel.app/api/tracking';
 	const VERSION_API_URL = 'https://ghostpost-six.vercel.app/api/overlay/version';
@@ -1692,8 +1692,6 @@
 							itemElement.dataset.pollInterval = pollInterval.toString();
 						}
 					} else {
-						const escapedMessage = escapeHtml(decodedMessage);
-
 						// Build reveal stats HTML using helper function
 						const revealStatsHtml = generateRevealStatsHtml(revealData);
 
@@ -1703,7 +1701,7 @@
 								<span style="font-size: 20px;">✨</span>
 								<span style="font-weight: 600; color: #059669;">Secret Revealed!</span>
 							</div>
-							<div class="ghostpost-revealed-text" style="font-size: 14px; color: #065f46; -webkit-text-fill-color: #065f46; background: white; padding: 10px; border-radius: 4px; margin-top: 8px; white-space: pre-wrap; word-break: break-word; line-height: 1.45;">${escapedMessage}</div>
+							<textarea class="ghostpost-revealed-text" readonly aria-label="Revealed secret" style="display: block; width: 100%; min-height: 120px; max-height: 280px; box-sizing: border-box; resize: vertical; overflow: auto; border: 0; outline: 0; font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #065f46 !important; -webkit-text-fill-color: #065f46 !important; opacity: 1 !important; background: #ffffff !important; padding: 10px; border-radius: 4px; margin-top: 8px;"></textarea>
 							${revealStatsHtml}
 							<button class="copy-secret-btn" style="margin-top: 10px; padding: 6px 12px; background: #059669; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
 								<span>📋</span>
@@ -1714,7 +1712,12 @@
 						// Assign as text after constructing the card so host-page CSS/HTML cannot
 						// consume or reinterpret the revealed value.
 						const revealedText = itemElement.querySelector('.ghostpost-revealed-text');
-						if (revealedText) revealedText.textContent = decodedMessage;
+						if (!(revealedText instanceof HTMLTextAreaElement)) {
+							throw new Error('Could not create the reveal display');
+						}
+						revealedText.value = decodedMessage;
+						revealedText.defaultValue = decodedMessage;
+						revealedText.style.height = `${Math.min(280, Math.max(120, revealedText.scrollHeight))}px`;
 
 						// Start live polling if limited
 						if (postId && revealData && Number.isFinite(revealData.total_reveals)) {

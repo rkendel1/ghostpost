@@ -52,7 +52,7 @@ cp dist/ghostpost-reveal-extension.zip static/
 # Verify that both one-click download artifacts are present and current.
 echo "🔎 Verifying install artifacts..."
 grep -q '^// @name[[:space:]]\+Ghostpost Reveal' static/ghostpost-reveal.user.js
-grep -q '^// @version[[:space:]]\+2.7.1' static/ghostpost-reveal.user.js
+grep -q '^// @version[[:space:]]\+2.7.2' static/ghostpost-reveal.user.js
 unzip -p static/ghostpost-reveal-extension.zip manifest.json | grep -q '"version": "2.1.0"'
 unzip -p static/ghostpost-reveal-extension.zip sidebar/panel.js | grep -q 'decode_reference'
 
