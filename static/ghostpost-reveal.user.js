@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghostpost Reveal
 // @namespace    https://ghostpost-six.vercel.app
-// @version      2.6.0
+// @version      2.6.1
 // @description  Reveal hidden Ghostpost messages on any webpage with one click - now with inline decoding and countdown!
 // @author       Ghostpost
 // @match        *://*/*
@@ -205,7 +205,7 @@
 
 	// Configuration - Hardened constants
 	const BUTTON_ID = 'ghostpost-reveal-button';
-	const SCRIPT_VERSION = '2.6.0';
+	const SCRIPT_VERSION = '2.6.1';
 	const DEBUG_MODE = false; // Set to true for verbose logging
 	const TRACKING_API_BASE = 'https://ghostpost-six.vercel.app/api/tracking';
 	const VERSION_API_URL = 'https://ghostpost-six.vercel.app/api/overlay/version';
@@ -1654,7 +1654,7 @@
 						`;
 
 						// Start live polling if limited
-						if (postId && revealData && revealData.total_reveals !== null) {
+						if (postId && revealData && Number.isFinite(revealData.total_reveals)) {
 							const statusUrl = `https://ghostpost-six.vercel.app/api/limited-reveals/status?post_id=${postId}`;
 							const pollInterval = setInterval(async () => {
 								try {
@@ -1673,7 +1673,7 @@
 									// Silent error
 								}
 							}, 5000);
-							item.dataset.pollInterval = pollInterval.toString();
+							itemElement.dataset.pollInterval = pollInterval.toString();
 						}
 					} else {
 						const escapedMessage = escapeHtml(decodedMessage);
@@ -1697,7 +1697,7 @@
 						`;
 
 						// Start live polling if limited
-						if (postId && revealData && revealData.total_reveals !== null) {
+						if (postId && revealData && Number.isFinite(revealData.total_reveals)) {
 							const statusUrl = `https://ghostpost-six.vercel.app/api/limited-reveals/status?post_id=${postId}`;
 							const pollInterval = setInterval(async () => {
 								try {
@@ -1716,7 +1716,7 @@
 									// Silent error
 								}
 							}, 5000);
-							item.dataset.pollInterval = pollInterval.toString();
+							itemElement.dataset.pollInterval = pollInterval.toString();
 						}
 
 						// Add copy functionality
